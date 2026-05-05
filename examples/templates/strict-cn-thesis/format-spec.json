@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "1.1.0",
+  "name": "strict-cn-thesis",
+  "pageSetup": {
+    "paperSize": "a4",
+    "orientation": "portrait",
+    "topMarginCm": 2.54,
+    "bottomMarginCm": 2.54,
+    "leftMarginCm": 3.0,
+    "rightMarginCm": 2.5,
+    "gutterCm": 0.0,
+    "headerDistanceCm": 1.5,
+    "footerDistanceCm": 1.75,
+    "columns": 1
+  },
+  "defaultFont": {
+    "eastAsia": "宋体",
+    "latin": "Times New Roman",
+    "sizePt": 12,
+    "bold": false,
+    "italic": false
+  },
+  "bodyParagraph": {
+    "lineSpacingMultiple": 1.5,
+    "spaceBeforePt": 0,
+    "spaceAfterPt": 0,
+    "firstLineIndentChars": 2,
+    "hangingIndentCm": 0,
+    "alignment": "both",
+    "widowControl": true
+  },
+  "headings": {
+    "1": {
+      "level": 1,
+      "font": {
+        "eastAsia": "黑体",
+        "latin": "Times New Roman",
+        "sizePt": 16,
+        "bold": true
+      },
+      "spaceBeforePt": 12,
+      "spaceAfterPt": 6,
+      "numbered": true,
+      "pageBreakBefore": false,
+      "outlineLevel": 0,
+      "alignment": "center"
+    },
+    "2": {
+      "level": 2,
+      "font": {
+        "eastAsia": "黑体",
+        "latin": "Times New Roman",
+        "sizePt": 14,
+        "bold": true
+      },
+      "spaceBeforePt": 8,
+      "spaceAfterPt": 4,
+      "numbered": true,
+      "pageBreakBefore": false,
+      "outlineLevel": 1,
+      "alignment": "left"
+    },
+    "3": {
+      "level": 3,
+      "font": {
+        "eastAsia": "黑体",
+        "latin": "Times New Roman",
+        "sizePt": 12,
+        "bold": true
+      },
+      "spaceBeforePt": 6,
+      "spaceAfterPt": 3,
+      "numbered": true,
+      "pageBreakBefore": false,
+      "outlineLevel": 2,
+      "alignment": "left"
+    }
+  },
+  "headerFooter": {
+    "headerText": "严格格式毕业论文",
+    "drawHeaderLine": true,
+    "headerAlignment": "center",
+    "pageNumberAlignment": "center",
+    "hidePageNumberOnCover": true,
+    "differentFirstPage": false,
+    "differentOddEven": false
+  },
+  "toc": {
+    "title": "目录",
+    "minLevel": 1,
+    "maxLevel": 3,
+    "useWordFieldCode": true
+  },
+  "tables": {
+    "widthPercent": 100,
+    "cellMarginCm": 0.1,
+    "useThreeLineTables": true,
+    "captionPosition": "above",
+    "defaultAlignment": "center",
+    "defaultWidth": {
+      "type": "percent",
+      "value": 100
+    },
+    "defaultLayout": "fixed",
+    "defaultCellMargins": {
+      "topCm": 0.1,
+      "bottomCm": 0.1,
+      "leftCm": 0.12,
+      "rightCm": 0.12
+    },
+    "defaultBorders": {
+      "top": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "bottom": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "left": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "right": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "insideH": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "insideV": { "style": "single", "size": 4, "color": "000000", "space": 0 }
+    },
+    "threeLineTableBorders": {
+      "top": { "style": "single", "size": 12, "color": "000000", "space": 0 },
+      "bottom": { "style": "single", "size": 12, "color": "000000", "space": 0 },
+      "left": { "style": "nil", "size": 0, "color": "000000", "space": 0 },
+      "right": { "style": "nil", "size": 0, "color": "000000", "space": 0 },
+      "insideH": { "style": "single", "size": 6, "color": "000000", "space": 0 },
+      "insideV": { "style": "nil", "size": 0, "color": "000000", "space": 0 }
+    },
+    "caption": {
+      "position": "before",
+      "style": "ThesisCaption",
+      "numbering": true
+    },
+    "repeatHeaderRowsDefault": 1,
+    "allowRowBreakAcrossPagesDefault": false
+  },
+  "equations": {
+    "defaultAlignment": "center",
+    "fontSizePt": 12,
+    "numbering": {
+      "enabled": true,
+      "label": "公式",
+      "format": "({chapter}.{index})",
+      "restartByHeadingLevel": 1,
+      "position": "right"
+    },
+    "spacingBeforePt": 6,
+    "spacingAfterPt": 6,
+    "captionStyle": "ThesisCaption",
+    "allowLatexFallbackToPlain": true,
+    "ommlSafetyMode": "strict"
+  },
+  "figures": {
+    "defaultWidthCm": 8,
+    "defaultHeightCm": 4.5,
+    "center": true,
+    "captionPosition": "below"
+  },
+  "captions": {
+    "figureLabel": "图",
+    "tableLabel": "表",
+    "equationLabel": "式",
+    "separator": " ",
+    "numberFormat": "{label}{number}{separator}{text}"
+  },
+  "bibliography": {
+    "title": "参考文献",
+    "entryParagraph": {
+      "lineSpacingMultiple": 1.0,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 0,
+      "firstLineIndentChars": 0,
+      "hangingIndentCm": 0.74,
+      "alignment": "both",
+      "widowControl": true
+    },
+    "numberFormat": "[%1]"
+  },
+  "numbering": {
+    "headingLevel1Text": "第%1章",
+    "headingLevel2Text": "%1.%2",
+    "headingLevel3Text": "%1.%2.%3",
+    "orderedListText": "%1.",
+    "bibliographyText": "[%1]"
+  },
+  "compatibility": {
+    "defaultLanguage": "zh-CN",
+    "useEastAsiaFonts": true,
+    "wordCompatibilityMode": "Word2019"
+  },
+  "sections": {
+    "cover": {
+      "pageNumberStyle": "none",
+      "restartPageNumbering": true,
+      "startPageNumber": 1,
+      "includeHeader": false,
+      "includeFooter": false
+    },
+    "frontMatter": {
+      "pageNumberStyle": "lowerRoman",
+      "restartPageNumbering": true,
+      "startPageNumber": 1,
+      "includeHeader": true,
+      "includeFooter": true
+    },
+    "body": {
+      "pageNumberStyle": "decimal",
+      "restartPageNumbering": true,
+      "startPageNumber": 1,
+      "includeHeader": true,
+      "includeFooter": true
+    }
+  },
+  "coverPage": {
+    "fieldOrder": ["title", "author", "studentId", "college", "major", "advisor", "date"]
+  },
+  "validation": {
+    "allowHeadingLevelSkips": false
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "example-university-engineering",
+  "name": "Example University Engineering Thesis",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Fictional engineering college thesis template with cover and declaration page layouts.",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "master",
+  "tags": ["example", "engineering", "template"],
+  "formatSpecRef": "format-spec.json",
+  "variables": [
+    {
+      "name": "defenseDate",
+      "label": "Defense Date",
+      "type": "date",
+      "required": true,
+      "defaultValue": "2026-06-01",
+      "description": "Date used on the cover and declaration signature row.",
+      "format": "yyyy-MM-dd",
+      "displayOrder": 1
+    },
+    {
+      "name": "confidentiality",
+      "label": "Confidentiality",
+      "type": "string",
+      "required": false,
+      "defaultValue": "公开",
+      "description": "Public/confidential marker.",
+      "displayOrder": 2
+    }
+  ],
+  "assets": [
+    {
+      "id": "collegeLogo",
+      "type": "image",
+      "path": "assets/logo-placeholder.png",
+      "contentType": "image/png",
+      "description": "Placeholder logo for the fictional college.",
+      "required": true
+    },
+    {
+      "id": "eastAsiaFontMetadata",
+      "type": "font",
+      "path": "assets/logo-placeholder.png",
+      "contentType": "application/x-font-metadata",
+      "description": "Font asset metadata only; no font embedding is performed.",
+      "required": false
+    }
+  ],
+  "pageTemplates": [
+    {
+      "id": "engineering-cover",
+      "targetSectionType": "cover",
+      "insertPosition": "replaceSectionContent",
+      "pageSetupOverride": {
+        "paperSize": "a4",
+        "orientation": "portrait",
+        "topMarginCm": 2.2,
+        "bottomMarginCm": 2.2,
+        "leftMarginCm": 2.8,
+        "rightMarginCm": 2.6,
+        "gutterCm": 0,
+        "headerDistanceCm": 1.5,
+        "footerDistanceCm": 1.75,
+        "columns": 1
+      },
+      "blocks": [
+        { "type": "spacer", "heightCm": 1.2 },
+        { "type": "image", "assetId": "collegeLogo", "widthCm": 2.2, "heightCm": 2.2, "alignment": "center" },
+        { "type": "text", "value": "{{template.school}}", "style": "ThesisTocTitle", "alignment": "center", "spacingBeforePt": 12, "spacingAfterPt": 6 },
+        { "type": "text", "value": "{{template.college}}", "style": "ThesisBody", "alignment": "center", "spacingAfterPt": 18 },
+        {
+          "type": "fieldTable",
+          "columns": 2,
+          "borderMode": "bottomLine",
+          "labelColumnWidthCm": 3.0,
+          "valueColumnWidthCm": 9.5,
+          "rows": [
+            [{ "type": "metadataField", "label": "论文题目", "sourcePath": "metadata.title", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "作者", "sourcePath": "metadata.author", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "学号", "sourcePath": "metadata.studentId", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "专业", "sourcePath": "metadata.major", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "导师", "sourcePath": "metadata.advisor", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "学院", "sourcePath": "metadata.college", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "答辩日期", "variableName": "defenseDate", "layout": "tableRow", "underline": true }]
+          ]
+        },
+        { "type": "metadataField", "label": "密级", "variableName": "confidentiality", "layout": "labelValueLine", "alignment": "center" },
+        { "type": "pageBreak" }
+      ]
+    },
+    {
+      "id": "engineering-declaration",
+      "targetSectionType": "declaration",
+      "insertPosition": "replaceSectionContent",
+      "blocks": [
+        { "type": "text", "value": "原创性声明", "style": "ThesisTocTitle", "alignment": "center", "spacingAfterPt": 12 },
+        {
+          "type": "declarationText",
+          "paragraphs": [
+            "本人声明所提交的毕业论文是在导师指导下独立完成的研究成果。",
+            "除文中已经注明引用的内容外，本文不包含任何其他个人或集体已经发表或撰写过的作品成果。"
+          ],
+          "signatureFields": [
+            { "type": "metadataField", "label": "作者签名", "valueTemplate": "签名：{{metadata.author}}", "layout": "labelValueLine", "underline": true, "alignment": "right" },
+            { "type": "metadataField", "label": "日期", "variableName": "defenseDate", "layout": "labelValueLine", "underline": true, "alignment": "right" }
+          ]
+        },
+        { "type": "pageBreak" }
+      ]
+    }
+  ],
+  "complianceRules": [
+    { "id": "cover-required-fields", "description": "Cover must show title, author, student id, major, advisor, college, and defense date.", "severity": "warning" },
+    { "id": "declaration-required-text", "description": "Declaration page must include originality statement and signature fields.", "severity": "warning" }
+  ],
+  "notes": ["Fictional template for tests and examples only."]
+}

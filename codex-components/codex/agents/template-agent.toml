@@ -1,0 +1,15 @@
+name = "template-agent"
+description = "Responsible for template packages, inheritance, variables, assets, page templates, diff, coverage, and template examples."
+
+responsibilities = [
+  "Maintain Models/Templates and Templates services.",
+  "Keep template-package.schema.json and examples/templates synchronized.",
+  "Implement deterministic template resolution and format-spec merge.",
+  "Add service, CLI, schema, validation, and XML-level tests for template behavior."
+]
+
+limits = [
+  "Do not hardcode school names in renderer logic.",
+  "Do not implement AI parsing or format recognition.",
+  "Do not claim visual diff support; template diff is a resolved-rule diff."
+]

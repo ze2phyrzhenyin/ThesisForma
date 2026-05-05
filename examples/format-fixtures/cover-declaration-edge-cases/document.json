@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "1.1.0",
+  "metadata": {
+    "title": "结构化毕业论文 DOCX 渲染引擎设计与实现",
+    "subtitle": "完整功能测试示例",
+    "author": "张三",
+    "college": "计算机学院",
+    "major": "软件工程",
+    "studentId": "20260001",
+    "advisor": "李四",
+    "date": "2026年5月",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "kind": "cover",
+      "blocks": []
+    },
+    {
+      "id": "abstract-cn",
+      "kind": "abstract",
+      "title": "摘要",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "本文给出一个完整的结构化论文渲染示例，覆盖标题、段落、图表、脚注、尾注、引用和附录。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toc",
+      "kind": "toc",
+      "blocks": []
+    },
+    {
+      "id": "body",
+      "kind": "body",
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "chapter-1",
+          "level": 1,
+          "bookmarkName": "bm-chapter-1",
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "绪论" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "本章说明研究背景，并引用 " },
+            { "type": "reference", "bookmarkName": "bm-chapter-1", "fallbackText": "绪论" },
+            { "type": "text", "text": " 的定义。复杂度可写作 O(n" },
+            { "type": "text", "text": "2", "verticalAlignment": "superscript" },
+            { "type": "text", "text": ")，化学式示例为 H" },
+            { "type": "text", "text": "2", "verticalAlignment": "subscript" },
+            { "type": "text", "text": "O。" },
+            {
+              "type": "footnote",
+              "noteId": "fn-background",
+              "inlines": [
+                { "type": "text", "text": "这是一个真实 footnotes.xml 中的脚注内容。" }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "研究背景" }]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "格式合规问题" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "段落内支持 " },
+            { "type": "text", "text": "加粗", "bold": true },
+            { "type": "text", "text": "、" },
+            { "type": "text", "text": "斜体", "italic": true },
+            { "type": "text", "text": " 和引用标记 " },
+            { "type": "citation", "targetId": "ref-openxml", "displayText": "[1]" },
+            { "type": "text", "text": "。" }
+          ]
+        },
+        {
+          "type": "heading",
+          "id": "chapter-2",
+          "level": 1,
+          "bookmarkName": "bm-chapter-2",
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "系统设计" }]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "结构化模型" }]
+        },
+        {
+          "type": "figure",
+          "id": "fig-render-flow",
+          "caption": "渲染流程示意图",
+          "imageContentType": "image/png",
+          "imageDataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          "widthCm": 5,
+          "heightCm": 3
+        },
+        {
+          "type": "table",
+          "id": "tbl-format-rules",
+          "bookmarkId": "bm-table-format-rules",
+          "caption": "格式规则摘要",
+          "captionPosition": "before",
+          "style": "threeLine",
+          "width": { "type": "percent", "value": 100 },
+          "alignment": "center",
+          "layout": "fixed",
+          "allowRowBreakAcrossPages": false,
+          "repeatHeaderRows": 1,
+          "cellMargins": {
+            "topCm": 0.1,
+            "bottomCm": 0.1,
+            "leftCm": 0.12,
+            "rightCm": 0.12
+          },
+          "rows": [
+            {
+              "id": "tbl-header",
+              "isHeader": true,
+              "cantSplit": true,
+              "cells": [
+                { "text": "规则", "width": { "type": "dxa", "value": 2400 }, "alignment": "center", "verticalAlignment": "center" },
+                { "text": "说明", "gridSpan": 2, "width": { "type": "dxa", "value": 7200 }, "alignment": "center", "verticalAlignment": "center" }
+              ]
+            },
+            {
+              "cantSplit": true,
+              "cells": [
+                { "text": "页面", "alignment": "center", "verticalMerge": "restart", "verticalAlignment": "center" },
+                {
+                  "text": "纸张",
+                  "alignment": "center",
+                  "cellMargins": {
+                    "topCm": 0.08,
+                    "bottomCm": 0.08,
+                    "leftCm": 0.2,
+                    "rightCm": 0.2
+                  }
+                },
+                {
+                  "text": "A4，前置部分罗马页码，正文阿拉伯页码",
+                  "borders": {
+                    "bottom": { "style": "double", "size": 8, "color": "000000", "space": 0 }
+                  }
+                }
+              ]
+            },
+            {
+              "cells": [
+                { "text": "", "alignment": "center", "verticalMerge": "continue" },
+                { "text": "标题", "alignment": "center" },
+                { "text": "第1章、1.1、1.1.1" }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "系统设计部分包含一个尾注" },
+            {
+              "type": "endnote",
+              "noteId": "en-design",
+              "inlines": [
+                { "type": "text", "text": "这是一个真实 endnotes.xml 中的尾注内容。" }
+              ]
+            },
+            { "type": "text", "text": "。" }
+          ]
+        },
+        {
+          "type": "heading",
+          "id": "chapter-3",
+          "level": 1,
+          "bookmarkName": "bm-chapter-3",
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "实现与验证" }]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "OpenXML 部件" }]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "脚注与尾注" }]
+        },
+        {
+          "type": "equation",
+          "id": "eq-energy",
+          "bookmarkId": "bm-eq-energy",
+          "sourceType": "plain",
+          "plainText": "E=mc^2",
+          "alignment": "center",
+          "caption": "质能关系",
+          "numbering": {
+            "enabled": true,
+            "label": "公式",
+            "format": "({chapter}.{index})",
+            "restartByHeadingLevel": 1
+          }
+        },
+        {
+          "type": "equation",
+          "id": "eq-omml",
+          "bookmarkId": "bm-eq-omml",
+          "sourceType": "omml",
+          "omml": "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>a+b=c</m:t></m:r></m:oMath>",
+          "alignment": "center",
+          "numbering": {
+            "enabled": true,
+            "label": "公式",
+            "format": "({chapter}.{index})",
+            "restartByHeadingLevel": 1
+          }
+        },
+        {
+          "type": "equation",
+          "id": "eq-latex",
+          "sourceType": "latex",
+          "latex": "x^2",
+          "alignment": "center",
+          "numbering": {
+            "enabled": false
+          }
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "公式引用见 " },
+            { "type": "reference", "bookmarkName": "bm-eq-energy", "fallbackText": "(3.1)" },
+            { "type": "text", "text": "，表格引用见 " },
+            { "type": "reference", "bookmarkName": "bm-table-format-rules", "fallbackText": "表1" },
+            { "type": "text", "text": "。" },
+            { "type": "bookmark", "name": "bm-validation", "inlines": [{ "type": "text", "text": "验证器会检查真实 OpenXML 部件。" }] },
+            { "type": "text", "text": " 相关规则见 " },
+            { "type": "reference", "bookmarkName": "bm-validation", "fallbackText": "验证说明" },
+            { "type": "text", "text": "。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "refs",
+      "kind": "bibliography",
+      "title": "参考文献",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "bibliography",
+          "entries": [
+            { "id": "ref-openxml", "text": "Microsoft. Open XML SDK documentation." },
+            { "id": "ref-wordprocessingml", "text": "ECMA. Office Open XML WordprocessingML overview." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appendix-a",
+      "kind": "appendix",
+      "title": "附录A",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "inlines": [{ "type": "text", "text": "附录A 示例数据" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [{ "type": "text", "text": "附录用于保存补充材料。" }]
+        }
+      ]
+    }
+  ]
+}

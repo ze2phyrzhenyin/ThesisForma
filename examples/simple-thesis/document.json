@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "title": "基于结构化规则的毕业论文格式渲染研究",
+    "subtitle": "OpenXML 确定性生成示例",
+    "author": "张三",
+    "college": "计算机学院",
+    "major": "软件工程",
+    "studentId": "20260001",
+    "advisor": "李四",
+    "date": "2026年5月",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "kind": "cover",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "alignment": "center",
+          "styleId": "ThesisTocTitle",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "基于结构化规则的毕业论文格式渲染研究",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "alignment": "center",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "作者：张三\n学号：20260001\n学院：计算机学院\n专业：软件工程\n导师：李四\n日期：2026年5月"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "abstract-cn",
+      "kind": "abstract",
+      "title": "摘要",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "本文演示一个由结构化论文数据和声明式格式规则驱动的 DOCX 渲染引擎。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toc",
+      "kind": "toc",
+      "title": "目录",
+      "blocks": []
+    },
+    {
+      "id": "body",
+      "kind": "body",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "bookmarkName": "chapter-introduction",
+          "numbered": true,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "绪论"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "本章说明研究背景，并引用 "
+            },
+            {
+              "type": "reference",
+              "bookmarkName": "chapter-introduction",
+              "fallbackText": "绪论"
+            },
+            {
+              "type": "text",
+              "text": " 中的定义。算法复杂度示例为 O(n"
+            },
+            {
+              "type": "text",
+              "text": "2",
+              "verticalAlignment": "superscript"
+            },
+            {
+              "type": "text",
+              "text": ")。"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "numbered": true,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "研究方法"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "numbered": true,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "结构化模型"
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "caption": "格式规则示例",
+          "style": "threeLine",
+          "rows": [
+            {
+              "isHeader": true,
+              "cells": [
+                {
+                  "text": "项目",
+                  "widthCm": 4,
+                  "alignment": "center"
+                },
+                {
+                  "text": "值",
+                  "widthCm": 8,
+                  "alignment": "center"
+                }
+              ]
+            },
+            {
+              "cells": [
+                {
+                  "text": "页面",
+                  "alignment": "center"
+                },
+                {
+                  "text": "A4，正文页码重新开始"
+                }
+              ]
+            },
+            {
+              "cells": [
+                {
+                  "text": "标题",
+                  "alignment": "center"
+                },
+                {
+                  "text": "第1章、1.1、1.1.1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "figure",
+          "caption": "渲染流程示意图",
+          "imageContentType": "image/png",
+          "imageDataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          "widthCm": 4,
+          "heightCm": 2.4
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "正文引用示例 "
+            },
+            {
+              "type": "citation",
+              "targetId": "ref-openxml",
+              "displayText": "[1]"
+            },
+            {
+              "type": "text",
+              "text": "。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ack",
+      "kind": "acknowledgements",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "inlines": [
+            {
+              "type": "text",
+              "text": "致谢"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "感谢所有参与测试和审阅的人。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "refs",
+      "kind": "bibliography",
+      "title": "参考文献",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "bibliography",
+          "entries": [
+            {
+              "id": "ref-openxml",
+              "text": "Microsoft. Open XML SDK documentation."
+            },
+            {
+              "id": "ref-wordprocessingml",
+              "text": "ECMA. Office Open XML WordprocessingML overview."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

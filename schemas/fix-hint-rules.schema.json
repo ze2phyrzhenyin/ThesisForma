@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/fix-hint-rules.schema.json",
+  "title": "FixHintRuleCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rules"],
+  "properties": {
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/rule" }
+    }
+  },
+  "definitions": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hintId", "match", "title", "description", "suggestedAction", "confidence"],
+      "anyOf": [
+        { "required": ["docsRef"] },
+        { "required": ["exampleFixtureRef"] }
+      ],
+      "properties": {
+        "hintId": { "type": "string", "pattern": "^fix\\.[A-Za-z0-9_.-]+$" },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": { "type": "string" },
+            "code": { "type": "string" },
+            "category": { "type": "string" },
+            "pathPattern": { "type": "string" },
+            "severity": { "enum": ["info", "warning", "breaking"] }
+          }
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "suggestedSpecPath": { "type": "string" },
+        "suggestedTemplatePath": { "type": "string" },
+        "suggestedAction": { "type": "string", "minLength": 1 },
+        "docsRef": { "type": "string", "pattern": "^(docs|schemas)/[^\\n]+\\.md$" },
+        "exampleFixtureRef": { "type": "string" },
+        "confidence": { "enum": ["high", "medium", "low"] }
+      }
+    }
+  }
+}

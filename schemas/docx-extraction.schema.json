@@ -1,0 +1,265 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/docx-extraction.schema.json",
+  "title": "DocxExtractionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "inputFileName", "document", "plainText", "blocks", "paragraphs", "tables", "figures", "footnotes", "endnotes", "bookmarks", "hyperlinks", "fields", "styles", "numbering", "sections", "possibleHeadings", "possibleAbstract", "possibleKeywords", "possibleBibliography", "possibleCaptions", "possibleAppendix", "extractionIssues"],
+  "properties": {
+    "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
+    "inputFileName": { "type": "string" },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "paragraphCount", "tableCount", "figureCount", "footnoteCount", "endnoteCount"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "paragraphCount": { "type": "integer", "minimum": 0 },
+        "tableCount": { "type": "integer", "minimum": 0 },
+        "figureCount": { "type": "integer", "minimum": 0 },
+        "footnoteCount": { "type": "integer", "minimum": 0 },
+        "endnoteCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "plainText": { "type": "string" },
+    "blocks": { "type": "array", "items": { "$ref": "#/definitions/block" } },
+    "paragraphs": { "type": "array", "items": { "$ref": "#/definitions/paragraph" } },
+    "tables": { "type": "array", "items": { "$ref": "#/definitions/table" } },
+    "figures": { "type": "array", "items": { "$ref": "#/definitions/figure" } },
+    "footnotes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
+    "endnotes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
+    "bookmarks": { "type": "array", "items": { "$ref": "#/definitions/bookmark" } },
+    "hyperlinks": { "type": "array", "items": { "$ref": "#/definitions/hyperlink" } },
+    "fields": { "type": "array", "items": { "$ref": "#/definitions/field" } },
+    "styles": { "type": "array", "items": { "$ref": "#/definitions/style" } },
+    "numbering": { "type": "array", "items": { "$ref": "#/definitions/numbering" } },
+    "sections": { "type": "array", "items": { "$ref": "#/definitions/section" } },
+    "possibleHeadings": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "possibleAbstract": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "possibleKeywords": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "possibleBibliography": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "possibleCaptions": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "possibleAppendix": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
+    "extractionIssues": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
+  },
+  "definitions": {
+    "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$" },
+    "evidencePath": { "type": "string", "pattern": "^(document|paragraphs\\[[0-9]+\\]|tables\\[[0-9]+\\](\\.rows\\[[0-9]+\\]\\.cells\\[[0-9]+\\])?|footnotes\\[[0-9]+\\]|endnotes\\[[0-9]+\\]|sections\\[[0-9]+\\])$" },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "index", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "type": { "type": "string", "enum": ["paragraph", "table", "figure"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "paragraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "text", "runSummary", "possibleRole", "runs", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "index": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string" },
+        "styleId": { "type": ["string", "null"] },
+        "styleName": { "type": ["string", "null"] },
+        "outlineLevel": { "type": ["integer", "null"], "minimum": 0, "maximum": 9 },
+        "numberingId": { "type": ["string", "null"] },
+        "numberingLevel": { "type": ["integer", "null"], "minimum": 0, "maximum": 9 },
+        "alignment": { "type": ["string", "null"] },
+        "indent": { "type": ["string", "null"] },
+        "spacing": { "type": ["string", "null"] },
+        "runSummary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "hasBold", "hasItalic", "hasUnderline", "hasSuperscript", "hasSubscript"],
+          "properties": {
+            "count": { "type": "integer", "minimum": 0 },
+            "hasBold": { "type": "boolean" },
+            "hasItalic": { "type": "boolean" },
+            "hasUnderline": { "type": "boolean" },
+            "hasSuperscript": { "type": "boolean" },
+            "hasSubscript": { "type": "boolean" }
+          }
+        },
+        "possibleRole": { "type": "string" },
+        "runs": { "type": "array", "items": { "$ref": "#/definitions/run" } },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "bold", "italic", "underline", "superscript", "subscript"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "text": { "type": "string" },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "underline": { "type": "boolean" },
+        "font": { "type": ["string", "null"] },
+        "fontSizePt": { "type": ["number", "null"], "minimum": 0 },
+        "eastAsiaFont": { "type": ["string", "null"] },
+        "color": { "type": ["string", "null"] },
+        "superscript": { "type": "boolean" },
+        "subscript": { "type": "boolean" }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "rows", "text", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "index": { "type": "integer", "minimum": 0 },
+        "rows": { "type": "array", "items": { "$ref": "#/definitions/tableRow" } },
+        "text": { "type": "string" },
+        "borders": { "type": ["string", "null"] },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "tableRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "cells"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "cells": { "type": "array", "items": { "$ref": "#/definitions/tableCell" } }
+      }
+    },
+    "tableCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rowIndex", "cellIndex", "text", "gridSpan", "evidencePath"],
+      "properties": {
+        "rowIndex": { "type": "integer", "minimum": 0 },
+        "cellIndex": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string" },
+        "gridSpan": { "type": "integer", "minimum": 1 },
+        "verticalMerge": { "type": ["string", "null"] },
+        "borders": { "type": ["string", "null"] },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "figure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "nearbyText", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "index": { "type": "integer", "minimum": 0 },
+        "relationshipId": { "type": ["string", "null"] },
+        "contentType": { "type": ["string", "null"] },
+        "artifactPath": { "type": ["string", "null"] },
+        "suggestedCaption": { "type": ["string", "null"] },
+        "nearbyText": { "type": "string" },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "noteId", "text", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "noteId": { "type": "string" },
+        "text": { "type": "string" },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "bookmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "name": { "type": "string" },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "hyperlink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "text": { "type": "string" },
+        "uri": { "type": ["string", "null"] },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fieldType", "instruction", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "fieldType": { "type": "string", "enum": ["TOC", "PAGE", "REF", "other"] },
+        "instruction": { "type": "string" },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "styleId", "type", "usageCount"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "styleId": { "type": "string" },
+        "name": { "type": ["string", "null"] },
+        "type": { "type": "string" },
+        "usageCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "numbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "numberingId", "levels", "usageCount"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "numberingId": { "type": "string" },
+        "levels": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "usageCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "evidencePath", "pageSize", "margins", "pageNumbering"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "index": { "type": "integer", "minimum": 0 },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" },
+        "pageSize": { "type": "string" },
+        "margins": { "type": "string" },
+        "pageNumbering": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "evidencePath", "text", "reason", "confidence"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" },
+        "text": { "type": "string" },
+        "reason": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "evidencePath"],
+      "properties": {
+        "code": { "type": "string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "breaking"] },
+        "message": { "type": "string" },
+        "evidencePath": { "type": "string" }
+      }
+    }
+  }
+}

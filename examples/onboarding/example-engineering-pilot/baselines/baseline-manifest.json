@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "suiteId": "example-engineering-pilot-onboarding",
+  "generatedAt": "2026-05-05T00:00:00Z",
+  "baselines": [
+    {
+      "caseId": "example-engineering-pilot-full",
+      "templateId": "example-university-engineering",
+      "templateVersion": "1.0.0",
+      "documentId": "fixtures/document.json",
+      "snapshotPath": "full.snapshot.txt",
+      "layoutSignaturePath": "full.layout.json",
+      "inspectPath": "full.inspect.json",
+      "structureDiffPolicy": "breakingChangesFail",
+      "layoutThreshold": 0.99,
+      "allowedDiffCategories": [],
+      "forbiddenDiffCategories": ["pageSetup", "heading", "table", "figure", "equation"],
+      "lastUpdatedAt": "2026-05-05T00:00:00Z",
+      "notes": "Initial fictional pilot baseline."
+    }
+  ]
+}

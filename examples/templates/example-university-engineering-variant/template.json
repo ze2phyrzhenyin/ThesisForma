@@ -1,0 +1,32 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "example-university-engineering-variant",
+  "name": "Example University Engineering Thesis Variant",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Variant template inheriting the fictional engineering template.",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "master",
+  "tags": ["example", "engineering", "variant"],
+  "extends": {
+    "templateId": "example-university-engineering",
+    "versionRange": ">=1.0.0"
+  },
+  "formatSpecRef": "format-spec.override.json",
+  "variables": [
+    {
+      "name": "defenseDate",
+      "label": "Defense Date",
+      "type": "date",
+      "required": true,
+      "defaultValue": "2026-06-15",
+      "format": "yyyy-MM-dd",
+      "displayOrder": 1
+    }
+  ],
+  "assets": [],
+  "pageTemplates": [],
+  "complianceRules": [],
+  "notes": ["Overrides margins, heading spacing, header text, bibliography indent, and table caption position."]
+}

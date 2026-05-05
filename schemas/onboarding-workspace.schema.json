@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/onboarding-workspace.schema.json",
+  "title": "OnboardingWorkspaceManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "displayName", "institution", "paths", "privacy", "quality", "status"],
+  "properties": {
+    "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
+    "workspaceId": { "$ref": "#/definitions/id" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "institution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["school", "college", "degreeType", "locale", "isRealInstitution", "redactionPolicy"],
+      "properties": {
+        "school": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "college": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "degreeType": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "locale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+        "isRealInstitution": { "type": "boolean" },
+        "redactionPolicy": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceDocumentsDir", "requirementsPath", "templateDir", "fixturesDir", "baselinesDir", "reportsDir", "artifactsDir"],
+      "properties": {
+        "sourceDocumentsDir": { "$ref": "#/definitions/relativePath" },
+        "requirementsPath": { "$ref": "#/definitions/relativePath" },
+        "templateDir": { "$ref": "#/definitions/relativePath" },
+        "fixturesDir": { "$ref": "#/definitions/relativePath" },
+        "baselinesDir": { "$ref": "#/definitions/relativePath" },
+        "reportsDir": { "$ref": "#/definitions/relativePath" },
+        "artifactsDir": { "$ref": "#/definitions/relativePath" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowRealInstitutionNamesInWorkspace", "allowSourceDocumentsInWorkspace", "prohibitSourceDocumentsInRelease", "prohibitPersonalDataInExamples", "maxEvidenceExcerptLength"],
+      "properties": {
+        "allowRealInstitutionNamesInWorkspace": { "type": "boolean" },
+        "allowSourceDocumentsInWorkspace": { "type": "boolean" },
+        "prohibitSourceDocumentsInRelease": { "type": "boolean" },
+        "prohibitPersonalDataInExamples": { "type": "boolean" },
+        "maxEvidenceExcerptLength": { "type": "integer", "minimum": 40, "maximum": 1000 }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverageThreshold", "layoutThreshold", "requiredReports"],
+      "properties": {
+        "coverageThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "layoutThreshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "requiredReports": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["gate", "diagnostic", "authoring", "summary", "privacy", "requirements"] }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase"],
+      "properties": {
+        "phase": { "type": "string", "enum": ["initialized", "requirementsDrafted", "templateScaffolded", "fixturesScaffolded", "baselinesInitialized", "gatePassed", "readyForReview", "released"] },
+        "lastCheckedAt": { "type": ["string", "null"], "format": "date-time" },
+        "notes": { "type": "string", "maxLength": 1000 }
+      }
+    }
+  },
+  "definitions": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,80}$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "not": {
+        "anyOf": [
+          { "pattern": "^(/|[A-Za-z]:[\\\\/])" },
+          { "pattern": "(^|[\\\\/])\\.\\.($|[\\\\/])" }
+        ]
+      }
+    }
+  }
+}

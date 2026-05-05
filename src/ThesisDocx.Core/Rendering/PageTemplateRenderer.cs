@@ -1,0 +1,248 @@
+using DocumentFormat.OpenXml;
+using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Models.Templates;
+using ThesisDocx.Core.OpenXml;
+using ThesisDocx.Core.Templates;
+using ThesisDocx.Core.Utilities;
+using A = DocumentFormat.OpenXml.Drawing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+using WP = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using W = DocumentFormat.OpenXml.Wordprocessing;
+
+namespace ThesisDocx.Core.Rendering;
+
+public sealed class PageTemplateRenderer
+{
+    private readonly RelationshipManager _relationshipManager;
+    private readonly TemplateVariableResolver _variableResolver = new();
+
+    public PageTemplateRenderer(RelationshipManager relationshipManager)
+    {
+        _relationshipManager = relationshipManager;
+    }
+
+    public IEnumerable<OpenXmlElement> Render(TemplatePageLayout layout, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        context.RenderedPageTemplates.Add(layout.Id);
+        foreach (var block in layout.Blocks)
+        {
+            foreach (var element in RenderBlock(block, layout, document, template, context))
+            {
+                yield return element;
+            }
+        }
+    }
+
+    private IEnumerable<OpenXmlElement> RenderBlock(PageLayoutBlock block, TemplatePageLayout layout, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        switch (block)
+        {
+            case SpacerLayoutBlock spacer:
+                yield return new W.Paragraph(new W.ParagraphProperties(
+                    new W.SpacingBetweenLines { After = UnitConverter.CentimetersToTwips(spacer.HeightCm).ToString() }));
+                break;
+            case TextLayoutBlock text:
+                yield return CreateTextParagraph(Resolve(text.Value, document, template, context), text.Style, text.Alignment, text.SpacingBeforePt, text.SpacingAfterPt, text.FontOverride);
+                break;
+            case MetadataFieldLayoutBlock metadata:
+                yield return CreateMetadataParagraph(metadata, document, template, context);
+                break;
+            case FieldTableLayoutBlock fieldTable:
+                yield return CreateFieldTable(fieldTable, document, template, context);
+                break;
+            case DeclarationTextLayoutBlock declaration:
+                foreach (var paragraph in declaration.Paragraphs)
+                {
+                    yield return CreateTextParagraph(Resolve(paragraph, document, template, context), StyleIds.ThesisBody, TextAlignment.Both, 6, 6, null);
+                }
+
+                foreach (var signature in declaration.SignatureFields)
+                {
+                    yield return CreateMetadataParagraph(signature, document, template, context);
+                }
+
+                break;
+            case ImageLayoutBlock image:
+                yield return CreateImageParagraph(image, context);
+                break;
+            case PageBreakLayoutBlock:
+                yield return new W.Paragraph(new W.Run(new W.Break { Type = W.BreakValues.Page }));
+                break;
+        }
+    }
+
+    private W.Paragraph CreateMetadataParagraph(MetadataFieldLayoutBlock field, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        var value = ResolveFieldValue(field, document, template, context);
+        var paragraph = new W.Paragraph(
+            new W.ParagraphProperties(
+                new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
+                new W.Justification { Val = StyleBuilder.ToJustification(field.Alignment) }),
+            new W.Run(new W.Text(string.IsNullOrWhiteSpace(field.Label) ? value : $"{field.Label}: ") { Space = SpaceProcessingModeValues.Preserve }));
+        var valueRun = new W.Run(new W.Text(value) { Space = SpaceProcessingModeValues.Preserve });
+        if (field.Underline)
+        {
+            valueRun.PrependChild(new W.RunProperties(new W.Underline { Val = W.UnderlineValues.Single }));
+        }
+
+        paragraph.AppendChild(valueRun);
+        return paragraph;
+    }
+
+    private W.Table CreateFieldTable(FieldTableLayoutBlock block, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        var table = new W.Table(new W.TableProperties(
+            new W.TableWidth { Type = W.TableWidthUnitValues.Pct, Width = "5000" },
+            CreateTableBorders(block.BorderMode)));
+        table.AppendChild(new W.TableGrid(
+            new W.GridColumn { Width = UnitConverter.CentimetersToTwips(block.LabelColumnWidthCm).ToString() },
+            new W.GridColumn { Width = UnitConverter.CentimetersToTwips(block.ValueColumnWidthCm).ToString() }));
+        foreach (var row in block.Rows)
+        {
+            var tableRow = new W.TableRow();
+            foreach (var field in row)
+            {
+                tableRow.AppendChild(CreateCell(field.Label, block.LabelColumnWidthCm, true));
+                tableRow.AppendChild(CreateCell(ResolveFieldValue(field, document, template, context), block.ValueColumnWidthCm, false));
+            }
+
+            table.AppendChild(tableRow);
+        }
+
+        return table;
+    }
+
+    private W.Paragraph CreateImageParagraph(ImageLayoutBlock image, DocxRenderContext context)
+    {
+        if (!context.Assets.TryGetValue(image.AssetId, out var asset) || !File.Exists(asset.Path))
+        {
+            throw new InvalidOperationException($"Template asset '{image.AssetId}' is missing.");
+        }
+
+        var relationshipId = _relationshipManager.AddImagePart(File.ReadAllBytes(asset.Path), asset.ContentType);
+        var drawingId = _relationshipManager.AllocateDrawingId();
+        var widthEmu = UnitConverter.CentimetersToEmu(image.WidthCm);
+        var heightEmu = UnitConverter.CentimetersToEmu(image.HeightCm ?? image.WidthCm);
+        context.RenderedAssets.Add(asset.Id);
+        return new W.Paragraph(
+            new W.ParagraphProperties(
+                new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
+                new W.Justification { Val = StyleBuilder.ToJustification(image.Alignment) }),
+            new W.Run(CreateDrawing(relationshipId, drawingId, widthEmu, heightEmu)));
+    }
+
+    private W.Paragraph CreateTextParagraph(string text, string styleId, TextAlignment alignment, double? before, double? after, FontFormatSpec? font)
+    {
+        var properties = new W.ParagraphProperties(new W.ParagraphStyleId { Val = styleId });
+        if (before.HasValue || after.HasValue)
+        {
+            properties.AppendChild(new W.SpacingBetweenLines
+            {
+                Before = UnitConverter.PointsToTwips(before ?? 0).ToString(),
+                After = UnitConverter.PointsToTwips(after ?? 0).ToString()
+            });
+        }
+
+        properties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(alignment) });
+
+        var run = new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
+        if (font is not null)
+        {
+            run.PrependChild(new W.RunProperties(
+                new W.RunFonts { EastAsia = font.EastAsia, Ascii = font.Latin },
+                new W.FontSize { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() }));
+        }
+
+        return new W.Paragraph(properties, run);
+    }
+
+    private W.TableCell CreateCell(string text, double widthCm, bool bold)
+    {
+        var run = new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
+        if (bold)
+        {
+            run.PrependChild(new W.RunProperties(new W.Bold()));
+        }
+
+        return new W.TableCell(
+            new W.TableCellProperties(new W.TableCellWidth { Type = W.TableWidthUnitValues.Dxa, Width = UnitConverter.CentimetersToTwips(widthCm).ToString() }),
+            new W.Paragraph(new W.ParagraphProperties(new W.ParagraphStyleId { Val = StyleIds.ThesisBody }), run));
+    }
+
+    private string ResolveFieldValue(MetadataFieldLayoutBlock field, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(field.ValueTemplate))
+        {
+            return Resolve(field.ValueTemplate, document, template, context);
+        }
+
+        if (!string.IsNullOrWhiteSpace(field.VariableName) && context.Variables.TryGetValue(field.VariableName, out var variable))
+        {
+            context.RenderedVariables.Add(field.VariableName);
+            return variable;
+        }
+
+        if (!string.IsNullOrWhiteSpace(field.SourcePath))
+        {
+            return Resolve($"{{{{{field.SourcePath}}}}}", document, template, context);
+        }
+
+        return string.Empty;
+    }
+
+    private string Resolve(string value, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
+    {
+        return _variableResolver.ResolveText(value, template.Package, document, context.Variables);
+    }
+
+    private static W.TableBorders CreateTableBorders(FieldTableBorderMode borderMode)
+    {
+        var visible = borderMode == FieldTableBorderMode.Full;
+        var bottomLine = borderMode == FieldTableBorderMode.BottomLine;
+        return new W.TableBorders(
+            new W.TopBorder { Val = visible ? W.BorderValues.Single : W.BorderValues.Nil },
+            new W.LeftBorder { Val = visible ? W.BorderValues.Single : W.BorderValues.Nil },
+            new W.BottomBorder { Val = visible || bottomLine ? W.BorderValues.Single : W.BorderValues.Nil },
+            new W.RightBorder { Val = visible ? W.BorderValues.Single : W.BorderValues.Nil },
+            new W.InsideHorizontalBorder { Val = visible || bottomLine ? W.BorderValues.Single : W.BorderValues.Nil },
+            new W.InsideVerticalBorder { Val = visible ? W.BorderValues.Single : W.BorderValues.Nil });
+    }
+
+    private static W.Drawing CreateDrawing(string relationshipId, uint drawingId, long widthEmu, long heightEmu)
+    {
+        return new W.Drawing(
+            new WP.Inline(
+                new WP.Extent { Cx = widthEmu, Cy = heightEmu },
+                new WP.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                new WP.DocProperties { Id = drawingId, Name = $"Template Asset {drawingId}" },
+                new WP.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+                new A.Graphic(new A.GraphicData(
+                    new PIC.Picture(
+                        new PIC.NonVisualPictureProperties(
+                            new PIC.NonVisualDrawingProperties { Id = drawingId, Name = $"Template Asset {drawingId}" },
+                            new PIC.NonVisualPictureDrawingProperties()),
+                        new PIC.BlipFill(new A.Blip { Embed = relationshipId }, new A.Stretch(new A.FillRectangle())),
+                        new PIC.ShapeProperties(
+                            new A.Transform2D(new A.Offset { X = 0L, Y = 0L }, new A.Extents { Cx = widthEmu, Cy = heightEmu }),
+                            new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
+                {
+                    Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+                }))
+            {
+                DistanceFromTop = 0U,
+                DistanceFromBottom = 0U,
+                DistanceFromLeft = 0U,
+                DistanceFromRight = 0U
+            });
+    }
+}
+
+public sealed class TemplatePackageShim
+{
+    public TemplatePackageShim(Models.Templates.TemplatePackage package)
+    {
+        Package = package;
+    }
+
+    public Models.Templates.TemplatePackage Package { get; }
+}

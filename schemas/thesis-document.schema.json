@@ -1,0 +1,471 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/thesis-document.schema.json",
+  "title": "ThesisDocument",
+  "description": "Structured thesis content consumed by the deterministic DOCX renderer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "sections"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Structured input contract version.",
+      "type": "string",
+      "enum": ["1.0.0", "1.1.0"]
+    },
+    "metadata": { "$ref": "#/definitions/metadata" },
+    "sections": {
+      "description": "Ordered thesis sections.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/section" }
+    }
+  },
+  "definitions": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "author", "college", "major", "studentId", "advisor", "date", "language"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "subtitle": { "type": "string" },
+        "author": { "type": "string", "minLength": 1 },
+        "college": { "type": "string", "minLength": 1 },
+        "major": { "type": "string", "minLength": 1 },
+        "studentId": { "type": "string", "minLength": 1 },
+        "advisor": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "minLength": 1 },
+        "language": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" }
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "blocks"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "kind": {
+          "type": "string",
+          "enum": ["cover", "originalityStatement", "abstract", "toc", "body", "acknowledgements", "bibliography", "appendix"]
+        },
+        "title": { "type": "string" },
+        "startOnNewPage": { "type": "boolean" },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/block" }
+        }
+      }
+    },
+    "block": {
+      "oneOf": [
+        { "$ref": "#/definitions/paragraphBlock" },
+        { "$ref": "#/definitions/headingBlock" },
+        { "$ref": "#/definitions/listBlock" },
+        { "$ref": "#/definitions/figureBlock" },
+        { "$ref": "#/definitions/tableBlock" },
+        { "$ref": "#/definitions/quoteBlock" },
+        { "$ref": "#/definitions/equationBlock" },
+        { "$ref": "#/definitions/pageBreakBlock" },
+        { "$ref": "#/definitions/sectionBreakBlock" },
+        { "$ref": "#/definitions/bibliographyBlock" },
+        { "$ref": "#/definitions/footnoteBlock" },
+        { "$ref": "#/definitions/endnoteBlock" }
+      ]
+    },
+    "blockBase": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/definitions/id" }
+      }
+    },
+    "paragraphBlock": {
+      "allOf": [
+        { "$ref": "#/definitions/blockBase" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "inlines"],
+          "properties": {
+            "type": { "enum": ["paragraph"] },
+            "id": { "$ref": "#/definitions/id" },
+            "inlines": { "type": "array", "items": { "$ref": "#/definitions/inline" } },
+            "styleId": { "type": "string", "minLength": 1 },
+            "alignment": { "$ref": "#/definitions/textAlignment" }
+          }
+        }
+      ]
+    },
+    "headingBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "level", "inlines"],
+      "properties": {
+        "type": { "enum": ["heading"] },
+        "id": { "$ref": "#/definitions/id" },
+        "level": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "inlines": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/inline" } },
+        "bookmarkName": { "$ref": "#/definitions/id" },
+        "numbered": { "type": "boolean" }
+      }
+    },
+    "listBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "items"],
+      "properties": {
+        "type": { "enum": ["list"] },
+        "id": { "$ref": "#/definitions/id" },
+        "ordered": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["blocks"],
+            "properties": {
+              "blocks": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/block" } }
+            }
+          }
+        }
+      }
+    },
+    "figureBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "caption", "imageContentType"],
+      "properties": {
+        "type": { "enum": ["figure"] },
+        "id": { "$ref": "#/definitions/id" },
+        "caption": { "type": "string", "minLength": 1 },
+        "imagePath": { "type": "string", "minLength": 1 },
+        "imageDataBase64": { "type": "string", "minLength": 1 },
+        "imageContentType": { "type": "string", "enum": ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/tiff"] },
+        "widthCm": { "type": "number", "exclusiveMinimum": 0 },
+        "heightCm": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "anyOf": [
+        { "required": ["imagePath"] },
+        { "required": ["imageDataBase64"] }
+      ]
+    },
+    "tableBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "caption", "rows"],
+      "properties": {
+        "type": { "enum": ["table"] },
+        "id": { "$ref": "#/definitions/id" },
+        "bookmarkId": { "$ref": "#/definitions/id" },
+        "caption": { "type": "string", "minLength": 1 },
+        "captionPosition": { "type": "string", "enum": ["before", "after"] },
+        "style": { "type": "string", "enum": ["normal", "threeLine", "custom"] },
+        "width": { "$ref": "#/definitions/tableWidth" },
+        "alignment": { "$ref": "#/definitions/textAlignment" },
+        "layout": { "type": "string", "enum": ["autofit", "fixed"] },
+        "allowRowBreakAcrossPages": { "type": "boolean" },
+        "repeatHeaderRows": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "borders": { "$ref": "#/definitions/borders" },
+        "cellMargins": { "$ref": "#/definitions/cellMargins" },
+        "rows": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/tableRow" } }
+      }
+    },
+    "tableRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cells"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "isHeader": { "type": "boolean" },
+        "cantSplit": { "type": "boolean" },
+        "heightPt": { "type": "number", "minimum": 0, "maximum": 300 },
+        "cells": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/tableCell" } }
+      }
+    },
+    "tableCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["text"] }, { "required": ["blocks"] }],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "text": { "type": "string" },
+        "blocks": { "type": "array", "items": { "$ref": "#/definitions/block" } },
+        "gridSpan": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "verticalMerge": { "type": "string", "enum": ["none", "restart", "continue"] },
+        "width": { "$ref": "#/definitions/tableWidth" },
+        "widthCm": { "type": "number", "exclusiveMinimum": 0 },
+        "alignment": { "$ref": "#/definitions/textAlignment" },
+        "verticalAlignment": { "type": "string", "enum": ["top", "center", "bottom"] },
+        "shading": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "borders": { "$ref": "#/definitions/borders" },
+        "cellMargins": { "$ref": "#/definitions/cellMargins" },
+        "font": { "$ref": "#/definitions/font" },
+        "paragraph": { "$ref": "#/definitions/paragraph" }
+      }
+    },
+    "quoteBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "inlines"],
+      "properties": {
+        "type": { "enum": ["quote"] },
+        "id": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "equationBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["equation"] },
+        "id": { "$ref": "#/definitions/id" },
+        "bookmarkId": { "$ref": "#/definitions/id" },
+        "placeholder": { "type": "string", "minLength": 1 },
+        "bookmarkName": { "$ref": "#/definitions/id" },
+        "sourceType": { "type": "string", "enum": ["omml", "latex", "plain"] },
+        "omml": { "type": "string", "minLength": 1 },
+        "latex": { "type": "string", "minLength": 1 },
+        "plainText": { "type": "string", "minLength": 1 },
+        "display": { "type": "boolean" },
+        "alignment": { "$ref": "#/definitions/textAlignment" },
+        "caption": { "type": "string" },
+        "numbering": { "$ref": "#/definitions/equationNumbering" },
+        "allowWordUpdate": { "type": "boolean" }
+      },
+      "oneOf": [
+        { "properties": { "sourceType": { "enum": ["omml"] } }, "required": ["sourceType", "omml"] },
+        { "properties": { "sourceType": { "enum": ["latex"] } }, "required": ["sourceType", "latex"] },
+        { "properties": { "sourceType": { "enum": ["plain"] } }, "anyOf": [{ "required": ["plainText"] }, { "required": ["placeholder"] }] },
+        { "not": { "required": ["sourceType"] }, "anyOf": [{ "required": ["plainText"] }, { "required": ["placeholder"] }] }
+      ]
+    },
+    "pageBreakBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["pageBreak"] },
+        "id": { "$ref": "#/definitions/id" }
+      }
+    },
+    "sectionBreakBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["sectionBreak"] },
+        "id": { "$ref": "#/definitions/id" }
+      }
+    },
+    "bibliographyBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "entries"],
+      "properties": {
+        "type": { "enum": ["bibliography"] },
+        "id": { "$ref": "#/definitions/id" },
+        "entries": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/bibliographyEntry" } }
+      }
+    },
+    "bibliographyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "footnoteBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "noteId", "inlines"],
+      "properties": {
+        "type": { "enum": ["footnote"] },
+        "id": { "$ref": "#/definitions/id" },
+        "noteId": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "endnoteBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "noteId", "inlines"],
+      "properties": {
+        "type": { "enum": ["endnote"] },
+        "id": { "$ref": "#/definitions/id" },
+        "noteId": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "inline": {
+      "oneOf": [
+        { "$ref": "#/definitions/textInline" },
+        { "$ref": "#/definitions/hyperlinkInline" },
+        { "$ref": "#/definitions/citationInline" },
+        { "$ref": "#/definitions/bookmarkInline" },
+        { "$ref": "#/definitions/referenceInline" },
+        { "$ref": "#/definitions/footnoteInline" },
+        { "$ref": "#/definitions/endnoteInline" }
+      ]
+    },
+    "textInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "enum": ["text"] },
+        "text": { "type": "string" },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "underline": { "type": "boolean" },
+        "verticalAlignment": { "type": "string", "enum": ["baseline", "subscript", "superscript"] }
+      }
+    },
+    "hyperlinkInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "text", "uri"],
+      "properties": {
+        "type": { "enum": ["hyperlink"] },
+        "text": { "type": "string", "minLength": 1 },
+        "uri": { "type": "string", "format": "uri" }
+      }
+    },
+    "citationInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "targetId", "displayText"],
+      "properties": {
+        "type": { "enum": ["citation"] },
+        "targetId": { "$ref": "#/definitions/id" },
+        "displayText": { "type": "string", "minLength": 1 }
+      }
+    },
+    "bookmarkInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name", "inlines"],
+      "properties": {
+        "type": { "enum": ["bookmark"] },
+        "name": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "referenceInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "bookmarkName"],
+      "properties": {
+        "type": { "enum": ["reference"] },
+        "bookmarkName": { "$ref": "#/definitions/id" },
+        "fallbackText": { "type": "string" }
+      }
+    },
+    "footnoteInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "noteId", "inlines"],
+      "properties": {
+        "type": { "enum": ["footnote"] },
+        "noteId": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "endnoteInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "noteId", "inlines"],
+      "properties": {
+        "type": { "enum": ["endnote"] },
+        "noteId": { "$ref": "#/definitions/id" },
+        "inlines": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/inline" } }
+      }
+    },
+    "equationNumbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "label": { "type": "string", "minLength": 1 },
+        "format": { "type": "string", "pattern": "^\\(.*\\{index\\}.*\\)$" },
+        "restartByHeadingLevel": { "type": "integer", "minimum": 1, "maximum": 6 }
+      }
+    },
+    "tableWidth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["auto", "percent", "dxa"] },
+        "value": { "type": "number", "minimum": 0, "maximum": 50000 }
+      }
+    },
+    "borders": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "top": { "$ref": "#/definitions/border" },
+        "bottom": { "$ref": "#/definitions/border" },
+        "left": { "$ref": "#/definitions/border" },
+        "right": { "$ref": "#/definitions/border" },
+        "insideH": { "$ref": "#/definitions/border" },
+        "insideV": { "$ref": "#/definitions/border" }
+      }
+    },
+    "border": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "style": { "type": "string", "enum": ["nil", "none", "single", "double", "dotted", "dashed"] },
+        "size": { "type": "integer", "minimum": 0, "maximum": 96 },
+        "color": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "space": { "type": "integer", "minimum": 0, "maximum": 32 }
+      }
+    },
+    "cellMargins": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "topCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "bottomCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "leftCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "rightCm": { "type": "number", "minimum": 0, "maximum": 5 }
+      }
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eastAsia": { "type": "string", "minLength": 1 },
+        "latin": { "type": "string", "minLength": 1 },
+        "sizePt": { "type": "number", "minimum": 1, "maximum": 72 },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" }
+      }
+    },
+    "paragraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lineSpacingMultiple": { "type": "number", "minimum": 0.5, "maximum": 4 },
+        "spaceBeforePt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "spaceAfterPt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "firstLineIndentChars": { "type": "number", "minimum": 0, "maximum": 8 },
+        "hangingIndentCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "alignment": { "$ref": "#/definitions/textAlignment" },
+        "widowControl": { "type": "boolean" }
+      }
+    },
+    "textAlignment": {
+      "type": "string",
+      "enum": ["left", "center", "right", "both"]
+    }
+  }
+}

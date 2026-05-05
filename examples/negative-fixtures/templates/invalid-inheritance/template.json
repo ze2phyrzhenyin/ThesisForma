@@ -1,0 +1,16 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-invalid-inheritance",
+  "name": "Negative Invalid Inheritance",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Parent template is intentionally missing.",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "master",
+  "extends": {
+    "templateId": "missing-parent-template"
+  },
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "notes": ["Negative fixture."]
+}

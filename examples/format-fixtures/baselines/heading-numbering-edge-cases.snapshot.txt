@@ -1,0 +1,78 @@
+entries:
+- [Content_Types].xml
+- _rels/.rels
+- docProps/custom.xml
+- media/image.png
+- package/services/metadata/core-properties/core-properties.psmdcp
+- word/_rels/document.xml.rels
+- word/document.xml
+- word/endnotes.xml
+- word/footer1.xml
+- word/footer2.xml
+- word/footnotes.xml
+- word/header1.xml
+- word/header2.xml
+- word/numbering.xml
+- word/settings.xml
+- word/styles.xml
+styles:
+- Heading1
+- Heading2
+- Heading3
+- Normal
+- ThesisBibliography
+- ThesisBody
+- ThesisCaption
+- ThesisQuote
+- ThesisTocTitle
+numberingLevelTexts:
+- 第%1章
+- %1.%2
+- %1.%2.%3
+- [%1]
+- %1.
+fieldCodes:
+- PAGE \* MERGEFORMAT
+- PAGE \* MERGEFORMAT
+- REF bm-chapter-1 \h
+- REF bm-eq-energy \h
+- REF bm-table-format-rules \h
+- REF bm-validation \h
+- TOC \o "1-3" \h \z \u
+sectionPageNumberFormats:
+- none
+- lowerRoman
+- decimal
+bookmarks:
+- bm-chapter-1
+- bm-chapter-2
+- bm-chapter-3
+- bm-eq-energy
+- bm-eq-omml
+- bm-table-format-rules
+- bm-validation
+equationBookmarks:
+- bm-eq-energy
+- bm-eq-omml
+equationSourceTypes:
+- latexSubsetOrStructuredOmml
+- plainOrOmml
+tableBookmarks:
+- bm-table-format-rules
+tableStyles:
+- threeLine
+tableWidthTypes:
+- pct
+tableBorders:
+- top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil
+paragraphCount=47
+tableCount=1
+drawingCount=1
+equationCount=3
+equationOmmlElementCount=3
+tableHasGridSpan=True
+tableHasVerticalMerge=True
+tableHasRepeatHeaderRows=True
+tableHasCantSplitRows=True
+headerCount=2
+footerCount=2

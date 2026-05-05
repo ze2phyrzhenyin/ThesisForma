@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.1.0",
+  "metadata": {
+    "title": "Negative dangling reference",
+    "author": "Example Author",
+    "college": "Example Engineering College",
+    "major": "Engineering",
+    "studentId": "N001",
+    "advisor": "Advisor",
+    "date": "2026-05-05",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "body",
+      "kind": "body",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "bookmarkName": "existing-heading",
+          "inlines": [{ "type": "text", "text": "Chapter" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "See " },
+            { "type": "reference", "bookmarkName": "missing-target", "fallbackText": "missing" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export NUGET_PACKAGES="$ROOT/.nuget/packages"
+export NUGET_HTTP_CACHE_PATH="$ROOT/.nuget/http-cache"
+export NUGET_TEMP="$ROOT/.nuget/temp"
+
+mkdir -p "$ROOT/out"
+dotnet run --project "$ROOT/src/ThesisDocx.Cli" -- render \
+  --document "$ROOT/examples/simple-thesis/document.json" \
+  --format "$ROOT/examples/format-specs/basic-cn-thesis.json" \
+  --out "$ROOT/out/simple.docx"
+
+dotnet run --project "$ROOT/src/ThesisDocx.Cli" -- render \
+  --document "$ROOT/examples/full-thesis/document.json" \
+  --format "$ROOT/examples/format-specs/strict-cn-thesis.json" \
+  --out "$ROOT/out/full.docx"
+
+dotnet run --project "$ROOT/src/ThesisDocx.Cli" -- render \
+  --document "$ROOT/examples/full-thesis/document.json" \
+  --template "$ROOT/examples/templates/example-university-engineering" \
+  --var variables.defenseDate=2026-06-01 \
+  --out "$ROOT/out/template-full.docx"

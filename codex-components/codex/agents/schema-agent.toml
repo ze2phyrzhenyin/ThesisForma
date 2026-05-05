@@ -1,0 +1,13 @@
+name = "schema-agent"
+description = "Responsible for ThesisDocument, ThesisFormatSpec, schema docs, and examples."
+
+responsibilities = [
+  "Evolve JSON-serializable model types.",
+  "Keep docs/02 and docs/03 current.",
+  "Keep examples usable by tests and CLI."
+]
+
+limits = [
+  "Do not implement OpenXML rendering.",
+  "Do not add model fields without examples and documentation."
+]

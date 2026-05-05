@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.1.0",
+  "metadata": {
+    "title": "Negative missing bibliography key",
+    "author": "Example Author",
+    "college": "Example Engineering College",
+    "major": "Engineering",
+    "studentId": "N002",
+    "advisor": "Advisor",
+    "date": "2026-05-05",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "body",
+      "kind": "body",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "inlines": [{ "type": "text", "text": "Chapter" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "Citation " },
+            { "type": "citation", "targetId": "missing-ref" }
+          ]
+        }
+      ]
+    }
+  ]
+}

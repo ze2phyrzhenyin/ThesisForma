@@ -1,0 +1,18 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "strict-cn-thesis",
+  "name": "Strict CN Thesis",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Portable wrapper around the strict-cn-thesis format spec.",
+  "school": "Example University",
+  "college": "Example Graduate School",
+  "degreeType": "master",
+  "tags": ["strict", "example"],
+  "formatSpecRef": "format-spec.json",
+  "variables": [],
+  "assets": [],
+  "pageTemplates": [],
+  "complianceRules": [],
+  "notes": ["Equivalent to examples/format-specs/strict-cn-thesis.json."]
+}

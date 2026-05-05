@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ThesisDocx.Api/ThesisDocx.Api.csproj" />
+    <Project Path="src/ThesisDocx.Cli/ThesisDocx.Cli.csproj" />
+    <Project Path="src/ThesisDocx.Core/ThesisDocx.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ThesisDocx.Tests/ThesisDocx.Tests.csproj" />
+  </Folder>
+</Solution>

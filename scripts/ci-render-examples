@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p out/ci
+
+dotnet run --project src/ThesisDocx.Cli -- render \
+  --document examples/simple-thesis/document.json \
+  --format examples/format-specs/basic-cn-thesis.json \
+  --out out/ci/simple.docx
+
+dotnet run --project src/ThesisDocx.Cli -- validate \
+  --docx out/ci/simple.docx \
+  --format examples/format-specs/basic-cn-thesis.json
+
+dotnet run --project src/ThesisDocx.Cli -- render \
+  --document examples/full-thesis/document.json \
+  --template examples/templates/example-university-engineering \
+  --var variables.defenseDate=2026-06-01 \
+  --out out/ci/template-full.docx
+
+dotnet run --project src/ThesisDocx.Cli -- validate \
+  --docx out/ci/template-full.docx \
+  --template examples/templates/example-university-engineering

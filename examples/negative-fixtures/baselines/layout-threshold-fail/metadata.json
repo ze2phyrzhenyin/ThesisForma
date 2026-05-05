@@ -1,0 +1,7 @@
+{
+  "actualCodes": ["LayoutSimilarityBelowThreshold", "BaselineLayoutMismatch"],
+  "severity": "breaking",
+  "category": "layout",
+  "message": "Layout similarity is intentionally below threshold.",
+  "path": "layout.sections[0].margins"
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "suiteId": "Example University Engineering Template Regression",
+  "generatedAt": "2000-01-01T00:00:00Z",
+  "baselines": [
+    {
+      "caseId": "example-university-engineering-full",
+      "templateId": "example-university-engineering",
+      "templateVersion": "1.0.0",
+      "documentId": "document",
+      "snapshotPath": "example-university-engineering-full.snapshot.txt",
+      "layoutSignaturePath": "example-university-engineering-full.layout.json",
+      "inspectPath": "example-university-engineering-full.inspect.json",
+      "structureDiffPolicy": "failOnBreaking",
+      "layoutThreshold": 0.99,
+      "allowedDiffCategories": [],
+      "forbiddenDiffCategories": [],
+      "lastUpdatedAt": "2000-01-01T00:00:00Z",
+      "notes": "Initialized baseline."
+    }
+  ]
+}

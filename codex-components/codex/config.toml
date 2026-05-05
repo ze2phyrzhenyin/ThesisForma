@@ -1,0 +1,31 @@
+model = "gpt-5.5"
+approval_policy = "on-request"
+
+[agents]
+max_threads = 6
+max_depth = 1
+
+[agents.schema]
+description = "Owns ThesisDocument, ThesisFormatSpec, JSON schema, examples, and schema documentation. Must not implement OpenXML rendering."
+config_file = "agents/schema-agent.toml"
+nickname_candidates = ["schema", "modeler"]
+
+[agents.renderer]
+description = "Owns DocumentFormat.OpenXml rendering, styles, numbering, sections, header/footer, tables, figures, fields, and renderer tests."
+config_file = "agents/renderer-agent.toml"
+nickname_candidates = ["renderer", "openxml"]
+
+[agents.validation]
+description = "Owns OpenXmlValidator wrapper, format conformance validation, XML assertions, snapshot normalization, and test robustness."
+config_file = "agents/validation-agent.toml"
+nickname_candidates = ["validator", "tester"]
+
+[agents.template]
+description = "Owns TemplatePackage, TemplateResolver, template variables/assets, page templates, diff, coverage, and template examples."
+config_file = "agents/template-agent.toml"
+nickname_candidates = ["template", "packager"]
+
+[agents.docs]
+description = "Owns README, docs, worker guides, roadmap, and consistency between documentation and implemented code."
+config_file = "agents/docs-agent.toml"
+nickname_candidates = ["docs", "writer"]

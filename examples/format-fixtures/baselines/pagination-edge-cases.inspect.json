@@ -1,0 +1,307 @@
+{
+  "entries": [
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "docProps/custom.xml",
+    "media/image.png",
+    "package/services/metadata/core-properties/96d929acc80d492aa104ba6dbb430843.psmdcp",
+    "word/_rels/document.xml.rels",
+    "word/document.xml",
+    "word/endnotes.xml",
+    "word/footer1.xml",
+    "word/footer2.xml",
+    "word/footnotes.xml",
+    "word/header1.xml",
+    "word/header2.xml",
+    "word/numbering.xml",
+    "word/settings.xml",
+    "word/styles.xml"
+  ],
+  "packageParts": [
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "docProps/custom.xml",
+    "media/image.png",
+    "package/services/metadata/core-properties/96d929acc80d492aa104ba6dbb430843.psmdcp",
+    "word/_rels/document.xml.rels",
+    "word/document.xml",
+    "word/endnotes.xml",
+    "word/footer1.xml",
+    "word/footer2.xml",
+    "word/footnotes.xml",
+    "word/header1.xml",
+    "word/header2.xml",
+    "word/numbering.xml",
+    "word/settings.xml",
+    "word/styles.xml"
+  ],
+  "styles": [
+    "Heading1",
+    "Heading2",
+    "Heading3",
+    "Normal",
+    "ThesisBibliography",
+    "ThesisBody",
+    "ThesisCaption",
+    "ThesisQuote",
+    "ThesisTocTitle"
+  ],
+  "stylesSummary": [
+    {
+      "styleId": "Heading1",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Heading2",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Heading3",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Normal",
+      "type": "StyleValues { }"
+    },
+    {
+      "styleId": "ThesisBibliography",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisBody",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisCaption",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisQuote",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisTocTitle",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    }
+  ],
+  "numberingLevelTexts": [
+    "\u7B2C%1\u7AE0",
+    "%1.%2",
+    "%1.%2.%3",
+    "[%1]",
+    "%1."
+  ],
+  "numberingSummary": [
+    {
+      "abstractNumberId": 1,
+      "levelTexts": [
+        "\u7B2C%1\u7AE0",
+        "%1.%2",
+        "%1.%2.%3"
+      ]
+    },
+    {
+      "abstractNumberId": 2,
+      "levelTexts": [
+        "[%1]"
+      ]
+    },
+    {
+      "abstractNumberId": 3,
+      "levelTexts": [
+        "%1."
+      ]
+    }
+  ],
+  "fieldCodes": [
+    "PAGE \\* MERGEFORMAT",
+    "PAGE \\* MERGEFORMAT",
+    "REF bm-chapter-1 \\h",
+    "REF bm-eq-energy \\h",
+    "REF bm-table-format-rules \\h",
+    "REF bm-validation \\h",
+    "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+  ],
+  "tocFields": [
+    "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+  ],
+  "refFields": [
+    "REF bm-chapter-1 \\h",
+    "REF bm-eq-energy \\h",
+    "REF bm-table-format-rules \\h",
+    "REF bm-validation \\h"
+  ],
+  "sectionsSummary": [
+    {
+      "index": 0,
+      "pageNumberFormat": "none",
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417"
+    },
+    {
+      "index": 1,
+      "pageNumberFormat": "lowerRoman",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417"
+    },
+    {
+      "index": 2,
+      "pageNumberFormat": "decimal",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417"
+    }
+  ],
+  "headersFootersSummary": [
+    {
+      "kind": "footer",
+      "relationshipId": "rIdFooterBody",
+      "hasPageField": true,
+      "hasHeaderLine": false
+    },
+    {
+      "kind": "footer",
+      "relationshipId": "rIdFooterFrontMatter",
+      "hasPageField": true,
+      "hasHeaderLine": false
+    },
+    {
+      "kind": "header",
+      "relationshipId": "rIdHeaderBody",
+      "hasPageField": false,
+      "hasHeaderLine": true
+    },
+    {
+      "kind": "header",
+      "relationshipId": "rIdHeaderFrontMatter",
+      "hasPageField": false,
+      "hasHeaderLine": true
+    }
+  ],
+  "sectionPageNumberFormats": [
+    "none",
+    "lowerRoman",
+    "decimal"
+  ],
+  "bookmarks": [
+    "bm-chapter-1",
+    "bm-chapter-2",
+    "bm-chapter-3",
+    "bm-eq-energy",
+    "bm-eq-omml",
+    "bm-table-format-rules",
+    "bm-validation"
+  ],
+  "footnotes": {
+    "count": 1,
+    "ids": [
+      1
+    ],
+    "hasPart": true,
+    "hasSeparator": true,
+    "hasContinuationSeparator": true
+  },
+  "endnotes": {
+    "count": 1,
+    "ids": [
+      1
+    ],
+    "hasPart": true,
+    "hasSeparator": true,
+    "hasContinuationSeparator": true
+  },
+  "bibliography": {
+    "entryCount": 2,
+    "hangingIndents": [
+      "420"
+    ]
+  },
+  "equations": {
+    "count": 3,
+    "ids": [
+      "bm-eq-energy",
+      "bm-eq-omml"
+    ],
+    "sourceTypes": [
+      "latexSubsetOrStructuredOmml",
+      "plainOrOmml"
+    ],
+    "hasNumbering": true,
+    "bookmarks": [
+      "bm-eq-energy",
+      "bm-eq-omml"
+    ],
+    "ommlElementCount": 3,
+    "refFields": [
+      "REF bm-eq-energy \\h"
+    ]
+  },
+  "tables": {
+    "count": 1,
+    "captions": [
+      "\u88681 \u683C\u5F0F\u89C4\u5219\u6458\u8981"
+    ],
+    "bookmarks": [
+      "bm-table-format-rules"
+    ],
+    "styles": [
+      "threeLine"
+    ],
+    "hasGridSpan": true,
+    "hasVerticalMerge": true,
+    "hasRepeatHeaderRows": true,
+    "hasCantSplitRows": true,
+    "widthTypes": [
+      "pct"
+    ],
+    "borderSummary": [
+      "top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil"
+    ]
+  },
+  "templateRendering": {
+    "templateId": "",
+    "templateVersion": "",
+    "rendererVersion": "1.0.0",
+    "resolvedFormatSpecVersion": "1.1.0",
+    "renderedPageTemplates": [],
+    "renderedVariables": [],
+    "renderedAssets": [],
+    "coverSummary": {
+      "hasTitle": true,
+      "hasMetadataFieldTable": false,
+      "hasLogoDrawing": true
+    },
+    "declarationSummary": {
+      "hasDeclarationText": false,
+      "hasSignatureField": false
+    }
+  },
+  "openXmlValidatorErrorCount": 0,
+  "paragraphCount": 47,
+  "tableCount": 1,
+  "drawingCount": 1,
+  "figuresCount": 1,
+  "headerCount": 2,
+  "footerCount": 2
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "negative-missing-evidence",
+  "title": "Missing approved evidence",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "manual",
+      "title": "Manual note",
+      "type": "manualNote",
+      "path": "sources/manual.md",
+      "notes": "Negative fixture."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-missing-evidence",
+      "category": "pageSetup",
+      "title": "Margins",
+      "description": "Approved requirement missing evidence.",
+      "sourceId": "manual",
+      "evidence": { "shortQuote": "" },
+      "normalizedValue": "A4 margins",
+      "targetSpecPath": "$.pageSetup",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "notes": "Expected failure."
+    }
+  ],
+  "mappings": [
+    {
+      "requirementId": "req-missing-evidence",
+      "specPath": "$.pageSetup",
+      "mappingStatus": "mapped",
+      "notes": "Mapped but missing evidence."
+    }
+  ],
+  "unresolvedItems": [],
+  "approval": { "preparedBy": "Template Author", "notes": "Negative fixture." }
+}

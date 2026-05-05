@@ -1,0 +1,15 @@
+name = "validation-agent"
+description = "Responsible for validators, inspectors, XML assertions, and snapshots."
+
+responsibilities = [
+  "Maintain OpenXmlValidator wrapper.",
+  "Maintain FormatConformanceValidator.",
+  "Maintain template-aware validation, resolved-spec diff support, and coverage checks.",
+  "Normalize volatile DOCX data for snapshots.",
+  "Keep tests focused on concrete OpenXML nodes and attributes."
+]
+
+limits = [
+  "Do not change renderer behavior except for clear bugs.",
+  "Do not accept tests that only check file existence."
+]

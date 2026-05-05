@@ -1,0 +1,17 @@
+bin/
+obj/
+out/
+onboarding-workspaces/
+examples/onboarding/*/artifacts/
+examples/onboarding/*/reports/
+.nuget/
+TestResults/
+*.user
+*.suo
+.DS_Store
+*.template-pilot.zip
+*.template.zip
+*.docx
+*.doc
+*.wps
+*.pdf

@@ -1,0 +1,357 @@
+{
+  "rules": [
+    {
+      "hintId": "fix.pageMargins",
+      "match": { "code": "PageMarginMismatch", "category": "pageSetup" },
+      "title": "Check page margins",
+      "description": "Page margins are encoded in ThesisFormatSpec pageSetup.",
+      "suggestedSpecPath": "$.pageSetup",
+      "suggestedAction": "Compare requirement capture margins with pageSetup top/bottom/left/right margins.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/pagination-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.pageSize",
+      "match": { "code": "PageSizeMismatch", "category": "pageSetup" },
+      "title": "Check page size",
+      "description": "Paper size and orientation are encoded in pageSetup.",
+      "suggestedSpecPath": "$.pageSetup.paperSize",
+      "suggestedAction": "Verify paperSize and orientation against the captured requirement.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/pagination-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.toc",
+      "match": { "code": "MissingTocField", "category": "toc" },
+      "title": "Check TOC field",
+      "description": "TOC output depends on the toc section and Word field-code configuration.",
+      "suggestedSpecPath": "$.toc",
+      "suggestedAction": "Ensure the document has a toc section and toc.useWordFieldCode is enabled.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/heading-numbering-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.pageField",
+      "match": { "code": "MissingPageNumberField", "category": "pageNumber" },
+      "title": "Check PAGE field",
+      "description": "Page numbers are rendered through section footer settings.",
+      "suggestedSpecPath": "$.sectionProfiles",
+      "suggestedAction": "Check section page numbering and headerFooter page number placement.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/header-footer-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.headingStyle",
+      "match": { "code": "HeadingStyleMismatch", "category": "heading" },
+      "title": "Check heading style",
+      "description": "Heading font, spacing, outline level, and alignment are configured under headings.",
+      "suggestedSpecPath": "$.headings",
+      "suggestedAction": "Update the heading level style in ThesisFormatSpec and rerun heading fixtures.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/heading-numbering-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.headingNumbering",
+      "match": { "code": "HeadingNumberingMismatch", "category": "heading" },
+      "title": "Check heading numbering",
+      "description": "Heading numbering comes from heading and numbering settings.",
+      "suggestedSpecPath": "$.numbering",
+      "suggestedAction": "Check chapter and subheading numbering patterns.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/heading-numbering-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.paragraphSpacing",
+      "match": { "code": "ParagraphLineSpacingMismatch", "category": "paragraph" },
+      "title": "Check paragraph line spacing",
+      "description": "Body paragraph line spacing is controlled by bodyParagraph.",
+      "suggestedSpecPath": "$.bodyParagraph.lineSpacingMultiple",
+      "suggestedAction": "Update lineSpacingMultiple or paragraph override.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/simple-thesis",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.paragraphIndent",
+      "match": { "code": "ParagraphIndentMismatch", "category": "paragraph" },
+      "title": "Check paragraph indent",
+      "description": "First-line and hanging indents are paragraph properties.",
+      "suggestedSpecPath": "$.bodyParagraph",
+      "suggestedAction": "Check firstLineIndentChars and hangingIndentCm.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/simple-thesis",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.header",
+      "match": { "code": "HeaderMissing", "category": "headerFooter" },
+      "title": "Check header rendering",
+      "description": "Required headers depend on section settings and headerFooter text.",
+      "suggestedSpecPath": "$.headerFooter",
+      "suggestedAction": "Check header text, section first-page settings, and header line rule.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/header-footer-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.footer",
+      "match": { "code": "FooterMissing", "category": "headerFooter" },
+      "title": "Check footer rendering",
+      "description": "Required footers and page number fields are rendered from headerFooter and section profiles.",
+      "suggestedSpecPath": "$.headerFooter",
+      "suggestedAction": "Check footer page number configuration and section profile page numbering.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/header-footer-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.tableBorders",
+      "match": { "code": "TableBorderMismatch", "category": "table" },
+      "title": "Check table borders",
+      "description": "Table borders come from default table rules, three-line rules, and cell overrides.",
+      "suggestedSpecPath": "$.tables",
+      "suggestedAction": "Inspect table border mode, three-line settings, and cell border overrides.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/table-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.tableCaptionBookmark",
+      "match": { "code": "TableCaptionBookmarkMissing", "category": "table" },
+      "title": "Check table caption bookmark",
+      "description": "Table references require a caption bookmark target.",
+      "suggestedSpecPath": "$.tables.caption",
+      "suggestedAction": "Add or preserve table bookmarkId and caption rendering.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/table-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.tableGridSpan",
+      "match": { "code": "TableGridSpanMissing", "category": "table" },
+      "title": "Check table gridSpan",
+      "description": "Horizontal merged cells require w:gridSpan.",
+      "suggestedSpecPath": "$.tables",
+      "suggestedAction": "Check table cell gridSpan values and advanced table fixture output.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/table-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.tableVerticalMerge",
+      "match": { "code": "TableVerticalMergeInvalid", "category": "table" },
+      "title": "Check table vertical merge chain",
+      "description": "Vertical merges require restart followed by continue cells.",
+      "suggestedSpecPath": "$.tables",
+      "suggestedAction": "Verify vMerge restart/continue chain and logical column counts.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/table-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.figureDrawing",
+      "match": { "code": "FigureDrawingMissing", "category": "figure" },
+      "title": "Check figure DrawingML",
+      "description": "Figures should create DrawingML inline drawing elements.",
+      "suggestedSpecPath": "$.figures",
+      "suggestedAction": "Check image source, relationship creation, and drawing extents.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/figure-equation-crossref-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.figureSize",
+      "match": { "code": "FigureSizeMismatch", "category": "figure" },
+      "title": "Check figure size",
+      "description": "Figure sizes are stored as EMU extents in DrawingML.",
+      "suggestedSpecPath": "$.figures",
+      "suggestedAction": "Check figure width/height and default figure width settings.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/figure-equation-crossref-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.equationOmml",
+      "match": { "code": "EquationOmmlMissing", "category": "equation" },
+      "title": "Check equation OMML",
+      "description": "Equation blocks should render m:oMath or m:oMathPara.",
+      "suggestedSpecPath": "$.equations",
+      "suggestedAction": "Validate equation sourceType, OMML safety, and fallback behavior.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/figure-equation-crossref-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.equationBookmark",
+      "match": { "code": "EquationBookmarkMissing", "category": "equation" },
+      "title": "Check equation bookmark",
+      "description": "Equation cross references need a bookmark target.",
+      "suggestedSpecPath": "$.equations.numbering",
+      "suggestedAction": "Add equation bookmarkId and confirm REF field target.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/format-fixtures/figure-equation-crossref-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.footnotes",
+      "match": { "code": "FootnotesPartMissing", "category": "notes" },
+      "title": "Check footnotes part",
+      "description": "Footnote references require a FootnotesPart with separator entries.",
+      "suggestedAction": "Check footnote ids and generated FootnotesPart.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/full-thesis",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.endnotes",
+      "match": { "code": "EndnotesPartMissing", "category": "notes" },
+      "title": "Check endnotes part",
+      "description": "Endnote references require an EndnotesPart with separator entries.",
+      "suggestedAction": "Check endnote ids and generated EndnotesPart.",
+      "docsRef": "docs/04-openxml-rendering-guide.md",
+      "exampleFixtureRef": "examples/full-thesis",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.bibliography",
+      "match": { "code": "BibliographyHangingIndentMismatch", "category": "bibliography" },
+      "title": "Check bibliography hanging indent",
+      "description": "Bibliography hanging indent is a paragraph property.",
+      "suggestedSpecPath": "$.bibliography.entryParagraph.hangingIndentCm",
+      "suggestedAction": "Update bibliography hanging indent and rerun bibliography fixture.",
+      "docsRef": "docs/03-format-spec-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/bibliography-citation-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.citationKey",
+      "match": { "code": "CitationBibliographyKeyMissing", "category": "citation" },
+      "title": "Check citation key",
+      "description": "Citation markers must reference bibliography entry ids.",
+      "suggestedAction": "Add the missing bibliography key or correct citation targetId.",
+      "docsRef": "docs/02-structured-data-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/bibliography-citation-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.crossReference",
+      "match": { "code": "CrossReferenceTargetMissing", "category": "crossReference" },
+      "title": "Check cross-reference target",
+      "description": "REF fields require an existing bookmark, heading, figure, table, or equation target.",
+      "suggestedAction": "Add the bookmark target or update the reference bookmarkName.",
+      "docsRef": "docs/02-structured-data-schema.md",
+      "exampleFixtureRef": "examples/format-fixtures/figure-equation-crossref-edge-cases",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.customProperties",
+      "match": { "code": "CustomTemplatePropertyMissing", "category": "customProperties" },
+      "title": "Check custom template properties",
+      "description": "Template renders should write safe custom properties.",
+      "suggestedTemplatePath": "$.id",
+      "suggestedAction": "Render through --template and ensure DocxRenderContext is provided.",
+      "docsRef": "docs/08-template-system.md",
+      "exampleFixtureRef": "examples/templates/example-university-engineering",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.layoutSimilarity",
+      "match": { "code": "LayoutSimilarityBelowThreshold", "category": "layout" },
+      "title": "Review layout similarity",
+      "description": "Layout signature changed below the accepted threshold.",
+      "suggestedAction": "Inspect layout differences and update baseline only with a review reason.",
+      "docsRef": "docs/12-layout-signature.md",
+      "exampleFixtureRef": "examples/template-regression",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.baselineSnapshot",
+      "match": { "code": "BaselineSnapshotMismatch", "category": "baseline" },
+      "title": "Review snapshot baseline mismatch",
+      "description": "Normalized OpenXML snapshot differs from baseline.",
+      "suggestedAction": "Run baseline compare and update the baseline only if the change is intentional.",
+      "docsRef": "docs/18-baseline-management.md",
+      "exampleFixtureRef": "examples/template-regression",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.baselineLayout",
+      "match": { "code": "BaselineLayoutMismatch", "category": "baseline" },
+      "title": "Review layout baseline mismatch",
+      "description": "Layout baseline differs from current render.",
+      "suggestedAction": "Inspect layout compare output and update baseline with --reason only after review.",
+      "docsRef": "docs/18-baseline-management.md",
+      "exampleFixtureRef": "examples/template-regression",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.requirementEvidence",
+      "match": { "code": "RequirementMissingEvidence", "category": "requirements" },
+      "title": "Add requirement evidence",
+      "description": "Approved requirements need short evidence references.",
+      "suggestedAction": "Add a short quote, page, section, or screenshot reference without long copyrighted text.",
+      "docsRef": "docs/17-requirement-capture.md",
+      "exampleFixtureRef": "examples/requirements",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.requirementMapping",
+      "match": { "code": "RequirementUnmappedApproved", "category": "requirements" },
+      "title": "Map approved requirement",
+      "description": "Approved requirements must map to spec/template paths or be marked notSupported.",
+      "suggestedAction": "Set mappingStatus and target spec/template path, or record notSupported notes.",
+      "docsRef": "docs/17-requirement-capture.md",
+      "exampleFixtureRef": "examples/requirements",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.templateAsset",
+      "match": { "code": "TemplateMissingAsset", "category": "template" },
+      "title": "Add missing template asset",
+      "description": "Required template assets must exist relative to the template directory.",
+      "suggestedTemplatePath": "$.assets",
+      "suggestedAction": "Restore the missing asset path or mark the asset not required if appropriate.",
+      "docsRef": "docs/08-template-system.md",
+      "exampleFixtureRef": "examples/templates/example-university-engineering",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.templateVariable",
+      "match": { "code": "TemplateMissingRequiredVariable", "category": "template" },
+      "title": "Resolve required template variable",
+      "description": "Required variables need CLI value, metadata sourcePath, or defaultValue.",
+      "suggestedTemplatePath": "$.variables",
+      "suggestedAction": "Add a defaultValue/sourcePath or pass --var variables.name=value.",
+      "docsRef": "docs/08-template-system.md",
+      "exampleFixtureRef": "examples/templates/example-university-engineering",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.templateInheritance",
+      "match": { "code": "TemplateCircularInheritance", "category": "template" },
+      "title": "Fix template inheritance",
+      "description": "Template inheritance must resolve without cycles.",
+      "suggestedTemplatePath": "$.extends",
+      "suggestedAction": "Remove circular extends or point to a valid parent template.",
+      "docsRef": "docs/08-template-system.md",
+      "exampleFixtureRef": "examples/templates/example-university-engineering-variant",
+      "confidence": "high"
+    },
+    {
+      "hintId": "fix.schemaVersion",
+      "match": { "code": "SchemaInvalidVersion", "category": "schema" },
+      "title": "Check schema version",
+      "description": "Schema versions must be supported by this renderer.",
+      "suggestedAction": "Use a supported schemaVersion/templateSchemaVersion and update schemas/docs together.",
+      "docsRef": "schemas/README.md",
+      "exampleFixtureRef": "examples/simple-thesis",
+      "confidence": "high"
+    }
+  ]
+}

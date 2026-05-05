@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "example-engineering-pilot",
+  "displayName": "Example Engineering College pilot onboarding",
+  "institution": {
+    "school": "Example University",
+    "college": "Example Engineering College",
+    "degreeType": "master",
+    "locale": "zh-CN",
+    "isRealInstitution": false,
+    "redactionPolicy": "fictionalExample"
+  },
+  "paths": {
+    "sourceDocumentsDir": "source-documents",
+    "requirementsPath": "requirements/requirements.json",
+    "templateDir": "template",
+    "fixturesDir": "fixtures",
+    "baselinesDir": "baselines",
+    "reportsDir": "reports",
+    "artifactsDir": "artifacts"
+  },
+  "privacy": {
+    "allowRealInstitutionNamesInWorkspace": true,
+    "allowSourceDocumentsInWorkspace": true,
+    "prohibitSourceDocumentsInRelease": true,
+    "prohibitPersonalDataInExamples": true,
+    "maxEvidenceExcerptLength": 240
+  },
+  "quality": {
+    "coverageThreshold": 0.85,
+    "layoutThreshold": 0.99,
+    "requiredReports": ["gate", "diagnostic", "authoring", "summary", "privacy", "requirements"]
+  },
+  "status": {
+    "phase": "readyForReview",
+    "lastCheckedAt": "2026-05-05T00:00:00Z",
+    "notes": "Fictional onboarding example. Real institution source files belong in private onboarding-workspaces."
+  }
+}

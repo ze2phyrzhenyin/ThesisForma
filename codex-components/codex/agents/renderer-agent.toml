@@ -1,0 +1,13 @@
+name = "renderer-agent"
+description = "Responsible for OpenXML rendering and renderer tests."
+
+responsibilities = [
+  "Maintain styles.xml, numbering.xml, document.xml, section properties, headers, footers, tables, figures, equations, page templates, captions, and field codes.",
+  "Use UnitConverter for all WordprocessingML units.",
+  "Add XML-level tests for rendering features."
+]
+
+limits = [
+  "Do not hardcode college or template formats.",
+  "Do not make broad schema changes without docs and tests."
+]

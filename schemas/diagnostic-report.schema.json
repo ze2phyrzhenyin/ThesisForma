@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/diagnostic-report.schema.json",
+  "title": "DiagnosticReport",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["status", "summary", "issues", "groupedIssues", "topRecommendedActions", "relatedArtifacts"],
+  "properties": {
+    "status": { "enum": ["pass", "passWithWarnings", "fail"] },
+    "summary": {
+      "type": "object",
+      "required": ["status", "totalIssues", "breakingIssues", "warnings", "topCategories", "topSpecPaths"],
+      "properties": {
+        "status": { "type": "string" },
+        "totalIssues": { "type": "integer", "minimum": 0 },
+        "breakingIssues": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "topCategories": { "type": "array", "items": { "type": "string" } },
+        "topSpecPaths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "issues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+    "groupedIssues": { "type": "array" },
+    "topRecommendedActions": { "type": "array", "items": { "type": "string" } },
+    "relatedArtifacts": { "type": "object", "additionalProperties": { "type": "string" } }
+  },
+  "definitions": {
+    "issue": {
+      "type": "object",
+      "required": ["id", "source", "category", "severity", "title", "message"],
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string" },
+        "category": { "type": "string" },
+        "severity": { "enum": ["info", "warning", "breaking"] },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "fixHints": { "type": "array" }
+      }
+    }
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "sourcePath": "/Users/zephyrsui/Downloads/xmllunwen/examples/format-fixtures/baselines/bibliography-citation-edge-cases.docx",
+  "sections": [
+    {
+      "index": 0,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417",
+      "headerDistanceTwips": "850",
+      "footerDistanceTwips": "992",
+      "pageNumberFormat": "none"
+    },
+    {
+      "index": 1,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417",
+      "headerDistanceTwips": "850",
+      "footerDistanceTwips": "992",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    },
+    {
+      "index": 2,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1701",
+      "rightMarginTwips": "1417",
+      "headerDistanceTwips": "850",
+      "footerDistanceTwips": "992",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    }
+  ],
+  "styles": [
+    {
+      "styleId": "Heading1",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "32",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "0"
+    },
+    {
+      "styleId": "Heading2",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "28",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "1"
+    },
+    {
+      "styleId": "Heading3",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "2"
+    },
+    {
+      "styleId": "ThesisBibliography",
+      "eastAsiaFont": "\u5B8B\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "240",
+      "hangingIndent": "420",
+      "alignment": "JustificationValues { }"
+    },
+    {
+      "styleId": "ThesisBody",
+      "eastAsiaFont": "\u5B8B\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "360",
+      "firstLineIndent": "480",
+      "alignment": "JustificationValues { }"
+    }
+  ],
+  "tables": [
+    {
+      "index": 0,
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:12;bottom=BorderValues { }:12;left=BorderValues { }:0;right=BorderValues { }:0;insideH=BorderValues { }:6;insideV=BorderValues { }:0",
+      "hasGridSpan": true,
+      "hasVerticalMerge": true,
+      "hasRepeatHeaderRows": true,
+      "hasCantSplitRows": true
+    }
+  ],
+  "figures": [
+    {
+      "index": 0,
+      "cx": "1800000",
+      "cy": "1080000",
+      "caption": "\u56FE1 \u6E32\u67D3\u6D41\u7A0B\u793A\u610F\u56FE"
+    }
+  ],
+  "equations": {
+    "ommlCount": 3,
+    "hasNumbering": true,
+    "bookmarks": [
+      "bm-eq-energy",
+      "bm-eq-omml"
+    ]
+  },
+  "fields": {
+    "tocCount": 1,
+    "pageCount": 2,
+    "refCount": 4,
+    "instructions": [
+      "PAGE \\* MERGEFORMAT",
+      "PAGE \\* MERGEFORMAT",
+      "REF bm-chapter-1 \\h",
+      "REF bm-eq-energy \\h",
+      "REF bm-table-format-rules \\h",
+      "REF bm-validation \\h",
+      "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+    ]
+  },
+  "footnotes": {
+    "hasPart": true,
+    "count": 1,
+    "ids": [
+      1
+    ]
+  },
+  "endnotes": {
+    "hasPart": true,
+    "count": 1,
+    "ids": [
+      1
+    ]
+  },
+  "bibliography": {
+    "entryCount": 2,
+    "hangingIndents": [
+      "420"
+    ]
+  },
+  "customProperties": {
+    "ThesisDocx.RenderedAssets": "",
+    "ThesisDocx.RenderedPageTemplates": "",
+    "ThesisDocx.RenderedVariables": "",
+    "ThesisDocx.RendererVersion": "1.0.0",
+    "ThesisDocx.ResolvedFormatSpecVersion": "1.1.0",
+    "ThesisDocx.SchemaVersion": "1.1.0",
+    "ThesisDocx.TemplateId": "",
+    "ThesisDocx.TemplateVersion": ""
+  }
+}

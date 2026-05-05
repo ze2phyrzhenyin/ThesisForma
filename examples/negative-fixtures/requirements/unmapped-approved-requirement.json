@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "negative-unmapped-approved",
+  "title": "Unmapped approved requirement",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "manual",
+      "title": "Manual note",
+      "type": "manualNote",
+      "path": "sources/manual.md",
+      "notes": "Negative fixture."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-unmapped",
+      "category": "heading",
+      "title": "Heading style",
+      "description": "Approved requirement left unmapped.",
+      "sourceId": "manual",
+      "evidence": { "shortQuote": "Headings use fixed hierarchy.", "page": "p.2" },
+      "normalizedValue": "heading styles",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "notes": "Expected failure."
+    }
+  ],
+  "mappings": [
+    {
+      "requirementId": "req-unmapped",
+      "mappingStatus": "unmapped",
+      "notes": "Expected failure."
+    }
+  ],
+  "unresolvedItems": [],
+  "approval": { "preparedBy": "Template Author", "notes": "Negative fixture." }
+}

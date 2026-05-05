@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p out/ci
+
+dotnet run --project src/ThesisDocx.Cli -- requirements report \
+  --requirements examples/requirements/example-engineering-requirements.json \
+  --template examples/templates/example-university-engineering \
+  --out out/ci/example-engineering.requirements-report.json
+
+dotnet run --project src/ThesisDocx.Cli -- baseline compare \
+  --suite examples/template-regression/template-regression-suite.json \
+  --out out/ci/baseline-compare-report.json
+
+dotnet run --project src/ThesisDocx.Cli -- baseline compare \
+  --fixtures examples/format-fixtures \
+  --out out/ci/format-fixtures-baseline-compare.json
+
+dotnet run --project src/ThesisDocx.Cli -- template regression \
+  --suite examples/template-regression/template-regression-suite.json \
+  --out out/ci/template-regression-report.json
+
+dotnet run --project src/ThesisDocx.Cli -- template gate \
+  --template examples/templates/example-university-engineering \
+  --document examples/full-thesis/document.json \
+  --out out/ci/template-gate-report.json
+
+dotnet run --project src/ThesisDocx.Cli -- template diagnose \
+  --template examples/templates/example-university-engineering \
+  --document examples/full-thesis/document.json \
+  --requirements examples/requirements/example-engineering-requirements.json \
+  --suite examples/template-regression/template-regression-suite.json \
+  --out out/ci/template-diagnostic-report.json \
+  --markdown out/ci/template-diagnostic-report.md
+
+dotnet run --project src/ThesisDocx.Cli -- template authoring-report \
+  --template examples/templates/example-university-engineering \
+  --document examples/full-thesis/document.json \
+  --requirements examples/requirements/example-engineering-requirements.json \
+  --suite examples/template-regression/template-regression-suite.json \
+  --threshold 0.85 \
+  --out out/ci/template-authoring-report.json \
+  --markdown out/ci/template-authoring-report.md

@@ -1,0 +1,23 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-missing-asset",
+  "name": "Negative Missing Asset",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Required asset path is intentionally missing.",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "master",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "assets": [
+    {
+      "id": "missingLogo",
+      "type": "image",
+      "path": "assets/not-found.png",
+      "contentType": "image/png",
+      "description": "Missing asset.",
+      "required": true
+    }
+  ],
+  "notes": ["Negative fixture."]
+}

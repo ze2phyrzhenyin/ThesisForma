@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p out/ci
+
+dotnet run --project src/ThesisDocx.Cli -- negative-fixtures run \
+  --manifest examples/negative-fixtures/negative-fixture-manifest.json \
+  --out out/ci/negative-fixtures-report.json

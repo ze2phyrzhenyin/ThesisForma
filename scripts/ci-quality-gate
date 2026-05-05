@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p out/ci
+
+dotnet build ThesisDocx.slnx
+dotnet test ThesisDocx.slnx
+
+scripts/ci-schema-check
+scripts/ci-render-examples
+scripts/ci-template-quality
+scripts/ci-negative-fixtures
+
+dotnet run --project src/ThesisDocx.Cli -- privacy scan \
+  --path examples \
+  --out out/ci/privacy-scan-examples.json
+
+dotnet run --project src/ThesisDocx.Cli -- onboarding validate \
+  --workspace examples/onboarding/example-engineering-pilot
+
+dotnet run --project src/ThesisDocx.Cli -- onboarding summary \
+  --workspace examples/onboarding/example-engineering-pilot \
+  --out out/ci/onboarding-summary.json \
+  --markdown out/ci/onboarding-summary.md
+
+dotnet run --project src/ThesisDocx.Cli -- onboarding package \
+  --workspace examples/onboarding/example-engineering-pilot \
+  --out out/ci/example-engineering-pilot.template-pilot.zip
+
+dotnet run --project src/ThesisDocx.Cli -- onboarding package-validate \
+  --package out/ci/example-engineering-pilot.template-pilot.zip
+
+dotnet run --project src/ThesisDocx.Cli -- ci quality-report \
+  --template examples/templates/example-university-engineering \
+  --document examples/full-thesis/document.json \
+  --requirements examples/requirements/example-engineering-requirements.json \
+  --suite examples/template-regression/template-regression-suite.json \
+  --negative-fixtures examples/negative-fixtures/negative-fixture-manifest.json \
+  --threshold 0.85 \
+  --out out/ci/quality-report.json \
+  --markdown out/ci/quality-report.md

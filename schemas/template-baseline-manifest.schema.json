@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.local/thesisdocx/template-baseline-manifest.schema.json",
+  "title": "TemplateBaselineManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "generatedAt",
+    "baselines"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": [
+        "1.0.0"
+      ]
+    },
+    "suiteId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "baselines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/baseline"
+      }
+    }
+  },
+  "definitions": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "not": {
+        "pattern": "^(/|[A-Za-z]:\\\\)"
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "templateId",
+        "templateVersion",
+        "documentId",
+        "snapshotPath",
+        "layoutSignaturePath",
+        "inspectPath",
+        "structureDiffPolicy",
+        "layoutThreshold",
+        "allowedDiffCategories",
+        "forbiddenDiffCategories",
+        "lastUpdatedAt",
+        "notes"
+      ],
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{1,100}$"
+        },
+        "templateId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "templateVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "snapshotPath": {
+          "$ref": "#/definitions/relativePath"
+        },
+        "layoutSignaturePath": {
+          "$ref": "#/definitions/relativePath"
+        },
+        "inspectPath": {
+          "$ref": "#/definitions/relativePath"
+        },
+        "structureDiffPolicy": {
+          "enum": [
+            "failOnBreaking",
+            "allowListedCategories",
+            "informational"
+          ]
+        },
+        "layoutThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "allowedDiffCategories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "forbiddenDiffCategories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    }
+  }
+}

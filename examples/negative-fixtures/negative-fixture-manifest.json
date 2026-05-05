@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "suiteId": "quality-gate-negative-fixtures",
+  "cases": [
+    {
+      "id": "requirements-missing-evidence",
+      "type": "requirement",
+      "path": "requirements/missing-evidence.json",
+      "command": "requirements validate --requirements requirements/missing-evidence.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["RequirementMissingEvidence"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.requirementEvidence"],
+      "notes": "Approved requirement lacks evidence."
+    },
+    {
+      "id": "requirements-unmapped-approved",
+      "type": "requirement",
+      "path": "requirements/unmapped-approved-requirement.json",
+      "command": "requirements validate --requirements requirements/unmapped-approved-requirement.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["RequirementUnmappedApproved"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.requirementMapping"],
+      "notes": "Approved requirement is unmapped."
+    },
+    {
+      "id": "requirements-low-confidence-approved",
+      "type": "requirement",
+      "path": "requirements/low-confidence-approved.json",
+      "command": "requirements validate --requirements requirements/low-confidence-approved.json",
+      "expectedExitCode": 0,
+      "expectedCodes": ["RequirementLowConfidenceApproved"],
+      "expectedSeverity": "warning",
+      "expectedFixHintIds": ["fix.review"],
+      "notes": "Low confidence approved requirement should warn."
+    },
+    {
+      "id": "template-missing-asset",
+      "type": "template",
+      "path": "templates/missing-asset",
+      "command": "template validate --template templates/missing-asset",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateMissingAsset"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.templateAsset"],
+      "notes": "Required asset is missing."
+    },
+    {
+      "id": "template-missing-required-variable",
+      "type": "template",
+      "path": "templates/missing-required-variable",
+      "command": "template validate --template templates/missing-required-variable",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateMissingRequiredVariable"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.templateVariable"],
+      "notes": "Required variable cannot be resolved."
+    },
+    {
+      "id": "template-invalid-inheritance",
+      "type": "template",
+      "path": "templates/invalid-inheritance",
+      "command": "template validate --template templates/invalid-inheritance",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateCircularInheritance"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.templateInheritance"],
+      "notes": "Parent template cannot be resolved."
+    },
+    {
+      "id": "document-dangling-cross-reference",
+      "type": "document",
+      "path": "documents/dangling-cross-reference.json",
+      "command": "validate-input --document documents/dangling-cross-reference.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["CrossReferenceTargetMissing"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.crossReference"],
+      "notes": "Reference points to a missing bookmark."
+    },
+    {
+      "id": "document-missing-bibliography-key",
+      "type": "document",
+      "path": "documents/missing-bibliography-key.json",
+      "command": "validate-input --document documents/missing-bibliography-key.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["CitationBibliographyKeyMissing"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.citationKey"],
+      "notes": "Citation points to a missing bibliography key."
+    },
+    {
+      "id": "baseline-layout-threshold-fail",
+      "type": "layout",
+      "path": "baselines/layout-threshold-fail",
+      "command": "docx layout-compare --threshold 0.99",
+      "expectedExitCode": 2,
+      "expectedCodes": ["LayoutSimilarityBelowThreshold"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.layoutSimilarity"],
+      "notes": "Layout comparison intentionally fails."
+    },
+    {
+      "id": "baseline-snapshot-mismatch",
+      "type": "baseline",
+      "path": "baselines/snapshot-mismatch",
+      "command": "baseline compare --suite negative",
+      "expectedExitCode": 2,
+      "expectedCodes": ["BaselineSnapshotMismatch"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.baselineSnapshot"],
+      "notes": "Snapshot baseline intentionally mismatches."
+    },
+    {
+      "id": "docx-diff-table-and-figure",
+      "type": "diff",
+      "path": "docx-diff",
+      "command": "docx diff --base negative-a.docx --target negative-b.docx",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TableBorderMismatch", "FigureSizeMismatch"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.tableBorders", "fix.figureSize"],
+      "notes": "Structural diff intentionally includes table border and figure size changes."
+    }
+  ]
+}

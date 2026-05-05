@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+dotnet run --project src/ThesisDocx.Cli -- validate-input \
+  --document examples/simple-thesis/document.json \
+  --format examples/format-specs/basic-cn-thesis.json
+
+dotnet run --project src/ThesisDocx.Cli -- validate-input \
+  --document examples/full-thesis/document.json \
+  --format examples/format-specs/strict-cn-thesis.json
+
+dotnet run --project src/ThesisDocx.Cli -- requirements validate \
+  --requirements examples/requirements/example-engineering-requirements.json
+
+dotnet run --project src/ThesisDocx.Cli -- template validate \
+  --template examples/templates/example-university-engineering

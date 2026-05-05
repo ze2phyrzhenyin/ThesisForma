@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.2.0",
+  "name": "example-university-engineering-variant",
+  "pageSetup": {
+    "topMarginCm": 2.0,
+    "bottomMarginCm": 2.0,
+    "leftMarginCm": 3.2,
+    "rightMarginCm": 2.4
+  },
+  "headings": {
+    "1": {
+      "font": {
+        "sizePt": 15
+      },
+      "spaceBeforePt": 10,
+      "spaceAfterPt": 8
+    }
+  },
+  "headerFooter": {
+    "headerText": "Example Engineering College Variant"
+  },
+  "bibliography": {
+    "entryParagraph": {
+      "hangingIndentCm": 0.9
+    }
+  },
+  "tables": {
+    "caption": {
+      "position": "after",
+      "style": "ThesisCaption",
+      "numbering": true
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/template-pilot-package-manifest.schema.json",
+  "title": "TemplatePilotPackageManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "templateId", "templateVersion", "createdAt", "includedFiles", "sha256", "privacyScanSummary"],
+  "properties": {
+    "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
+    "workspaceId": { "$ref": "#/definitions/id" },
+    "templateId": { "$ref": "#/definitions/id" },
+    "templateVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "includedFiles": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/relativePath" }
+    },
+    "sha256": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "privacyScanSummary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["isValid", "breakingCount", "warningCount"],
+      "properties": {
+        "isValid": { "type": "boolean" },
+        "breakingCount": { "type": "integer", "minimum": 0 },
+        "warningCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "definitions": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          { "pattern": "^(/|[A-Za-z]:[\\\\/])" },
+          { "pattern": "(^|[\\\\/])\\.\\.($|[\\\\/])" },
+          { "pattern": "\\.(pdf|docx|doc|wps|ttf|otf|ttc)$" }
+        ]
+      }
+    }
+  }
+}

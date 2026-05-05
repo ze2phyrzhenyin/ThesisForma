@@ -1,0 +1,27 @@
+{
+  "suiteSchemaVersion": "1.0.0",
+  "name": "Example University Engineering Template Regression",
+  "cases": [
+    {
+      "id": "example-university-engineering-full",
+      "documentPath": "../full-thesis/document.json",
+      "templatePath": "../templates/example-university-engineering",
+      "variables": {
+        "variables.defenseDate": "2026-06-01"
+      },
+      "minLayoutSimilarity": 0.99,
+      "baselineLayoutPath": "baselines/example-university-engineering-full.layout.json",
+      "baselineSnapshotPath": "baselines/example-university-engineering-full.snapshot.txt",
+      "requiredCustomProperties": [
+        "ThesisDocx.TemplateId",
+        "ThesisDocx.TemplateVersion",
+        "ThesisDocx.RenderedPageTemplates"
+      ],
+      "requiredParts": [
+        "word/document.xml",
+        "word/styles.xml",
+        "docProps/custom.xml"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "example-engineering-requirements-invalid",
+  "title": "Invalid requirement capture example",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "manual-2026",
+      "title": "Invalid absolute path source",
+      "type": "manualNote",
+      "path": "/absolute/source/manual.md",
+      "capturedAt": "2026-05-05T00:00:00Z",
+      "notes": "This file is intentionally invalid."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-unmapped-approved",
+      "category": "heading",
+      "title": "Approved but unmapped",
+      "description": "This requirement is approved but has no acceptable mapping.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": ""
+      },
+      "normalizedValue": "heading",
+      "confidence": "low",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Intentionally invalid."
+    }
+  ],
+  "mappings": [
+    {
+      "requirementId": "req-unmapped-approved",
+      "mappingStatus": "unmapped",
+      "notes": ""
+    }
+  ],
+  "unresolvedItems": [],
+  "approval": {
+    "preparedBy": "Template Author",
+    "notes": "Invalid example."
+  }
+}

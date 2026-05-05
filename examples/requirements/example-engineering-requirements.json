@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "example-engineering-requirements",
+  "title": "Example Engineering College thesis formatting requirements",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "manual-2026",
+      "title": "Example thesis format manual",
+      "type": "manualNote",
+      "path": "sources/example-format-manual.md",
+      "capturedAt": "2026-05-05T00:00:00Z",
+      "notes": "Fictional source used for template onboarding tests."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-page-a4-margins",
+      "category": "pageSetup",
+      "title": "A4 paper and margins",
+      "description": "Thesis pages use A4 paper with fixed top, bottom, left, and right margins.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "A4; margins follow college template.",
+        "page": "p.1",
+        "section": "Page setup"
+      },
+      "normalizedValue": "A4, top/bottom/left/right margins from template",
+      "targetSpecPath": "$.pageSetup",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to resolved ThesisFormatSpec pageSetup."
+    },
+    {
+      "id": "req-heading-style",
+      "category": "heading",
+      "title": "Heading hierarchy and spacing",
+      "description": "Heading levels 1 to 3 must use the college heading styles and numbering.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "Chapter and subsection headings use numbered levels.",
+        "page": "p.2",
+        "section": "Headings"
+      },
+      "normalizedValue": "Heading 1/2/3 styles and numbering",
+      "targetSpecPath": "$.headings",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Covered by heading fixtures."
+    },
+    {
+      "id": "req-cover-fields",
+      "category": "cover",
+      "title": "Cover metadata table",
+      "description": "Cover page must render thesis title, author, student number, major, advisor, college, and date.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "Cover contains required student and thesis fields.",
+        "page": "p.3",
+        "section": "Cover"
+      },
+      "normalizedValue": "Cover field table populated from metadata and variables",
+      "targetTemplatePath": "$.pageTemplates[0]",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Implemented with page template layout DSL."
+    },
+    {
+      "id": "req-table-three-line",
+      "category": "table",
+      "title": "Three-line table rules",
+      "description": "Academic tables can use top, header, and bottom horizontal rules without default vertical lines.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "Tables use three horizontal rules where applicable.",
+        "page": "p.5",
+        "section": "Tables"
+      },
+      "normalizedValue": "threeLine table style",
+      "targetSpecPath": "$.tables",
+      "confidence": "medium",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to table renderer and table-edge fixture."
+    },
+    {
+      "id": "req-bibliography-indent",
+      "category": "bibliography",
+      "title": "Bibliography hanging indent",
+      "description": "Bibliography entries use numbered list formatting with hanging indent.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "References are numbered with hanging indent.",
+        "page": "p.7",
+        "section": "References"
+      },
+      "normalizedValue": "hanging indent in bibliography entries",
+      "targetSpecPath": "$.bibliography",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Validated by conformance checks."
+    },
+    {
+      "id": "req-legacy-watermark",
+      "category": "other",
+      "title": "Optional legacy watermark",
+      "description": "Older manual notes mention an optional watermark for draft copies.",
+      "sourceId": "manual-2026",
+      "evidence": {
+        "shortQuote": "Draft watermark may be used.",
+        "page": "appendix",
+        "section": "Legacy notes"
+      },
+      "normalizedValue": "optional watermark",
+      "confidence": "low",
+      "reviewStatus": "reviewed",
+      "reviewer": "Template Reviewer",
+      "notes": "Not required for approved template."
+    }
+  ],
+  "mappings": [
+    {
+      "requirementId": "req-page-a4-margins",
+      "specPath": "$.pageSetup",
+      "mappingStatus": "mapped",
+      "notes": "Resolved format spec pageSetup."
+    },
+    {
+      "requirementId": "req-heading-style",
+      "specPath": "$.headings",
+      "mappingStatus": "mapped",
+      "notes": "Heading styles and numbering."
+    },
+    {
+      "requirementId": "req-cover-fields",
+      "templatePath": "$.pageTemplates[0]",
+      "mappingStatus": "mapped",
+      "notes": "Cover replacement layout."
+    },
+    {
+      "requirementId": "req-table-three-line",
+      "specPath": "$.tables",
+      "mappingStatus": "partial",
+      "notes": "Implemented for three-line mode and advanced table fixtures."
+    },
+    {
+      "requirementId": "req-bibliography-indent",
+      "specPath": "$.bibliography",
+      "mappingStatus": "mapped",
+      "notes": "Bibliography validator checks hanging indent."
+    },
+    {
+      "requirementId": "req-legacy-watermark",
+      "mappingStatus": "notSupported",
+      "notes": "Watermark rendering is outside current deterministic thesis template scope."
+    }
+  ],
+  "unresolvedItems": [],
+  "approval": {
+    "preparedBy": "Template Author",
+    "reviewedBy": "Template Reviewer",
+    "approvedBy": "Template Lead",
+    "approvedAt": "2026-05-05",
+    "notes": "Fictional approved example for quality workflow tests."
+  }
+}

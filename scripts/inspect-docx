@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: scripts/inspect-docx <docx> [out.json]" >&2
+  exit 2
+fi
+
+DOCX="$1"
+OUT="${2:-}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export NUGET_PACKAGES="$ROOT/.nuget/packages"
+export NUGET_HTTP_CACHE_PATH="$ROOT/.nuget/http-cache"
+export NUGET_TEMP="$ROOT/.nuget/temp"
+
+if [[ -n "$OUT" ]]; then
+  dotnet run --project "$ROOT/src/ThesisDocx.Cli" -- inspect --docx "$DOCX" --out "$OUT"
+else
+  dotnet run --project "$ROOT/src/ThesisDocx.Cli" -- inspect --docx "$DOCX"
+fi

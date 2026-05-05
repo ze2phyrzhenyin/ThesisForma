@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "negative-low-confidence-approved",
+  "title": "Low confidence approved requirement",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "manual",
+      "title": "Manual note",
+      "type": "manualNote",
+      "path": "sources/manual.md",
+      "notes": "Negative warning fixture."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-low-confidence",
+      "category": "table",
+      "title": "Table border",
+      "description": "Approved requirement with low confidence.",
+      "sourceId": "manual",
+      "evidence": { "shortQuote": "Table rules need review.", "page": "p.3" },
+      "normalizedValue": "table borders",
+      "targetSpecPath": "$.tables",
+      "confidence": "low",
+      "reviewStatus": "approved",
+      "notes": "Expected warning."
+    }
+  ],
+  "mappings": [
+    {
+      "requirementId": "req-low-confidence",
+      "specPath": "$.tables",
+      "mappingStatus": "mapped",
+      "notes": "Mapped but low confidence."
+    }
+  ],
+  "unresolvedItems": [],
+  "approval": { "preparedBy": "Template Author", "notes": "Negative warning fixture." }
+}

@@ -1,0 +1,23 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-missing-required-variable",
+  "name": "Negative Missing Required Variable",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Required variable has no default or source path.",
+  "school": "Example University",
+  "college": "Example Engineering College",
+  "degreeType": "master",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "variables": [
+    {
+      "name": "approvalCode",
+      "label": "Approval Code",
+      "type": "string",
+      "required": true,
+      "description": "Intentionally unresolved.",
+      "displayOrder": 1
+    }
+  ],
+  "notes": ["Negative fixture."]
+}
