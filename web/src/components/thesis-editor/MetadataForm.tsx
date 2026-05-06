@@ -15,7 +15,7 @@ export function MetadataForm({ metadata, dispatch }: { metadata: ThesisEditorSta
   ];
 
   return (
-    <div className="stack" data-testid="metadata-form">
+    <div className="metadata-grid" data-testid="metadata-form">
       {fields.map(([field, label]) => (
         <Field key={field} label={label}>
           <Input

@@ -72,15 +72,16 @@ describe('structured thesis editor UI', () => {
   it('HomePage_ShouldShowClearFrontendOnlyMode', () => {
     render(<HomePage onNew={vi.fn()} onTemplates={vi.fn()} />);
     expect(screen.getByText('论文结构化编辑器')).toBeInTheDocument();
-    expect(screen.getByText(/当前线上版本支持结构化编辑/)).toBeInTheDocument();
+    expect(screen.getByText(/支持结构化编辑、本地保存、导入\/导出 JSON/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '新建论文' })).toBeInTheDocument();
   });
 
   it('TemplatePage_ShouldShowTemplateStatusAndGaps', async () => {
     render(<TemplatesPage onSelect={vi.fn()} />);
     expect(await screen.findByText('Example University Engineering Thesis')).toBeInTheDocument();
-    expect(screen.getByText('ready')).toBeInTheDocument();
-    expect(screen.getByText('Known gaps: 0')).toBeInTheDocument();
+    expect(screen.getAllByText('ready').length).toBeGreaterThan(0);
+    expect(screen.getByText('Known gaps')).toBeInTheDocument();
+    expect(screen.getByText('前端支持')).toBeInTheDocument();
   });
 
   it('Editor_ShouldShowAutosaveStatus', () => {

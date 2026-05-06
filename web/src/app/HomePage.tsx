@@ -62,18 +62,21 @@ export function HomePage({
       <header className="topbar topbar-home">
         <div className="brand">
           <span className="brand-title">ThesisForma</span>
-          <span className="brand-subtitle">结构化录入论文内容，模板决定 DOCX 格式</span>
+          <span className="brand-subtitle">论文结构化编辑器</span>
         </div>
       </header>
-      <main className="page">
-        <div className="home-shell">
-          <section className="hero-panel">
-            <div className="hero-badges">
+      <main className="home-page">
+        <section className="home-hero-v2">
+          <div className="home-hero-copy">
+            <div className="home-eyebrow">
+              <span>STRUCTURED THESIS WORKSPACE</span>
               <Badge tone="info">Frontend MVP</Badge>
-              <Badge>结构化编辑</Badge>
             </div>
-            <h1>论文结构化编辑器</h1>
-            <p>录入论文结构内容，选择模板，导出可渲染的 ThesisDocument JSON。格式由模板统一控制，网页不提供手工字体、字号、行距和页边距设置。</p>
+            <h1>把论文内容写成稳定结构，而不是在网页里排版。</h1>
+            <p>
+              ThesisForma 让学生录入标题、段落、图表、脚注和参考文献；学院格式由模板控制，
+              导出稳定的 ThesisDocument JSON 后再交给 OpenXML 渲染服务生成 DOCX。
+            </p>
             <div className="hero-actions">
               <Button variant="primary" onClick={onNew}>新建论文</Button>
               <Button onClick={onTemplates}>选择模板</Button>
@@ -92,14 +95,38 @@ export function HomePage({
                 }}
               />
             </div>
-          </section>
+          </div>
+          <aside className="workflow-panel" aria-label="工作流程">
+            <div className="workflow-row active">
+              <span>01</span>
+              <strong>录入结构</strong>
+              <p>metadata、section、block、引用和参考文献。</p>
+            </div>
+            <div className="workflow-row">
+              <span>02</span>
+              <strong>模板约束</strong>
+              <p>格式规则从 TemplatePackage 读取，不在前端手调样式。</p>
+            </div>
+            <div className="workflow-row">
+              <span>03</span>
+              <strong>导出 JSON</strong>
+              <p>前端模式可直接下载 ThesisDocument JSON。</p>
+            </div>
+            <div className="workflow-row muted-row">
+              <span>04</span>
+              <strong>后端生成 DOCX</strong>
+              <p>连接 .NET OpenXML 服务后启用。</p>
+            </div>
+          </aside>
+        </section>
 
-          <InlineAlert title="Vercel 前端模式">
-            当前线上版本支持结构化编辑、本地保存、导入 JSON 和导出 JSON；DOCX 生成需要连接后端 OpenXML 渲染服务。
-          </InlineAlert>
+        <div className="home-mode-strip">
+          <strong>当前线上模式</strong>
+          <span>支持结构化编辑、本地保存、导入/导出 JSON；DOCX 生成需要连接后端渲染服务。</span>
+        </div>
 
-          <div className="home-two-col">
-            <Card title="最近草稿" description="草稿保存在浏览器本地存储中，不写入公开仓库。">
+        <div className="home-workspace-grid">
+          <Card title="最近草稿" description="草稿保存在浏览器本地，不写入公开仓库。">
               {drafts.length === 0 ? (
                 <EmptyState
                   title="暂无最近草稿"
@@ -125,16 +152,19 @@ export function HomePage({
                   </div>
                 </div>
               )}
-            </Card>
+          </Card>
 
-            <div className="home-info-stack">
-              <Card title="结构化工作方式" description="用户只负责内容和结构。">
-                <p className="muted">封面、声明页、目录、页眉页脚、字体字号和行距由模板与后端渲染器控制，避免手工排版漂移。</p>
-              </Card>
-              <Card title="导出与后端渲染" description="前端先产出稳定 JSON。">
-                <p className="muted">ThesisDocument JSON 可交给后端执行 validate-input、render、OpenXML 验证和格式检查，再生成 DOCX。</p>
-              </Card>
-            </div>
+          <div className="home-side-cards">
+            <InlineAlert title="不是 Word 替代品">
+              字体、字号、行距、页边距和页眉页脚由模板与后端渲染器控制，避免手工排版漂移。
+            </InlineAlert>
+            <Card title="交付物" description="前端优先保证结构可靠。">
+              <div className="deliverable-list">
+                <span>ThesisDocument JSON</span>
+                <span>结构校验问题</span>
+                <span>模板状态提示</span>
+              </div>
+            </Card>
           </div>
         </div>
       </main>

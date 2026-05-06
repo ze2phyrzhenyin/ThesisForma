@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { templateApi } from '../api/client';
-import { Badge, Button, EmptyState, InlineAlert, StatusPill } from '../components/design-system/Primitives';
+import { Badge, Button, EmptyState, StatusPill } from '../components/design-system/Primitives';
 import type { TemplateSummary } from '../components/thesis-editor/types';
 
 export function TemplatesPage({
@@ -30,16 +30,21 @@ export function TemplatesPage({
         ) : null}
       </header>
       <main className="page">
-        <div className="home-shell">
-          <section className="hero-panel">
-            <h1>模板库</h1>
-            <p>模板决定格式规则，编辑器只记录论文内容结构。公开前端只展示虚构示例模板；真实学院草稿应留在私有 workspace。</p>
+        <div className="template-page-shell">
+          <section className="template-hero">
+            <div>
+              <span className="home-eyebrow-text">TEMPLATE LIBRARY</span>
+              <h1>选择格式模板，但不要在网页里手工排版。</h1>
+              <p>模板决定格式规则，编辑器只记录论文内容结构。公开前端只展示虚构示例模板；真实学院草稿应留在私有 workspace。</p>
+            </div>
+            <div className="template-hero-card">
+              <strong>前端模式</strong>
+              <span>可编辑结构、查看模板状态并导出 JSON。</span>
+              <span>在线 DOCX 生成需连接后端服务。</span>
+            </div>
           </section>
-          <InlineAlert title="选择模板后仍可导出 JSON">
-            当前 Vercel 前端模式不在线生成 DOCX。模板用于约束结构、提示缺口和标记导出目标。
-          </InlineAlert>
         </div>
-        <div className="template-grid template-grid-page">
+        <div className="template-grid template-grid-page template-grid-polished">
           {templates.length === 0 ? (
             <EmptyState
               title="没有找到模板"
@@ -62,7 +67,7 @@ function TemplateCard({ template, onSelect }: { template: TemplateSummary; onSel
   const knownGapsValue = isReady ? 0 : '待确认';
 
   return (
-    <article className="template-card">
+    <article className="template-card template-card-polished">
       <div className="template-card-header">
         <div className="template-card-name-row">
           <strong className="template-card-name">{template.name}</strong>
@@ -79,10 +84,13 @@ function TemplateCard({ template, onSelect }: { template: TemplateSummary; onSel
           <Badge tone={coverageTone}>{coveragePct}% 覆盖</Badge>
           {!isReady ? <Badge tone="warning">草稿</Badge> : null}
         </div>
+        <div className="coverage-meter" aria-label={`覆盖率 ${coveragePct}%`}>
+          <span style={{ width: `${Math.min(100, Math.max(0, coveragePct))}%` }} />
+        </div>
         <div className="template-detail-grid">
-          <p className="muted template-detail-small">Readiness: {template.readiness}</p>
-          <p className="muted template-detail-small">Known gaps: {knownGapsValue}</p>
-          <p className="muted template-detail-small">前端支持：结构化编辑与 JSON 导出</p>
+          <div className="template-detail-item"><span className="template-detail-label">Readiness</span><span className="template-detail-value">{template.readiness}</span></div>
+          <div className="template-detail-item"><span className="template-detail-label">Known gaps</span><span className="template-detail-value">{knownGapsValue}</span></div>
+          <div className="template-detail-item"><span className="template-detail-label">前端支持</span><span className="template-detail-value">结构化编辑与 JSON 导出</span></div>
         </div>
         {!isReady ? (
           <p className="template-card-warning">此模板仍是草稿，可能存在未映射格式要求。</p>
