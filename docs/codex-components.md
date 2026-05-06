@@ -59,5 +59,8 @@ Use the mirrored skills as role guidance:
 - `docx-intake-extraction`: OpenXML extraction from uploaded DOCX files into evidence JSON.
 - `thesis-structure-mapping`: rule-assisted mapping from extraction evidence to `ThesisDocument` drafts.
 - `llm-structure-review`: Codex review prompt discipline for structure mapping without rewriting content.
+- `web-structured-thesis-editor`: React structured thesis editor, block model, `ThesisDocument` JSON serialization.
+- `thesis-editor-design-system`: professional, restrained three-column editor UI and shared design tokens.
+- `web-editor-api`: ASP.NET Core editor API, runtime file storage, render/validate/assets endpoints, and path safety.
 
 The `.toml` files define suggested worker boundaries for schema, renderer, validation, and docs agents.

@@ -78,6 +78,8 @@ Onboarding workers own `src/ThesisDocx.Core/Onboarding`, `src/ThesisDocx.Core/Pr
 
 Intake workers own `src/ThesisDocx.Core/Extraction`, `src/ThesisDocx.Core/Structuring`, DOCX extraction schemas, and intake CLI tests. They must not modify input DOCX files and must not rewrite thesis semantics.
 
+Web editor workers own `web/` and `src/ThesisDocx.Api`. They must keep the editor structure-first: users edit metadata, sections, blocks, citations, references, tables, figures, and bibliography, while formatting remains controlled by `TemplatePackage` and `ThesisFormatSpec`. Do not add manual font, font-size, margin, line-spacing, or Word-like free layout controls.
+
 Docs workers own README and docs, but must not claim unimplemented capabilities.
 
 ## CLI
@@ -128,4 +130,4 @@ The CLI supports:
 - `docx layout-signature`
 - `docx layout-compare`
 
-The CLI is a developer and test harness for Stage 1. The web UI can be added later.
+The CLI remains the developer and test harness. The web editor MVP lives in `web/` and calls `src/ThesisDocx.Api`; it must not bypass Core validation or write user artifacts into `examples/`.

@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ThesisDocx.Core\ThesisDocx.Core.csproj" />
+    <ProjectReference Include="..\..\src\ThesisDocx.Api\ThesisDocx.Api.csproj" />
   </ItemGroup>
 
 </Project>

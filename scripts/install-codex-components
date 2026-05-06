@@ -19,6 +19,6 @@ cp -R "$ROOT/codex-components/codex/agents" "$ROOT/.codex/agents"
 cp -R "$ROOT/codex-components/codex/hooks" "$ROOT/.codex/hooks"
 
 echo "Installed Codex components into .agents and .codex"
-echo "This includes onboarding, privacy, pilot-package, and real-college-pilot skills when present."
+echo "This includes onboarding, privacy, pilot-package, real-college-pilot, and web-editor skills when present."
 echo "Installed skills:"
 find "$ROOT/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort

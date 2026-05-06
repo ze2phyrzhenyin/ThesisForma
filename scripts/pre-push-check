@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+cd "$ROOT"
+dotnet build ThesisDocx.slnx
+dotnet test ThesisDocx.slnx
+
+if [[ -f "$ROOT/web/package.json" ]]; then
+  cd "$ROOT/web"
+  npm ci
+  npm run typecheck
+  npm run lint
+  npm test
+  npm run build
+fi

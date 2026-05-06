@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WEB_DIR="$ROOT/web"
+
+if [[ ! -f "$WEB_DIR/package.json" ]]; then
+  echo "web/package.json not found" >&2
+  exit 1
+fi
+
+cd "$WEB_DIR"
+npm ci
+npm run build
