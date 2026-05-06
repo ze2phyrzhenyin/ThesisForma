@@ -11,12 +11,26 @@ import { RenderPanel } from './RenderPanel';
 import { TemplateStatusPanel } from './TemplateStatusPanel';
 import { TocPreview } from './TocPreview';
 import { ValidationPanel } from './ValidationPanel';
-import { editorReducer, localValidate } from './editorReducer';
+import { editorReducer, localValidate, type EditorAction } from './editorReducer';
 import { collectReferenceTargets, createInitialState, deserializeFromThesisDocument, serializeToThesisDocument } from './serialization';
 import type { TemplateSummary, ThesisEditorState } from './types';
 
-export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditorState }) {
-  const [state, dispatch] = useReducer(editorReducer, initialState ?? createInitialState());
+type ThesisEditorPageProps = {
+  initialState?: ThesisEditorState;
+  onStateChange?: (state: ThesisEditorState) => void;
+  onHome?: () => void;
+  onTemplates?: () => void;
+  onBack?: () => void;
+};
+
+export function ThesisEditorPage({ initialState, onStateChange, onHome, onTemplates, onBack }: ThesisEditorPageProps) {
+  const [historyState, dispatchWithHistory] = useReducer(editorHistoryReducer, initialState ?? createInitialState(), state => ({
+    past: [],
+    present: state,
+    future: []
+  }));
+  const state = historyState.present;
+  const dispatch = dispatchWithHistory as React.Dispatch<EditorAction>;
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [activePanel, setActivePanel] = useState('properties');
   const [toast, setToast] = useState<string>();
@@ -24,6 +38,10 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
   const referenceTargets = useMemo(() => collectReferenceTargets(state), [state]);
   const citedKeys = useMemo(() => collectCitations(state), [state]);
   const selectedBlock = useMemo(() => state.sections.flatMap(section => section.blocks).find(block => block.id === state.selectedBlockId), [state]);
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [onStateChange, state]);
 
   useEffect(() => {
     void templateApi.list().then(items => {
@@ -39,10 +57,26 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
         event.preventDefault();
         void save();
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      }
+      if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        redo();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  function undo() {
+    dispatchWithHistory({ type: 'undo' });
+  }
+
+  function redo() {
+    dispatchWithHistory({ type: 'redo' });
+  }
 
   async function save() {
     dispatch({ type: 'setAutosaveStatus', status: 'saving' });
@@ -132,6 +166,13 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
         onRender={() => void render()}
         onExportJson={exportJson}
         onImportJson={() => importInputRef.current?.click()}
+        onHome={onHome}
+        onTemplates={onTemplates}
+        onBack={onBack}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={historyState.past.length > 0}
+        canRedo={historyState.future.length > 0}
         docxRenderEnabled={appConfig.docxRenderEnabled}
       />
       <input
@@ -283,4 +324,55 @@ function blockLabel(type: string) {
     equation: '公式',
     pageBreak: '分页'
   }[type] ?? type;
+}
+
+type EditorHistoryState = {
+  past: ThesisEditorState[];
+  present: ThesisEditorState;
+  future: ThesisEditorState[];
+};
+
+type EditorHistoryAction = EditorAction | { type: 'undo' } | { type: 'redo' };
+
+function editorHistoryReducer(history: EditorHistoryState, action: EditorHistoryAction): EditorHistoryState {
+  if (action.type === 'undo') {
+    const previous = history.past.at(-1);
+    if (!previous) return history;
+    return {
+      past: history.past.slice(0, -1),
+      present: previous,
+      future: [history.present, ...history.future].slice(0, 50)
+    };
+  }
+
+  if (action.type === 'redo') {
+    const next = history.future[0];
+    if (!next) return history;
+    return {
+      past: [...history.past, history.present].slice(-50),
+      present: next,
+      future: history.future.slice(1)
+    };
+  }
+
+  const next = editorReducer(history.present, action);
+  if (Object.is(next, history.present)) return history;
+  if (!isUndoableAction(action)) return { ...history, present: next };
+
+  return {
+    past: [...history.past, history.present].slice(-50),
+    present: next,
+    future: []
+  };
+}
+
+function isUndoableAction(action: EditorAction) {
+  return ![
+    'setDocumentId',
+    'setTemplate',
+    'setAutosaveStatus',
+    'selectBlock',
+    'setValidationIssues',
+    'setRenderRun'
+  ].includes(action.type);
 }

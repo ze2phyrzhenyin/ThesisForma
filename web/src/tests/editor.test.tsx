@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ThesisEditorPage } from '../components/thesis-editor/ThesisEditorPage';
 import { ValidationPanel } from '../components/thesis-editor/ValidationPanel';
 import { RenderPanel } from '../components/thesis-editor/RenderPanel';
 import { HomePage } from '../app/HomePage';
+import { App } from '../app/App';
 import { TemplatesPage } from '../app/TemplatesPage';
 import { Button, Modal } from '../components/design-system/Primitives';
 import { renderApi } from '../api/client';
@@ -85,6 +86,39 @@ describe('structured thesis editor UI', () => {
   it('Editor_ShouldShowAutosaveStatus', () => {
     render(<ThesisEditorPage />);
     expect(screen.getByText('未保存')).toBeInTheDocument();
+  });
+
+  it('EditorToolbar_ShouldShowHomeBackUndoRedoControls', () => {
+    render(<ThesisEditorPage />);
+    expect(screen.getByRole('button', { name: '首页' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '模板' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '后退' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '撤销' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '重做' })).toBeDisabled();
+  });
+
+  it('EditorUndoRedo_ShouldRestoreMetadataChange', async () => {
+    const user = userEvent.setup();
+    render(<ThesisEditorPage />);
+    const titleInput = screen.getByLabelText('论文题目');
+    fireEvent.change(titleInput, { target: { value: '撤销测试论文' } });
+    expect(titleInput).toHaveValue('撤销测试论文');
+
+    await user.click(screen.getByRole('button', { name: '撤销' }));
+    expect(titleInput).toHaveValue('');
+
+    await user.click(screen.getByRole('button', { name: '重做' }));
+    expect(titleInput).toHaveValue('撤销测试论文');
+  });
+
+  it('AppNavigation_ShouldReturnHomeFromEditor', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: '新建论文' }));
+    expect(await screen.findByTestId('three-column-layout')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '首页' }));
+    expect(await screen.findByText('论文结构化编辑器')).toBeInTheDocument();
   });
 
   it('Editor_ShouldNotAllowManualFontSizeEditing', () => {
