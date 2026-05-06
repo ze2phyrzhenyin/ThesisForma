@@ -37,7 +37,7 @@ Legacy token aliases remain for older CSS, but new components should use the `--
 
 The editor page uses a stable three-column layout:
 
-- Top toolbar: sticky, 60px, product/title on the left, template/mode in the center, actions on the right.
+- Top toolbar: sticky, 56px. Home/Templates/Back on the left, Undo/Redo next, then autosave status + validation badge + template info in the center, then Save/Validate/Import/Export/DOCX actions on the right.
 - Left outline: about 260px, shows section nodes and heading hierarchy.
 - Center canvas: max width about 920px, white document surface without simulating final Word layout.
 - Right panel: about 320px, tabs for Properties, Validation, References, and Template.

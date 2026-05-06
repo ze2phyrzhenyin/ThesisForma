@@ -3,11 +3,13 @@
 ## Create A Thesis
 
 1. Open `/`.
-2. Choose `新建论文`.
-3. Confirm the current template or open `/templates` to choose another.
-4. Fill metadata: title, author, college, major, student id, advisor, and date.
+2. The home page shows recent drafts (from browser `localStorage`) and three primary actions: 新建论文, 选择模板, 导入 JSON.
+3. The page explicitly states frontend-only mode capabilities.
+4. Choose 新建论文 or select a template from 选择模板.
+5. Fill metadata: title, author, college, major, student id, advisor, and date.
+6. Recent drafts are listed automatically. Clicking a draft reopens it without losing the current editor state.
 
-The home page explicitly states frontend-only mode: users can edit structure and export JSON; DOCX generation requires a backend renderer.
+ThesisForma is a **structured thesis editor**, not a Word replacement or a free-layout WYSIWYG tool. All visual formatting (fonts, sizes, margins, borders, captions, TOC styles) is controlled by the selected TemplatePackage, not by the frontend.
 
 ## Edit Structure
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ThesisEditorPage } from '../components/thesis-editor/ThesisEditorPage';
-import { createInitialState } from '../components/thesis-editor/serialization';
+import { createInitialState, deserializeFromThesisDocument } from '../components/thesis-editor/serialization';
 import type { RenderRun, ThesisEditorState } from '../components/thesis-editor/types';
 import { HomePage } from './HomePage';
 import { RunPage } from './RunPage';
@@ -25,11 +25,36 @@ export function App() {
     setRoute(next);
   }
 
+  async function handleImportJson(file: File) {
+    try {
+      const text = await file.text();
+      const document = JSON.parse(text) as unknown;
+      const state = deserializeFromThesisDocument(document, editorState.templateId);
+      setEditorState(state);
+      navigate('editor');
+    } catch {
+      // Silently ignore parse errors — user will see the editor with default state
+    }
+  }
+
+  function handleOpenDraft(draftId: string) {
+    const item = localStorage.getItem(`thesisforma.document.${draftId}`);
+    if (!item) return;
+    try {
+      const envelope = JSON.parse(item) as { document: unknown; templateId?: string };
+      const state = deserializeFromThesisDocument(envelope.document, envelope.templateId);
+      setEditorState(state);
+      navigate('editor');
+    } catch {
+      // Ignore malformed draft data
+    }
+  }
+
   if (route === 'templates') {
     return <TemplatesPage onSelect={(templateId) => {
       setEditorState(createInitialState(templateId));
       navigate('editor');
-    }} />;
+    }} onBack={() => navigate('home')} />;
   }
 
   if (route === 'editor') {
@@ -48,7 +73,14 @@ export function App() {
     return <RunPage run={lastRun} onBack={() => navigate('editor')} />;
   }
 
-  return <HomePage onNew={() => navigate('editor')} onTemplates={() => navigate('templates')} />;
+  return (
+    <HomePage
+      onNew={() => navigate('editor')}
+      onTemplates={() => navigate('templates')}
+      onImportJson={handleImportJson}
+      onOpenDraft={handleOpenDraft}
+    />
+  );
 }
 
 function routeFromPath(): Route {

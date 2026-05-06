@@ -1,39 +1,80 @@
-import { Badge, Button, Card } from '../components/design-system/Primitives';
+import { Badge, Button, Card, InlineAlert } from '../components/design-system/Primitives';
 import type { RenderRun } from '../components/thesis-editor/types';
 
 export function RunPage({ run, onBack }: { run?: RenderRun; onBack: () => void }) {
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className="topbar topbar-home">
         <div className="brand">
-          <span className="brand-title">生成结果</span>
-          <span className="brand-subtitle">查看 render / validate / inspect 摘要并下载 DOCX</span>
+          <span className="brand-title">ThesisForma</span>
+          <span className="brand-subtitle">生成结果</span>
         </div>
-        <Button onClick={onBack}>返回编辑器</Button>
+        <nav className="toolbar-nav" aria-label="页面导航">
+          <Button type="button" onClick={onBack}>返回编辑器</Button>
+        </nav>
       </header>
       <main className="page">
-        <div className="landing-grid">
-          <Card title="运行状态">
-            {run ? (
-              <div className="stack">
-                <Badge tone={run.status === 'valid' ? 'success' : 'danger'}>{run.status}</Badge>
-                <p>Run ID: {run.runId}</p>
-                <p>OpenXML: {run.openXmlValid ? '通过' : '失败'}</p>
-                <p>格式验证: {run.formatValid ? '通过' : '失败'}</p>
-                <a href={run.downloadUrl}>下载生成的 DOCX</a>
-              </div>
-            ) : <p className="muted">尚未生成运行结果。</p>}
-          </Card>
-          <Card title="错误和修复建议">
-            {run?.issues?.length ? run.issues.map(issue => (
-              <div key={issue.code} className={`issue-row ${issue.severity}`}>
-                <strong>{issue.message}</strong>
-                {issue.suggestedAction ? <p>{issue.suggestedAction}</p> : null}
-              </div>
-            )) : <p className="muted">没有结构化错误。</p>}
-          </Card>
+        <div className="home-shell">
+          <InlineAlert tone="warning" title="当前部署：前端模式">
+            Vercel 部署仅支持结构化编辑与 JSON 导出。在线生成 DOCX 需要连接后端 .NET OpenXML 渲染服务。请优先使用编辑器中的"导出 JSON"按钮。
+          </InlineAlert>
+
+          <div className="landing-grid">
+            <Card title="运行状态">
+              {run ? (
+                <div className="stack">
+                  <div className="inline-row">
+                    <Badge tone={run.status === 'valid' ? 'success' : run.status === 'disabled' ? 'neutral' : 'danger'}>
+                      {runStatusLabel(run.status)}
+                    </Badge>
+                    <span className="muted">运行 ID：{run.runId}</span>
+                  </div>
+                  <div className="run-checks">
+                    <div className={`run-check ${run.openXmlValid ? 'ok' : 'fail'}`}>
+                      <span>{run.openXmlValid ? '✓' : '✗'}</span>
+                      <span>OpenXML 结构验证</span>
+                    </div>
+                    <div className={`run-check ${run.formatValid ? 'ok' : 'fail'}`}>
+                      <span>{run.formatValid ? '✓' : '✗'}</span>
+                      <span>格式规范验证</span>
+                    </div>
+                  </div>
+                  {run.downloadUrl ? (
+                    <a href={run.downloadUrl} className="download-link">下载 DOCX</a>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="muted">尚未生成运行结果。请先在编辑器中使用"生成 DOCX"（需要后端服务）。</p>
+              )}
+            </Card>
+
+            <Card title="校验问题">
+              {run?.issues?.length ? (
+                <div className="stack">
+                  {run.issues.map((issue, i) => (
+                    <div key={`${issue.code}-${i}`} className={`issue-row ${issue.severity}`}>
+                      <strong>{issue.message}</strong>
+                      {issue.suggestedAction ? <p className="muted">建议：{issue.suggestedAction}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">没有结构化错误。</p>
+              )}
+            </Card>
+          </div>
         </div>
       </main>
     </div>
   );
+}
+
+function runStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    valid: '通过',
+    invalid: '验证失败',
+    disabled: '前端模式 — 未生成',
+    failed: '生成失败'
+  };
+  return labels[status] ?? status;
 }

@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { templateApi } from '../api/client';
-import { Badge, Button, Card, EmptyState, InlineAlert, StatusPill } from '../components/design-system/Primitives';
+import { Badge, Button, EmptyState, InlineAlert, StatusPill } from '../components/design-system/Primitives';
 import type { TemplateSummary } from '../components/thesis-editor/types';
 
-export function TemplatesPage({ onSelect }: { onSelect: (templateId: string) => void }) {
+export function TemplatesPage({
+  onSelect,
+  onBack
+}: {
+  onSelect: (templateId: string) => void;
+  onBack?: () => void;
+}) {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
 
   useEffect(() => {
@@ -12,11 +18,16 @@ export function TemplatesPage({ onSelect }: { onSelect: (templateId: string) => 
 
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className="topbar topbar-home">
         <div className="brand">
-          <span className="brand-title">选择论文模板</span>
-          <span className="brand-subtitle">模板决定格式规则，编辑器只录入内容结构</span>
+          <span className="brand-title">ThesisForma</span>
+          <span className="brand-subtitle">选择论文模板</span>
         </div>
+        {onBack ? (
+          <nav className="toolbar-nav" aria-label="页面导航">
+            <Button type="button" onClick={onBack}>返回首页</Button>
+          </nav>
+        ) : null}
       </header>
       <main className="page">
         <div className="home-shell">
@@ -29,33 +40,58 @@ export function TemplatesPage({ onSelect }: { onSelect: (templateId: string) => 
           </InlineAlert>
         </div>
         <div className="template-grid template-grid-page">
-          {templates.length === 0 ? <EmptyState title="没有找到模板" description="前端模式会使用内置虚构示例模板；如果仍为空，请刷新页面。" /> : null}
+          {templates.length === 0 ? (
+            <EmptyState
+              title="没有找到模板"
+              description="前端模式会使用内置虚构示例模板；如果仍为空，请刷新页面。"
+            />
+          ) : null}
           {templates.map(template => (
-            <Card
-              key={template.id}
-              title={template.name}
-              description={`${template.school} / ${template.college}`}
-              footer={
-                <div className="inline-row template-card-footer">
-                  <Button variant="primary" onClick={() => onSelect(template.id)}>选择模板</Button>
-                  <Button variant="ghost">查看详情</Button>
-                </div>
-              }
-            >
-              <div className="template-card-meta">
-                <div className="inline-row">
-                  <StatusPill status={template.status === 'ready' ? 'ready' : template.status === 'notReady' ? 'notReady' : 'draft'}>{template.status}</StatusPill>
-                  <Badge>{template.version}</Badge>
-                  <Badge tone="info">{Math.round(template.coverage * 100)}% 覆盖</Badge>
-                </div>
-                <p className="muted">Readiness: {template.readiness}</p>
-                <p className="muted">Known gaps: {template.status === 'ready' ? 0 : '待确认'}</p>
-                <p>支持当前前端模式：可结构化编辑与导出 JSON。</p>
-              </div>
-            </Card>
+            <TemplateCard key={template.id} template={template} onSelect={onSelect} />
           ))}
         </div>
       </main>
     </div>
+  );
+}
+
+function TemplateCard({ template, onSelect }: { template: TemplateSummary; onSelect: (id: string) => void }) {
+  const isReady = template.status === 'ready';
+  const coveragePct = Math.round(template.coverage * 100);
+  const coverageTone = coveragePct >= 90 ? 'success' : coveragePct >= 70 ? 'warning' : 'danger';
+  const knownGapsValue = isReady ? 0 : '待确认';
+
+  return (
+    <article className="template-card">
+      <div className="template-card-header">
+        <div className="template-card-name-row">
+          <strong className="template-card-name">{template.name}</strong>
+          <StatusPill status={template.status === 'ready' ? 'ready' : template.status === 'notReady' ? 'notReady' : 'draft'}>
+            {template.status}
+          </StatusPill>
+        </div>
+        <p className="template-card-school">{template.school} · {template.college}</p>
+      </div>
+
+      <div className="template-card-body">
+        <div className="template-meta-row">
+          <Badge>版本 {template.version}</Badge>
+          <Badge tone={coverageTone}>{coveragePct}% 覆盖</Badge>
+          {!isReady ? <Badge tone="warning">草稿</Badge> : null}
+        </div>
+        <div className="template-detail-grid">
+          <p className="muted template-detail-small">Readiness: {template.readiness}</p>
+          <p className="muted template-detail-small">Known gaps: {knownGapsValue}</p>
+          <p className="muted template-detail-small">前端支持：结构化编辑与 JSON 导出</p>
+        </div>
+        {!isReady ? (
+          <p className="template-card-warning">此模板仍是草稿，可能存在未映射格式要求。</p>
+        ) : null}
+      </div>
+
+      <div className="template-card-footer">
+        <Button variant="primary" onClick={() => onSelect(template.id)}>选择模板</Button>
+      </div>
+    </article>
   );
 }
