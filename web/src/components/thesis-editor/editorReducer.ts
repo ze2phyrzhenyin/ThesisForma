@@ -11,6 +11,7 @@ export type EditorAction =
   | { type: 'insertBlock'; sectionId: string; block: BlockNode; afterBlockId?: string }
   | { type: 'updateBlock'; blockId: string; block: BlockNode }
   | { type: 'deleteBlock'; blockId: string }
+  | { type: 'duplicateBlock'; blockId: string }
   | { type: 'moveBlock'; blockId: string; direction: 'up' | 'down' }
   | { type: 'addTableRow'; blockId: string }
   | { type: 'addTableColumn'; blockId: string }
@@ -50,6 +51,17 @@ export function editorReducer(state: ThesisEditorState, action: EditorAction): T
       return markUnsaved(mapBlocks(state, block => block.id === action.blockId ? action.block : block));
     case 'deleteBlock':
       return markUnsaved({ ...mapBlocks(state, block => block.id === action.blockId ? undefined : block), selectedBlockId: undefined });
+    case 'duplicateBlock':
+      return markUnsaved({
+        ...state,
+        selectedBlockId: `${action.blockId}-copy`,
+        sections: state.sections.map(section => {
+          const index = section.blocks.findIndex(block => block.id === action.blockId);
+          if (index < 0) return section;
+          const copy = cloneBlock(section.blocks[index]);
+          return { ...section, blocks: [...section.blocks.slice(0, index + 1), copy, ...section.blocks.slice(index + 1)] };
+        })
+      });
     case 'moveBlock':
       return markUnsaved({
         ...state,
@@ -157,4 +169,25 @@ function updateTable(state: ThesisEditorState, blockId: string, update: (table: 
 export function setParagraphText(block: Extract<BlockNode, { type: 'paragraph' }>, text: string): Extract<BlockNode, { type: 'paragraph' }> {
   const firstText: InlineNode = { type: 'text', text };
   return { ...block, inlines: [firstText, ...block.inlines.filter(inline => inline.type !== 'text')] };
+}
+
+function cloneBlock(block: BlockNode): BlockNode {
+  const serialized = JSON.parse(JSON.stringify(block)) as BlockNode;
+  const id = `${block.id}-copy`;
+  if (serialized.type === 'table') {
+    return {
+      ...serialized,
+      id,
+      bookmarkId: id,
+      rows: serialized.rows.map(row => ({
+        ...row,
+        id: newId('row'),
+        cells: row.cells.map(cell => ({ ...cell, id: newId('cell') }))
+      }))
+    };
+  }
+  if (serialized.type === 'heading') return { ...serialized, id, bookmarkName: id };
+  if (serialized.type === 'figure') return { ...serialized, id };
+  if (serialized.type === 'equation') return { ...serialized, id, bookmarkName: id };
+  return { ...serialized, id };
 }

@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { assetApi } from '../../api/client';
-import { Button, Field, Input, Select, Textarea } from '../design-system/Primitives';
+import { Badge, Button, Checkbox, Field, InlineAlert, Input, Select, Textarea } from '../design-system/Primitives';
 import type { EditorAction } from './editorReducer';
 import { setParagraphText } from './editorReducer';
 import type { BlockNode } from './types';
@@ -15,7 +15,7 @@ export function HeadingBlockEditor({ block, dispatch }: { block: Extract<BlockNo
             value={block.level}
             onChange={event => dispatch({ type: 'updateBlock', blockId: block.id, block: { ...block, level: Number(event.target.value) } })}
           >
-            {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={level}>Heading {level}</option>)}
+            {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={level}>{level} 级标题</option>)}
           </Select>
         </Field>
         <Field label="标题文本">
@@ -26,7 +26,7 @@ export function HeadingBlockEditor({ block, dispatch }: { block: Extract<BlockNo
           />
         </Field>
       </div>
-      <p className="muted">标题编号和样式由模板自动控制。</p>
+      <InlineAlert title="标题格式由模板控制">这里只维护标题层级和标题文本，不手动设置字体字号。</InlineAlert>
     </div>
   );
 }
@@ -62,55 +62,61 @@ export function ParagraphBlockEditor({ block, dispatch, bibliographyKeys, refere
 }
 
 export function TableBlockEditor({ block, dispatch }: { block: Extract<BlockNode, { type: 'table' }>; dispatch: React.Dispatch<EditorAction> }) {
+  const rowCount = block.rows.length;
+  const columnCount = block.rows[0]?.cells.length ?? 0;
   return (
-    <div className="stack">
-      <Field label="表名">
-        <Input
-          aria-label="表名"
-          value={block.caption}
-          onChange={event => dispatch({ type: 'updateBlock', blockId: block.id, block: { ...block, caption: event.target.value } })}
-        />
-      </Field>
-      <div className="inline-row">
-        <Button type="button" onClick={() => dispatch({ type: 'addTableRow', blockId: block.id })}>添加行</Button>
-        <Button type="button" onClick={() => dispatch({ type: 'addTableColumn', blockId: block.id })}>添加列</Button>
-        <label className="inline-row">
-          <input
-            type="checkbox"
+    <div className="table-shell">
+      <div className="table-caption-row">
+        <Field label="表名" error={!block.caption.trim() ? '表格需要表名，导出时由模板决定表题位置。' : undefined}>
+          <Input
+            aria-label="表名"
+            placeholder="例如：样本信息统计表"
+            value={block.caption}
+            onChange={event => dispatch({ type: 'updateBlock', blockId: block.id, block: { ...block, caption: event.target.value } })}
+          />
+        </Field>
+        <div className="stack-tight">
+          <span className="table-meta">{rowCount} 行 / {columnCount} 列</span>
+          <Checkbox
+            label="第一行为表头"
             checked={block.repeatHeaderRows === 1}
             onChange={event => dispatch({ type: 'updateBlock', blockId: block.id, block: { ...block, repeatHeaderRows: event.target.checked ? 1 : undefined, rows: block.rows.map((row, index) => ({ ...row, isHeader: event.target.checked && index === 0 })) } })}
           />
-          第一行为表头
-        </label>
+        </div>
       </div>
-      <table className="table-editor" aria-label="表格编辑器">
-        <tbody>
-          {block.rows.map(row => (
-            <tr key={row.id}>
-              {row.cells.map((cell, columnIndex) => (
-                <td key={cell.id}>
-                  <Input
-                    aria-label={`单元格 ${row.id} ${columnIndex + 1}`}
-                    value={cell.text}
-                    onChange={event => dispatch({ type: 'updateTableCell', blockId: block.id, rowId: row.id, cellId: cell.id, text: event.target.value })}
-                    onKeyDown={event => {
-                      if (event.key === 'Tab') {
-                        event.currentTarget.blur();
-                      }
-                    }}
-                  />
+      <InlineAlert title="表格边框由模板控制">这里仅编辑表名、行列和单元格文本，不设置三线表或边框粗细。</InlineAlert>
+      <div className="table-row-actions">
+        <Button type="button" onClick={() => dispatch({ type: 'addTableRow', blockId: block.id })}>添加行</Button>
+        <Button type="button" onClick={() => dispatch({ type: 'addTableColumn', blockId: block.id })}>添加列</Button>
+      </div>
+      <div className="table-scroll">
+        <table className="table-editor" aria-label="表格编辑器">
+          <tbody>
+            {block.rows.map(row => (
+              <tr key={row.id} className={row.isHeader ? 'is-header' : undefined}>
+                {row.cells.map((cell, columnIndex) => (
+                  <td key={cell.id}>
+                    <Input
+                      aria-label={`单元格 ${row.id} ${columnIndex + 1}`}
+                      value={cell.text}
+                      onChange={event => dispatch({ type: 'updateTableCell', blockId: block.id, rowId: row.id, cellId: cell.id, text: event.target.value })}
+                      onKeyDown={event => {
+                        if (event.key === 'Tab') event.currentTarget.blur();
+                      }}
+                    />
+                  </td>
+                ))}
+                <td>
+                  <Button type="button" variant="danger" onClick={() => window.confirm('删除这一行？') && dispatch({ type: 'deleteTableRow', blockId: block.id, rowId: row.id })}>删除行</Button>
                 </td>
-              ))}
-              <td style={{ width: 40 }}>
-                <Button type="button" variant="danger" onClick={() => dispatch({ type: 'deleteTableRow', blockId: block.id, rowId: row.id })}>删</Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="inline-row">
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-column-actions">
         {block.rows[0]?.cells.map((cell, index) => (
-          <Button key={cell.id} type="button" variant="danger" onClick={() => dispatch({ type: 'deleteTableColumn', blockId: block.id, columnIndex: index })}>
+          <Button key={cell.id} type="button" variant="danger" onClick={() => window.confirm(`删除第 ${index + 1} 列？`) && dispatch({ type: 'deleteTableColumn', blockId: block.id, columnIndex: index })}>
             删除第 {index + 1} 列
           </Button>
         ))}
@@ -128,9 +134,15 @@ export function FigureBlockEditor({ block, dispatch }: { block: Extract<BlockNod
   }
   return (
     <div className="stack">
-      <div className="inline-row">
-        {block.previewUrl ? <img src={block.previewUrl} alt={block.altText || block.caption} className="thumb" /> : <div className="thumb" aria-label="图片占位" />}
-        <Button type="button" onClick={() => inputRef.current?.click()}>上传图片</Button>
+      <div className="figure-upload">
+        {block.previewUrl ? <img src={block.previewUrl} alt={block.altText || block.caption} className="thumb" /> : <div className="thumb thumb-placeholder" aria-label="图片占位">等待上传</div>}
+        <div className="stack-tight">
+          <div className="inline-row">
+            <Button type="button" onClick={() => inputRef.current?.click()}>{block.previewUrl ? '更换图片' : '上传图片'}</Button>
+            <Badge tone={block.imagePath ? 'success' : 'warning'}>{block.imagePath ? '本地资产已记录' : '缺少图片'}</Badge>
+          </div>
+          <p className="muted">Vercel 前端模式只保存本地预览与资产元数据；最终 DOCX 插图需要后端资产服务。</p>
+        </div>
         <input
           ref={inputRef}
           type="file"
@@ -148,7 +160,7 @@ export function FigureBlockEditor({ block, dispatch }: { block: Extract<BlockNod
       <Field label="替代文本">
         <Input aria-label="替代文本" value={block.altText} onChange={event => dispatch({ type: 'updateBlock', blockId: block.id, block: { ...block, altText: event.target.value } })} />
       </Field>
-      <p className="muted">图片宽度和题注位置由模板控制。</p>
+      <InlineAlert title="图片格式由模板控制">图片宽度、居中方式和图题位置由模板统一决定。</InlineAlert>
     </div>
   );
 }
@@ -183,7 +195,7 @@ export function CitationPicker({ blockId, bibliographyKeys, dispatch }: { blockI
   return (
     <Field label="插入引用">
       <Select aria-label="插入引用" defaultValue="" onChange={event => event.target.value && dispatch({ type: 'insertCitation', blockId, key: event.target.value })}>
-        <option value="">选择参考文献</option>
+        <option value="">选择参考文献 key</option>
         {bibliographyKeys.map(key => <option key={key} value={key}>{key}</option>)}
       </Select>
     </Field>

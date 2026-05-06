@@ -85,7 +85,15 @@ dotnet run --project src/ThesisDocx.Cli -- validate \
 
 ## Structured Web Editor MVP
 
-The web editor is a structure-first thesis writing interface. It is not a Word clone and does not let users manually set fonts, line spacing, margins, or page numbers. Users edit thesis content and structure; templates decide the final DOCX format.
+The web editor is a structure-first thesis writing interface. It is not a Word clone and does not let users manually set fonts, line spacing, margins, page numbers, or table borders. Users edit thesis content and structure; templates decide the final DOCX format.
+
+The current UI uses a professional three-column document-tool layout:
+
+- left outline for section and heading navigation
+- center structured document canvas for metadata and blocks
+- right tabs for properties, validation, references, and template guidance
+
+The insert menu groups common content, academic elements, and structural blocks. Table and figure insertion use small focused dialogs so users do not have to guess the expected structure.
 
 Run the API:
 
@@ -97,7 +105,7 @@ Run the frontend:
 
 ```bash
 cd web
-npm install
+npm ci
 npm run dev
 ```
 
@@ -105,8 +113,9 @@ Build and test the web editor:
 
 ```bash
 cd web
+npm run typecheck
 npm run lint
-npm test -- --run
+npm test
 npm run build
 ```
 

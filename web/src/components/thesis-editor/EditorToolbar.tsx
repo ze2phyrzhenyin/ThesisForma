@@ -1,4 +1,4 @@
-import { Badge, Button } from '../design-system/Primitives';
+import { Badge, Button, StatusPill } from '../design-system/Primitives';
 import type { ThesisEditorState } from './types';
 
 export function EditorToolbar({ state, onSave, onValidate, onRender, onExportJson, onImportJson, docxRenderEnabled = true }: {
@@ -11,20 +11,25 @@ export function EditorToolbar({ state, onSave, onValidate, onRender, onExportJso
   docxRenderEnabled?: boolean;
 }) {
   const validationTone = state.validationIssues.some(issue => issue.severity === 'error') ? 'danger' : state.validationIssues.length ? 'warning' : 'success';
+  const title = state.metadata.title.trim() || '未命名论文';
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-title">ThesisForma 结构化论文编辑器</span>
-        <span className="brand-subtitle">格式由模板控制，网页只编辑内容和结构</span>
+        <span className="brand-title">ThesisForma</span>
+        <span className="brand-subtitle">{title}</span>
+      </div>
+      <div className="toolbar-center">
+        <Badge tone="info">当前模板：{state.template?.name ?? state.templateId}</Badge>
+        {!docxRenderEnabled ? <StatusPill status="disabled">前端模式：仅导出 JSON</StatusPill> : null}
       </div>
       <div className="toolbar-actions">
         <Badge>{autosaveLabel(state.autosaveStatus)}</Badge>
         <Badge tone={validationTone}>{state.validationIssues.length ? `${state.validationIssues.length} 校验项` : '校验通过'}</Badge>
         <Button type="button" onClick={onSave}>保存</Button>
-        <Button type="button" onClick={onExportJson}>导出 JSON</Button>
         <Button type="button" onClick={onImportJson}>导入 JSON</Button>
         <Button type="button" onClick={onValidate}>校验</Button>
-        <Button type="button" variant="primary" onClick={onRender} disabled={!docxRenderEnabled}>生成 DOCX</Button>
+        <Button type="button" variant="primary" onClick={onExportJson}>导出 JSON</Button>
+        <Button type="button" onClick={onRender} disabled={!docxRenderEnabled} aria-label={docxRenderEnabled ? '生成 DOCX' : '生成 DOCX 需要连接后端渲染服务'}>生成 DOCX</Button>
       </div>
     </header>
   );

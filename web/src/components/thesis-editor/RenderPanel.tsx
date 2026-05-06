@@ -1,14 +1,16 @@
-import { Badge, Button, EmptyState } from '../design-system/Primitives';
+import { Badge, Button, EmptyState, InlineAlert } from '../design-system/Primitives';
 import type { RenderRun } from './types';
 
 export function RenderPanel({ run, onRender, docxRenderEnabled = true }: { run?: RenderRun; onRender: () => void; docxRenderEnabled?: boolean }) {
   return (
     <div className="stack" data-testid="render-panel">
-      <Button type="button" variant="primary" onClick={onRender} disabled={!docxRenderEnabled}>生成 DOCX</Button>
+      <Button type="button" variant={docxRenderEnabled ? 'primary' : 'secondary'} onClick={onRender} disabled={!docxRenderEnabled}>生成 DOCX</Button>
       {!docxRenderEnabled ? (
-        <p className="muted" role="status">当前部署仅支持结构化编辑与 JSON 导出；DOCX 生成需要连接后端渲染服务。</p>
+        <InlineAlert tone="warning" title="生成 DOCX 需要后端服务">
+          当前部署仅支持结构化编辑与 JSON 导出；连接 .NET OpenXML 渲染 API 后可启用在线生成。
+        </InlineAlert>
       ) : null}
-      {!run ? <EmptyState title="尚未生成 DOCX。" /> : (
+      {!run ? <EmptyState title="尚未生成 DOCX" description="在前端模式下，请优先导出 ThesisDocument JSON。" /> : (
         <div className="stack">
           <div className="inline-row">
             <Badge tone={run.status === 'valid' ? 'success' : 'danger'}>{run.status}</Badge>

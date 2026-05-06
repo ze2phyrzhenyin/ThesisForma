@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { appConfig, documentApi, renderApi, templateApi } from '../../api/client';
-import { Card, EmptyState, Panel } from '../design-system/Primitives';
+import { Card, EmptyState, InlineAlert, Panel, Tabs } from '../design-system/Primitives';
 import { BlockEditor } from './BlockEditor';
 import { BibliographyManager } from './BibliographyManager';
 import { EditorToolbar } from './EditorToolbar';
@@ -18,9 +18,12 @@ import type { TemplateSummary, ThesisEditorState } from './types';
 export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditorState }) {
   const [state, dispatch] = useReducer(editorReducer, initialState ?? createInitialState());
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [activePanel, setActivePanel] = useState('properties');
+  const [toast, setToast] = useState<string>();
   const importInputRef = useRef<HTMLInputElement>(null);
   const referenceTargets = useMemo(() => collectReferenceTargets(state), [state]);
   const citedKeys = useMemo(() => collectCitations(state), [state]);
+  const selectedBlock = useMemo(() => state.sections.flatMap(section => section.blocks).find(block => block.id === state.selectedBlockId), [state]);
 
   useEffect(() => {
     void templateApi.list().then(items => {
@@ -91,6 +94,8 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
   }
 
   function exportJson() {
+    const issues = localValidate(state);
+    dispatch({ type: 'setValidationIssues', issues });
     const document = serializeToThesisDocument(state);
     const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -101,6 +106,7 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
+    setToast(issues.some(issue => issue.severity === 'error') ? '已导出草稿 JSON；仍建议修复校验错误。' : 'ThesisDocument JSON 已导出。');
   }
 
   async function importJson(file?: File) {
@@ -142,66 +148,94 @@ export function ThesisEditorPage({ initialState }: { initialState?: ThesisEditor
         </div>
         <div className="editor-paper">
           <div className="paper-inner">
-            <Card title="论文元信息">
-              <MetadataForm metadata={state.metadata} dispatch={dispatch} />
-            </Card>
-            <div style={{ height: 16 }} />
-            {state.sections.map(section => (
-              <section key={section.id} className="section-card" data-testid={`section-${section.id}`}>
-                <div className="section-header">
-                  <span className="section-title">{section.title}</span>
-                  <span className="muted">{section.kind}</span>
+            <div className="document-canvas">
+              <div className="document-canvas-header">
+                <div>
+                  <h1>{state.metadata.title || '未命名论文'}</h1>
+                  <p>结构化内容画布。最终格式由模板渲染，不在这里手工排版。</p>
                 </div>
-                {section.kind === 'toc' ? (
-                  <div className="block-body"><TocPreview state={state} /></div>
-                ) : null}
-                {section.blocks.length === 0 && section.kind !== 'toc' ? (
-                  <div className="block-body"><EmptyState title="这个 section 还没有内容。使用下方插入菜单添加结构块。" /></div>
-                ) : null}
-                {section.blocks.map(block => (
-                  <BlockEditor
-                    key={block.id}
-                    block={block}
-                    active={state.selectedBlockId === block.id}
-                    dispatch={dispatch}
-                    bibliographyKeys={state.bibliography.map(entry => entry.key)}
-                    referenceTargets={referenceTargets}
-                  />
-                ))}
-                {section.kind !== 'toc' && section.kind !== 'cover' && section.kind !== 'originalityStatement' ? <InsertBlockMenu sectionId={section.id} dispatch={dispatch} /> : null}
-              </section>
-            ))}
+                <div className="inline-row">
+                  <span className="muted">{state.sections.length} 个 section</span>
+                  <span className="muted">{state.sections.flatMap(section => section.blocks).length} 个内容块</span>
+                </div>
+              </div>
+              <Card title="论文元信息" description="封面字段和模板变量来自这些结构化元信息。">
+                <MetadataForm metadata={state.metadata} dispatch={dispatch} />
+              </Card>
+              <div className="spacer-md" />
+              {state.sections.map(section => (
+                <section key={section.id} className="section-card" data-testid={`section-${section.id}`}>
+                  <div className="section-header">
+                    <span className="section-title">{section.title}</span>
+                    <span className="section-meta"><span>{section.kind}</span><span>{section.blocks.length} blocks</span></span>
+                  </div>
+                  {section.kind === 'toc' ? (
+                    <div className="block-body"><TocPreview state={state} /></div>
+                  ) : null}
+                  {section.blocks.length === 0 && section.kind !== 'toc' ? (
+                    <div className="block-body"><EmptyState title="这个 section 还没有内容" description="使用下方插入菜单添加标题、段落、表格、图片或学术元素。" /></div>
+                  ) : null}
+                  {section.blocks.map(block => (
+                    <BlockEditor
+                      key={block.id}
+                      block={block}
+                      active={state.selectedBlockId === block.id}
+                      dispatch={dispatch}
+                      bibliographyKeys={state.bibliography.map(entry => entry.key)}
+                      referenceTargets={referenceTargets}
+                      issues={state.validationIssues.filter(issue => issue.blockId === block.id)}
+                    />
+                  ))}
+                  {section.kind !== 'toc' && section.kind !== 'cover' && section.kind !== 'originalityStatement' ? <InsertBlockMenu sectionId={section.id} dispatch={dispatch} /> : null}
+                </section>
+              ))}
+            </div>
           </div>
         </div>
         <div className="side-panel">
-          <div className="stack">
-            <Panel title="模板状态">
-              <select
-                className="ui-select"
-                aria-label="选择模板"
-                value={state.templateId}
-                onChange={event => {
-                  const template = templates.find(item => item.id === event.target.value);
-                  dispatch({ type: 'setTemplate', templateId: event.target.value, template });
-                }}
-              >
-                {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
-              </select>
-              <div style={{ height: 12 }} />
-              <TemplateStatusPanel template={state.template} />
-            </Panel>
-            <Panel title="校验问题">
-              <ValidationPanel issues={state.validationIssues} onJump={jumpToBlock} />
-            </Panel>
-            <Panel title="引用与参考文献">
-              <BibliographyManager entries={state.bibliography} citedKeys={citedKeys} dispatch={dispatch} />
-            </Panel>
-            <Panel title="生成结果">
-              <RenderPanel run={state.renderRun} onRender={() => void render()} docxRenderEnabled={appConfig.docxRenderEnabled} />
-            </Panel>
-          </div>
+          <Panel title="编辑辅助" description="属性、校验、引用和模板提示集中在这里。">
+            <Tabs
+              active={activePanel}
+              onChange={setActivePanel}
+              tabs={[
+                { id: 'properties', label: '属性' },
+                { id: 'validation', label: '校验', badge: state.validationIssues.length },
+                { id: 'references', label: '引用' },
+                { id: 'template', label: '模板' }
+              ]}
+            />
+            <div className="side-tabs-content">
+              {activePanel === 'properties' ? (
+                <div className="stack">
+                  <InlineAlert title="当前内容块">
+                    {selectedBlock ? `${blockLabel(selectedBlock.type)}：${selectedBlock.id}` : '尚未选中内容块。点击正文、表格或图片块可查看属性。'}
+                  </InlineAlert>
+                  <RenderPanel run={state.renderRun} onRender={() => void render()} docxRenderEnabled={appConfig.docxRenderEnabled} />
+                </div>
+              ) : null}
+              {activePanel === 'validation' ? <ValidationPanel issues={state.validationIssues} onJump={jumpToBlock} /> : null}
+              {activePanel === 'references' ? <BibliographyManager entries={state.bibliography} citedKeys={citedKeys} dispatch={dispatch} /> : null}
+              {activePanel === 'template' ? (
+                <div className="stack">
+                  <select
+                    className="ui-select"
+                    aria-label="选择模板"
+                    value={state.templateId}
+                    onChange={event => {
+                      const template = templates.find(item => item.id === event.target.value);
+                      dispatch({ type: 'setTemplate', templateId: event.target.value, template });
+                    }}
+                  >
+                    {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+                  </select>
+                  <TemplateStatusPanel template={state.template} />
+                </div>
+              ) : null}
+            </div>
+          </Panel>
         </div>
       </main>
+      {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>
   );
 }
@@ -237,4 +271,16 @@ function collectCitations(state: ThesisEditorState) {
     }
   }
   return keys;
+}
+
+function blockLabel(type: string) {
+  return {
+    heading: '标题',
+    paragraph: '正文段落',
+    abstract: '摘要',
+    table: '表格',
+    figure: '图片',
+    equation: '公式',
+    pageBreak: '分页'
+  }[type] ?? type;
 }

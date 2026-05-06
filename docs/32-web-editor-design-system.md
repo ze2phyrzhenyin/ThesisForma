@@ -1,35 +1,68 @@
 # Web Editor Design System
 
-The editor uses a restrained academic document-tool style, not a marketing page and not a generic admin dashboard.
+The editor uses a restrained academic document-tool style. It should feel like a mature structured writing tool, not a Word clone, not a marketing site, and not an admin dashboard.
 
-## Layout
+## Design Principles
 
-- top toolbar: about 56-64px
-- left outline panel: about 260px
-- center editor surface: max width about 860-960px
-- right side panel: about 320px
-
-The center column uses a white paper-like surface without trying to mimic exact A4 Word layout.
+- Structure first: the UI captures thesis content, hierarchy, references, tables, figures, and bibliography.
+- Template owned formatting: fonts, font sizes, line spacing, margins, page numbers, headers, captions, and table borders are not edited in the browser.
+- Low noise: neutral surfaces, clear borders, small badges, and minimal shadows.
+- Chinese academic writing workflow: metadata, abstract, body sections, bibliography, acknowledgements, and appendix are first-class structures.
 
 ## Tokens
 
-The CSS tokens live in `web/src/styles/tokens.css`.
+CSS variables live in `web/src/styles/tokens.css`.
 
-Core colors:
+Core tokens:
 
-- background: `#F6F7F9`
-- surface: `#FFFFFF`
-- surfaceSubtle: `#FAFAFB`
-- border: `#E5E7EB`
-- textPrimary: `#111827`
-- textSecondary: `#4B5563`
-- accent: `#1F4E79`
-- danger: `#B42318`
-- warning: `#B54708`
-- success: `#067647`
+- `--color-bg`: `#f6f7f9`
+- `--color-bg-elevated`: `#ffffff`
+- `--color-bg-subtle`: `#fafafb`
+- `--color-text`: `#111827`
+- `--color-text-secondary`: `#374151`
+- `--color-text-muted`: `#6b7280`
+- `--color-border`: `#e5e7eb`
+- `--color-border-strong`: `#d1d5db`
+- `--color-primary`: `#1f4e79`
+- `--color-primary-soft`: `#eaf2ff`
+- `--color-success`: `#067647`
+- `--color-warning`: `#b54708`
+- `--color-danger`: `#b42318`
+- radii: `6px`, `10px`, `14px`
+- spacing: `4`, `8`, `12`, `16`, `20`, `24`, `32`
 
-## Component Rules
+Legacy token aliases remain for older CSS, but new components should use the `--color-*`, `--space-*`, and `--radius-*` names.
 
-Use the primitives in `web/src/components/design-system/Primitives.tsx` before adding custom controls. Keep buttons, inputs, badges, cards, panels, empty states, and modals visually consistent.
+## Layout
 
-Do not add large gradients, glass effects, decorative animations, cartoon assets, or manual typography controls for thesis formatting.
+The editor page uses a stable three-column layout:
+
+- Top toolbar: sticky, 60px, product/title on the left, template/mode in the center, actions on the right.
+- Left outline: about 260px, shows section nodes and heading hierarchy.
+- Center canvas: max width about 920px, white document surface without simulating final Word layout.
+- Right panel: about 320px, tabs for Properties, Validation, References, and Template.
+
+At widths below 1100px, the right panel stacks under the editor. At narrower widths, the outline stacks as well. Mobile is supported as usable fallback, not a full mobile authoring target.
+
+## Components
+
+Use `web/src/components/design-system/Primitives.tsx` before adding new primitives:
+
+- `Button`, `IconButton`
+- `Input`, `Textarea`, `Select`, `Checkbox`
+- `Card`, `Panel`, `SectionHeader`
+- `Badge`, `StatusPill`
+- `Tabs`, `SegmentedControl`
+- `Modal`, `InlineAlert`, `EmptyState`, `Tooltip`
+
+Every component uses design tokens and has hover/focus/disabled states. Modal closes on Escape.
+
+## Prohibited UI Patterns
+
+- large gradients
+- glass effects
+- decorative blobs or cartoon illustrations
+- manual thesis typography controls
+- Word-like free-layout editing
+- random per-page colors
+- heavy shadows or large animated transitions

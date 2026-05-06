@@ -3,31 +3,68 @@
 ## Create A Thesis
 
 1. Open `/`.
-2. Choose "新建论文".
-3. Select a template.
-4. Fill metadata: title, author, college, major, student id, advisor, date.
+2. Choose `新建论文`.
+3. Confirm the current template or open `/templates` to choose another.
+4. Fill metadata: title, author, college, major, student id, advisor, and date.
+
+The home page explicitly states frontend-only mode: users can edit structure and export JSON; DOCX generation requires a backend renderer.
 
 ## Edit Structure
 
-Use the middle editor surface to add structured blocks:
+The editor is organized as:
 
-- heading
-- paragraph
-- table
-- figure
-- equation
-- page break
+- left: thesis outline and section navigation
+- center: structured document canvas
+- right: Properties, Validation, References, and Template tabs
 
-Use the right panel for bibliography, validation, template status, and render status. The table editor supports rows, columns, cell text, and header row flags. Figure blocks upload an image asset and store an asset reference rather than base64 content in JSON.
+Users add content from `+ 插入内容`.
 
-## References
+Groups:
 
-Add bibliography entries in the right panel, then insert citation markers into paragraph blocks. Cross references list current headings, figures, tables, and equations.
+- Common: heading, paragraph, table, figure
+- Academic elements: equation, footnote, citation, cross reference
+- Structure: page break, bibliography entry, appendix helper
 
-## Table Of Contents
+The menu creates structure blocks. It does not expose font, size, margin, line spacing, or border styling.
 
-The TOC section is generated from heading blocks. Users should not manually edit TOC text; the renderer emits the DOCX field behavior already supported by the Core engine.
+## Table Editing
+
+When inserting a table, users choose:
+
+- caption
+- row count
+- column count
+- whether the first row is a header
+
+Inside the table block, users can add/delete rows and columns and edit cell text. The UI reminds users that table borders and three-line-table rules are template-owned.
+
+## Figure Editing
+
+When inserting a figure, users create a figure block, then upload or replace the image in the block. The browser stores a local preview and asset metadata in frontend-only mode. Final DOCX image embedding requires a backend asset service.
+
+## Bibliography And Citations
+
+Bibliography entries live in the right `引用` tab. Each entry has:
+
+- key
+- type
+- display text
+- referenced/unreferenced state
+
+Paragraph blocks can insert citation markers from existing bibliography keys. Dangling keys are shown in validation.
+
+## Cross References
+
+Paragraph blocks list headings, figures, tables, and equations as reference targets. The exported ThesisDocument preserves reference inline nodes for the renderer.
+
+## TOC
+
+The TOC section is preview-only and generated from heading blocks. Users should not manually edit TOC text; DOCX rendering emits the Word TOC field behavior supported by Core.
+
+## Export JSON
+
+`导出 JSON` runs local validation first. If errors exist, the editor still exports a draft but shows a warning toast. This supports review workflows without silently deleting content.
 
 ## Generate DOCX
 
-Use "生成 DOCX". The editor saves the document, calls server-side validation, renders with the selected template, records the run, and exposes a DOCX download URL.
+In frontend-only Vercel mode, the DOCX button is disabled and explains that a backend rendering service is required. If `VITE_ENABLE_DOCX_RENDER=true` and `VITE_API_BASE_URL` is configured, the editor saves, validates, renders, and exposes the DOCX download result.

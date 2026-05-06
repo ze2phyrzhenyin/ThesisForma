@@ -4,6 +4,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ThesisEditorPage } from '../components/thesis-editor/ThesisEditorPage';
 import { ValidationPanel } from '../components/thesis-editor/ValidationPanel';
 import { RenderPanel } from '../components/thesis-editor/RenderPanel';
+import { HomePage } from '../app/HomePage';
+import { TemplatesPage } from '../app/TemplatesPage';
+import { Button, Modal } from '../components/design-system/Primitives';
 import { renderApi } from '../api/client';
 import { editorReducer, blockFactories, localValidate } from '../components/thesis-editor/editorReducer';
 import { collectReferenceTargets, createInitialState, createTableBlock, deserializeFromThesisDocument, serializeToThesisDocument, validateEditorState } from '../components/thesis-editor/serialization';
@@ -60,7 +63,23 @@ describe('structured thesis editor UI', () => {
     render(<ThesisEditorPage />);
     expect(await screen.findByTestId('three-column-layout')).toBeInTheDocument();
     expect(screen.getByText('论文结构大纲')).toBeInTheDocument();
-    expect(screen.getByText('模板状态')).toBeInTheDocument();
+    expect(screen.getByText('编辑辅助')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /属性/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /模板/ })).toBeInTheDocument();
+  });
+
+  it('HomePage_ShouldShowClearFrontendOnlyMode', () => {
+    render(<HomePage onNew={vi.fn()} onTemplates={vi.fn()} />);
+    expect(screen.getByText('论文结构化编辑器')).toBeInTheDocument();
+    expect(screen.getByText(/当前线上版本支持结构化编辑/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新建论文' })).toBeInTheDocument();
+  });
+
+  it('TemplatePage_ShouldShowTemplateStatusAndGaps', async () => {
+    render(<TemplatesPage onSelect={vi.fn()} />);
+    expect(await screen.findByText('Example University Engineering Thesis')).toBeInTheDocument();
+    expect(screen.getByText('ready')).toBeInTheDocument();
+    expect(screen.getByText('Known gaps: 0')).toBeInTheDocument();
   });
 
   it('Editor_ShouldShowAutosaveStatus', () => {
@@ -91,7 +110,7 @@ describe('structured thesis editor UI', () => {
   it('Editor_ShouldInsertTableBlock', async () => {
     const user = userEvent.setup();
     render(<ThesisEditorPage />);
-    await user.click(screen.getAllByText('表格')[0]);
+    await insertTable(user);
     expect(screen.getByTestId('block-table')).toBeInTheDocument();
     expect(screen.getByLabelText('表格编辑器')).toBeInTheDocument();
   });
@@ -99,27 +118,64 @@ describe('structured thesis editor UI', () => {
   it('TableEditor_ShouldAddRowAndColumn', async () => {
     const user = userEvent.setup();
     render(<ThesisEditorPage />);
-    await user.click(screen.getAllByText('表格')[0]);
+    await insertTable(user);
     const before = screen.getAllByRole('textbox').length;
     await user.click(screen.getByText('添加行'));
     await user.click(screen.getByText('添加列'));
     expect(screen.getAllByRole('textbox').length).toBeGreaterThan(before);
   });
 
+  it('InsertBlockMenu_ShouldGroupItemsClearly', () => {
+    render(<ThesisEditorPage />);
+    expect(screen.getAllByText('常用').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('学术元素').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('结构').length).toBeGreaterThan(0);
+  });
+
+  it('TableEditor_ShouldShowValidationForEmptyCaption', async () => {
+    const user = userEvent.setup();
+    render(<ThesisEditorPage />);
+    await insertTable(user, '');
+    expect(screen.getByText(/表格需要表名/)).toBeInTheDocument();
+  });
+
   it('FigureEditor_ShouldUploadAndInsertImage', async () => {
     const user = userEvent.setup();
     render(<ThesisEditorPage />);
-    await user.click(screen.getAllByText('图片')[0]);
+    await insertFigure(user);
     const input = document.querySelector('input[accept^="image"]') as HTMLInputElement;
     await user.upload(input, new File(['png'], 'a.png', { type: 'image/png' }));
     expect(await screen.findByAltText('图名待填写')).toBeInTheDocument();
   });
 
+  it('FigureEditor_ShouldShowUploadPreviewAndSerializeAsset', async () => {
+    const user = userEvent.setup();
+    render(<ThesisEditorPage />);
+    await insertFigure(user, '结构图', '流程图预览');
+    const input = document.querySelector('input[accept^="image"]') as HTMLInputElement;
+    await user.upload(input, new File(['png'], 'a.png', { type: 'image/png' }));
+    expect(await screen.findByAltText('流程图预览')).toBeInTheDocument();
+    expect(screen.getByText('本地资产已记录')).toBeInTheDocument();
+  });
+
   it('BibliographyManager_ShouldAddEntry', async () => {
     const user = userEvent.setup();
     render(<ThesisEditorPage />);
+    await user.click(screen.getByRole('tab', { name: /引用/ }));
     await user.click(screen.getByText('添加文献'));
     expect(screen.getByLabelText(/参考文献 key/)).toBeInTheDocument();
+  });
+
+  it('BibliographyManager_ShouldShowReferencedStatus', async () => {
+    const user = userEvent.setup();
+    const state = createReadyState();
+    const paragraph = blockFactories.paragraph();
+    if (paragraph.type !== 'paragraph') throw new Error('Expected paragraph factory');
+    paragraph.inlines = [{ type: 'citation', targetId: 'ref-a', displayText: '[ref-a]' }];
+    state.sections.find(section => section.id === 'body')!.blocks.push(paragraph);
+    render(<ThesisEditorPage initialState={state} />);
+    await user.click(screen.getByRole('tab', { name: /引用/ }));
+    expect(screen.getByText('已引用')).toBeInTheDocument();
   });
 
   it('CitationPicker_ShouldInsertCitation', () => {
@@ -152,13 +208,26 @@ describe('structured thesis editor UI', () => {
     const onJump = vi.fn();
     render(<ValidationPanel issues={[{ code: 'table.caption.required', severity: 'error', message: '表格缺少表名。', blockId: 'heading-1' }]} onJump={onJump} />);
     expect(screen.getByTestId('validation-panel')).toHaveTextContent('表格缺少表名');
-    await user.click(screen.getByText('跳转'));
+    await user.click(screen.getByText('跳转到内容块'));
     expect(onJump).toHaveBeenCalledWith('heading-1');
   });
 
+  it('ValidationPanel_ShouldGroupIssuesBySeverity', () => {
+    render(<ValidationPanel issues={[
+      { code: 'a', severity: 'error', message: '错误问题' },
+      { code: 'b', severity: 'warning', message: '警告问题' },
+      { code: 'c', severity: 'info', message: '提示问题' }
+    ]} onJump={vi.fn()} />);
+    expect(screen.getByText('必须修复')).toBeInTheDocument();
+    expect(screen.getByText('建议修复')).toBeInTheDocument();
+    expect(screen.getAllByText('提示').length).toBeGreaterThan(1);
+  });
+
   it('TemplateStatusPanel_ShouldShowDraftTemplateGaps', async () => {
+    const user = userEvent.setup();
     render(<ThesisEditorPage />);
-    expect(await screen.findByTestId('template-status-panel')).toHaveTextContent('Coverage');
+    await user.click(await screen.findByRole('tab', { name: /模板/ }));
+    expect(await screen.findByTestId('template-status-panel')).toHaveTextContent('覆盖');
   });
 
   it('RenderPanel_ShouldStartRenderAndShowDownload', async () => {
@@ -215,13 +284,37 @@ describe('structured thesis editor UI', () => {
     render(<ThesisEditorPage />);
     await user.click(screen.getAllByText('标题')[0]);
     await user.click(screen.getAllByText('正文段落')[0]);
-    await user.click(screen.getAllByText('表格')[0]);
+    await insertTable(user);
+    await user.click(screen.getByRole('tab', { name: /引用/ }));
     await user.click(screen.getByText('添加文献'));
 
     expect(screen.getAllByTestId('block-heading').length).toBeGreaterThan(1);
     expect(screen.getByLabelText('正文段落')).toBeInTheDocument();
     expect(screen.getByTestId('block-table')).toBeInTheDocument();
     expect(screen.getByLabelText(/参考文献 key/)).toBeInTheDocument();
+  });
+
+  it('RenderPanel_ShouldDisableDocxRenderInFrontendOnlyMode', () => {
+    render(<RenderPanel onRender={vi.fn()} docxRenderEnabled={false} />);
+    expect(screen.getByRole('button', { name: '生成 DOCX' })).toBeDisabled();
+  });
+
+  it('RenderPanel_ShouldExplainBackendRequirement', () => {
+    render(<RenderPanel onRender={vi.fn()} docxRenderEnabled={false} />);
+    expect(screen.getByText(/生成 DOCX 需要后端服务/)).toBeInTheDocument();
+  });
+
+  it('DesignSystem_Button_ShouldHaveDisabledAndFocusStates', () => {
+    render(<Button disabled>不可用操作</Button>);
+    expect(screen.getByRole('button', { name: '不可用操作' })).toBeDisabled();
+  });
+
+  it('Modal_ShouldCloseOnEscape', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Modal title="测试弹窗" onClose={onClose}>内容</Modal>);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('TocPreview_ShouldUpdateFromHeadings', async () => {
@@ -400,4 +493,21 @@ function readBlobText(blob: Blob) {
     reader.onload = () => resolve(String(reader.result ?? ''));
     reader.readAsText(blob);
   });
+}
+
+async function insertTable(user: ReturnType<typeof userEvent.setup>, caption = '样例表格') {
+  await user.click(screen.getAllByText('表格')[0]);
+  const captionInput = await screen.findByLabelText('表名');
+  await user.clear(captionInput);
+  if (caption) await user.type(captionInput, caption);
+  await user.click(screen.getByRole('button', { name: '创建表格' }));
+}
+
+async function insertFigure(user: ReturnType<typeof userEvent.setup>, caption = '图名待填写', alt = '') {
+  await user.click(screen.getAllByText('图片')[0]);
+  const captionInput = await screen.findByLabelText('图名');
+  await user.clear(captionInput);
+  await user.type(captionInput, caption);
+  if (alt) await user.type(screen.getByLabelText('替代文本'), alt);
+  await user.click(screen.getByRole('button', { name: '插入图片块' }));
 }

@@ -1,4 +1,4 @@
-import { Badge, Button, Field, Input, Select, Textarea } from '../design-system/Primitives';
+import { Badge, Button, EmptyState, Field, Input, Select, Textarea } from '../design-system/Primitives';
 import type { EditorAction } from './editorReducer';
 import type { BibliographyEntry, ThesisEditorState } from './types';
 
@@ -9,15 +9,21 @@ export function BibliographyManager({ entries, citedKeys, dispatch }: {
 }) {
   return (
     <div className="stack" data-testid="bibliography-manager">
-      <div className="inline-row" style={{ justifyContent: 'space-between' }}>
-        <strong>参考文献</strong>
+      <div className="inline-row bibliography-toolbar">
+        <div>
+          <strong>参考文献</strong>
+          <p className="muted">正文 citation 只能引用这里存在的 key。</p>
+        </div>
         <Button type="button" onClick={() => dispatch({ type: 'addBibliographyEntry' })}>添加文献</Button>
       </div>
-      {entries.length === 0 ? <p className="muted">还没有参考文献。添加后可在正文插入 citation marker。</p> : null}
+      {entries.length === 0 ? <EmptyState title="还没有参考文献" description="添加条目后，可在正文段落中插入引用 marker。" /> : null}
       {entries.map(entry => (
-        <div key={entry.key} className="section-card" style={{ margin: 0 }}>
-          <div className="section-header">
-            <Badge tone={citedKeys.has(entry.key) ? 'success' : 'neutral'}>{citedKeys.has(entry.key) ? '已引用' : '未引用'}</Badge>
+        <div key={entry.key} className="bibliography-item">
+          <div className="bibliography-item-header">
+            <div className="inline-row">
+              <Badge tone="info">{entry.key || '未命名 key'}</Badge>
+              <Badge tone={citedKeys.has(entry.key) ? 'success' : 'neutral'}>{citedKeys.has(entry.key) ? '已引用' : '未引用'}</Badge>
+            </div>
             <Button type="button" variant="danger" onClick={() => window.confirm('删除该参考文献？') && dispatch({ type: 'deleteBibliographyEntry', key: entry.key })}>删除</Button>
           </div>
           <div className="block-body stack">
