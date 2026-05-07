@@ -23,6 +23,7 @@ const LABEL: Record<BlockNode['type'], string> = {
 export function BlockEditor({
   block,
   active,
+  attention = false,
   dispatch,
   bibliographyKeys,
   referenceTargets,
@@ -30,6 +31,7 @@ export function BlockEditor({
 }: {
   block: BlockNode;
   active: boolean;
+  attention?: boolean;
   dispatch: React.Dispatch<EditorAction>;
   bibliographyKeys: string[];
   referenceTargets: Array<{ id: string; label: string; type: string }>;
@@ -39,9 +41,11 @@ export function BlockEditor({
 
   return (
     <article
-      className={`block ${active ? 'active' : ''} ${hasError ? 'has-error' : ''}`}
+      className={`block ${active ? 'active' : ''} ${attention ? 'attention' : ''} ${hasError ? 'has-error' : ''}`}
       data-block-id={block.id}
       data-testid={`block-${block.type}`}
+      aria-current={active ? 'true' : undefined}
+      tabIndex={-1}
       onFocus={() => dispatch({ type: 'selectBlock', blockId: block.id })}
     >
       <header className="block-head">

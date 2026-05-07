@@ -72,8 +72,10 @@ export function ThesisEditorPage({
   const [activeTab, setActiveTab] = useState('properties');
   const [toast, setToast] = useState<string>();
   const [exportReview, setExportReview] = useState<ReturnType<typeof buildExportReview>>();
+  const [attentionBlockId, setAttentionBlockId] = useState<string>();
   const importInputRef = useRef<HTMLInputElement>(null);
   const autosaveSignatureRef = useRef('');
+  const attentionTimerRef = useRef<number | undefined>(undefined);
 
   const referenceTargets = useMemo(() => collectReferenceTargets(state), [state]);
   const citedKeys = useMemo(() => collectCitations(state), [state]);
@@ -85,6 +87,8 @@ export function ThesisEditorPage({
   useEffect(() => {
     onStateChange?.(state);
   }, [onStateChange, state]);
+
+  useEffect(() => () => window.clearTimeout(attentionTimerRef.current), []);
 
   useEffect(() => {
     void templateApi
@@ -275,9 +279,14 @@ export function ThesisEditorPage({
   function jumpToBlock(blockId?: string) {
     dispatch({ type: 'selectBlock', blockId });
     if (blockId) {
-      window.document
-        .querySelector(`[data-block-id="${blockId}"]`)
-        ?.scrollIntoView({ block: 'center' });
+      setAttentionBlockId(blockId);
+      window.clearTimeout(attentionTimerRef.current);
+      attentionTimerRef.current = window.setTimeout(() => setAttentionBlockId(undefined), 1800);
+      const target = window.document.querySelector<HTMLElement>(
+        `[data-block-id="${escapeCssIdentifier(blockId)}"]`
+      );
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      target?.focus({ preventScroll: true });
     }
   }
 
@@ -418,6 +427,7 @@ export function ThesisEditorPage({
                       key={block.id}
                       block={block}
                       active={state.selectedBlockId === block.id}
+                      attention={attentionBlockId === block.id}
                       dispatch={dispatch}
                       bibliographyKeys={state.bibliography.map(entry => entry.key)}
                       referenceTargets={referenceTargets}
@@ -533,6 +543,13 @@ function readFileText(file: File) {
     reader.onload = () => resolve(String(reader.result ?? ''));
     reader.readAsText(file);
   });
+}
+
+function escapeCssIdentifier(value: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+  return value.replace(/["\\]/g, '\\$&');
 }
 
 function collectCitations(state: ThesisEditorState) {

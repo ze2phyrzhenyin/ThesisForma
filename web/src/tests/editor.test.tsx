@@ -36,6 +36,13 @@ beforeEach(() => {
   URL.revokeObjectURL = URL.revokeObjectURL ?? (() => undefined);
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:thesisforma-test');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+  if (!HTMLElement.prototype.scrollIntoView) {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn()
+    });
+  }
+  vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => undefined);
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('/api/templates')) {
@@ -308,6 +315,34 @@ describe('structured thesis editor UI', () => {
     expect(screen.getByText('必须修复')).toBeInTheDocument();
     expect(screen.getByText('建议修复')).toBeInTheDocument();
     expect(screen.getAllByText('提示').length).toBeGreaterThan(1);
+  });
+
+  it('ValidationPanel_ShouldJumpToAndHighlightAffectedBlockInEditor', async () => {
+    const user = userEvent.setup();
+    const table = createTableBlock(2, 2, '');
+    const state = {
+      ...createInitialState(),
+      metadata: {
+        ...createInitialState().metadata,
+        title: '校验跳转测试论文'
+      },
+      sections: createInitialState().sections.map(section =>
+        section.id === 'body'
+          ? { ...section, blocks: [...section.blocks, table] }
+          : section
+      )
+    };
+
+    render(<ThesisEditorPage initialState={state} />);
+    await user.click(screen.getByRole('button', { name: '校验' }));
+    await user.click(screen.getByRole('tab', { name: /校验/ }));
+    await user.click(await screen.findByRole('button', { name: '跳转到内容块' }));
+
+    const tableBlock = screen.getByTestId('block-table');
+    await waitFor(() => expect(tableBlock).toHaveClass('active'));
+    expect(tableBlock).toHaveClass('attention');
+    expect(tableBlock).toHaveFocus();
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
   it('TemplateStatusPanel_ShouldShowDraftTemplateGaps', async () => {
