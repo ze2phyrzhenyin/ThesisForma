@@ -572,6 +572,36 @@ img { max-width: 100%; display: block; }
   overflow: auto;
 }
 
+.export-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.export-summary > div {
+  padding: var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.export-summary strong {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  color: var(--color-ink);
+  line-height: 1;
+}
+.export-summary span,
+.export-issue-list .muted {
+  color: var(--color-ink-mute);
+  font-size: var(--text-sm);
+}
+.export-issue-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
 /* ---------- Toast ------------------------------------------------------- */
 
 .toast {
@@ -1044,6 +1074,25 @@ img { max-width: 100%; display: block; }
   flex-direction: column;
   gap: var(--space-2);
 }
+
+.figure-insert-preview {
+  min-height: 150px;
+  border: 1px dashed var(--color-rule-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+  display: grid;
+  place-items: center;
+  color: var(--color-ink-mute);
+  overflow: hidden;
+  text-align: center;
+  padding: var(--space-4);
+}
+.figure-insert-preview img {
+  max-height: 220px;
+  width: auto;
+  object-fit: contain;
+}
+
 .insert-group-title {
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -1209,6 +1258,29 @@ img { max-width: 100%; display: block; }
   margin-bottom: var(--space-2);
 }
 
+.template-status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+.template-status-grid > div {
+  padding: var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.template-status-grid span {
+  color: var(--color-ink-mute);
+  font-size: var(--text-sm);
+}
+.template-status-grid strong {
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Bibliography ----------------------------------------------- */
 
 .biblio-toolbar {
@@ -1218,6 +1290,15 @@ img { max-width: 100%; display: block; }
   gap: var(--space-3);
 }
 .biblio-toolbar small { font-size: var(--text-xs); color: var(--color-ink-mute); }
+.biblio-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+}
 .biblio-item {
   border: var(--rule-thin);
   border-radius: var(--radius);

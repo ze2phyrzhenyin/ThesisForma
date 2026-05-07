@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { appConfig, documentApi, renderApi, templateApi } from '../../api/client';
-import { Card, EmptyState, InlineAlert, Panel, Select, Tabs } from '../ui/Primitives';
+import { Badge, Button, Card, EmptyState, InlineAlert, Modal, Panel, Select, Tabs } from '../ui/Primitives';
 import { BibliographyManager } from './BibliographyManager';
 import { BlockEditor } from './BlockEditor';
 import { EditorToolbar } from './EditorToolbar';
@@ -71,6 +71,7 @@ export function ThesisEditorPage({
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [activeTab, setActiveTab] = useState('properties');
   const [toast, setToast] = useState<string>();
+  const [exportReview, setExportReview] = useState<ReturnType<typeof buildExportReview>>();
   const importInputRef = useRef<HTMLInputElement>(null);
   const autosaveSignatureRef = useRef('');
 
@@ -227,8 +228,14 @@ export function ThesisEditorPage({
     }
   }
 
-  function exportJson() {
+  function beginExportJson() {
     const issues = localValidate(state);
+    dispatch({ type: 'setValidationIssues', issues });
+    setExportReview(buildExportReview(state, issues));
+  }
+
+  function exportJson() {
+    const issues = exportReview?.issues ?? localValidate(state);
     dispatch({ type: 'setValidationIssues', issues });
     const document = serializeToThesisDocument(state);
     const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' });
@@ -245,16 +252,24 @@ export function ThesisEditorPage({
         ? '已导出草稿 JSON；仍建议修复校验错误。'
         : 'ThesisDocument JSON 已导出。'
     );
+    setExportReview(undefined);
   }
 
   async function importJson(file?: File) {
     if (!file) return;
-    const text = await readFileText(file);
-    const document = JSON.parse(text);
-    dispatch({
-      type: 'replaceState',
-      state: deserializeFromThesisDocument(document, state.templateId)
-    });
+    try {
+      const text = await readFileText(file);
+      const document = JSON.parse(text);
+      dispatch({
+        type: 'replaceState',
+        state: deserializeFromThesisDocument(document, state.templateId)
+      });
+      setToast('已导入 ThesisDocument JSON。');
+    } catch (error) {
+      setToast(error instanceof SyntaxError
+        ? '导入失败：文件不是有效 JSON。'
+        : '导入失败：无法转换为 ThesisDocument 草稿。');
+    }
   }
 
   function jumpToBlock(blockId?: string) {
@@ -273,7 +288,7 @@ export function ThesisEditorPage({
         onSave={() => void save()}
         onValidate={() => void validate()}
         onRender={() => void render()}
-        onExportJson={exportJson}
+        onExportJson={beginExportJson}
         onImportJson={() => importInputRef.current?.click()}
         onHome={onHome}
         onTemplates={onTemplates}
@@ -293,6 +308,62 @@ export function ThesisEditorPage({
         aria-label="导入 ThesisDocument JSON"
         onChange={event => void importJson(event.target.files?.[0])}
       />
+
+      {exportReview ? (
+        <Modal
+          title="导出 ThesisDocument JSON"
+          description="导出前先确认结构校验摘要。即使存在错误，也可以导出草稿继续人工修复。"
+          onClose={() => setExportReview(undefined)}
+        >
+          <div className="stack">
+            <div className="export-summary">
+              <div>
+                <strong>{exportReview.counts.error}</strong>
+                <span>错误</span>
+              </div>
+              <div>
+                <strong>{exportReview.counts.warning}</strong>
+                <span>警告</span>
+              </div>
+              <div>
+                <strong>{exportReview.counts.info}</strong>
+                <span>提示</span>
+              </div>
+            </div>
+            {exportReview.issues.length ? (
+              <div className="export-issue-list">
+                {exportReview.issues.slice(0, 4).map((issue, index) => (
+                  <div key={`${issue.code}-${index}`} className={`issue ${issue.severity}`}>
+                    <div className="row between">
+                      <Badge tone={issue.severity === 'error' ? 'danger' : issue.severity === 'warning' ? 'warning' : 'info'}>
+                        {issue.severity === 'error' ? '错误' : issue.severity === 'warning' ? '警告' : '提示'}
+                      </Badge>
+                      {issue.blockId ? <span className="issue-meta">{issue.blockId}</span> : null}
+                    </div>
+                    <strong>{issue.message}</strong>
+                    {issue.suggestedAction ? <span className="issue-meta">建议：{issue.suggestedAction}</span> : null}
+                  </div>
+                ))}
+                {exportReview.issues.length > 4 ? (
+                  <p className="muted">还有 {exportReview.issues.length - 4} 个问题可在右侧校验面板查看。</p>
+                ) : null}
+              </div>
+            ) : (
+              <InlineAlert tone="success" title="结构校验通过">
+                当前草稿可以导出为 ThesisDocument JSON。正式生成 DOCX 前仍建议使用后端 validate-input。
+              </InlineAlert>
+            )}
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => setExportReview(undefined)}>
+                取消
+              </Button>
+              <Button type="button" variant="primary" onClick={exportJson}>
+                {exportReview.counts.error > 0 ? '仍然导出草稿 JSON' : '导出 JSON'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
 
       <main className="editor" data-testid="three-column-layout">
         <div className="col col-outline">
@@ -474,6 +545,18 @@ function collectCitations(state: ThesisEditorState) {
     }
   }
   return keys;
+}
+
+function buildExportReview(state: ThesisEditorState, issues: ReturnType<typeof localValidate>) {
+  void state;
+  return {
+    issues,
+    counts: {
+      error: issues.filter(issue => issue.severity === 'error').length,
+      warning: issues.filter(issue => issue.severity === 'warning').length,
+      info: issues.filter(issue => issue.severity === 'info').length
+    }
+  };
 }
 
 function hasMeaningfulDraftContent(state: ThesisEditorState) {

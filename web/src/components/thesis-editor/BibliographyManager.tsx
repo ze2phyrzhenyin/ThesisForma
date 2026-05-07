@@ -1,5 +1,6 @@
 import { Badge, Button, EmptyState, Field, Input, Select, Textarea } from '../ui/Primitives';
 import type { EditorAction } from './editorReducer';
+import { newId } from './serialization';
 import type { BibliographyEntry, ThesisEditorState } from './types';
 
 const ENTRY_LABEL: Record<BibliographyEntry['entryType'], string> = {
@@ -40,6 +41,30 @@ export function BibliographyManager({
           onClick={() => dispatch({ type: 'addBibliographyEntry' })}
         >
           添加文献
+        </Button>
+      </div>
+
+      <div className="biblio-quick-actions" aria-label="参考文献快速添加">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => dispatch({ type: 'addBibliographyEntry', entry: createEntry(entries.length, 'journal') })}
+        >
+          添加期刊
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => dispatch({ type: 'addBibliographyEntry', entry: createEntry(entries.length, 'book') })}
+        >
+          添加专著
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => dispatch({ type: 'addBibliographyEntry', entry: createEntry(entries.length, 'web') })}
+        >
+          添加网页
         </Button>
       </div>
 
@@ -125,4 +150,20 @@ export function BibliographyManager({
       ))}
     </div>
   );
+}
+
+function createEntry(index: number, entryType: BibliographyEntry['entryType']): BibliographyEntry {
+  const key = `ref-${index + 1}`;
+  const exampleText = {
+    journal: '[序号] 作者. 题名[J]. 刊名, 年份, 卷(期): 页码.',
+    book: '[序号] 作者. 书名[M]. 出版地: 出版社, 年份.',
+    web: '[序号] 作者. 题名[EB/OL]. URL, 访问日期.',
+    other: ''
+  }[entryType];
+  return {
+    id: newId('ref'),
+    key,
+    text: exampleText,
+    entryType
+  };
 }

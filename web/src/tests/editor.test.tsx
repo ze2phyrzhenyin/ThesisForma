@@ -93,6 +93,17 @@ describe('structured thesis editor UI', () => {
     expect(screen.queryByText('待删除草稿')).not.toBeInTheDocument();
   });
 
+  it('HomePage_ShouldShowImportFailureMessageForInvalidJson', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    const input = document.querySelector('[data-home-import]') as HTMLInputElement;
+    await user.upload(input, new File(['{not-json'], 'bad.json', { type: 'application/json' }));
+
+    expect(await screen.findByText('导入 JSON 失败')).toBeInTheDocument();
+    expect(screen.getByText(/文件不是有效 JSON/)).toBeInTheDocument();
+  });
+
   it('TemplatePage_ShouldShowTemplateStatusAndGaps', async () => {
     render(<TemplatesPage onSelect={vi.fn()} />);
     expect(await screen.findByText('Example University Engineering Thesis')).toBeInTheDocument();
@@ -333,6 +344,9 @@ describe('structured thesis editor UI', () => {
     state.metadata.title = '可导出论文';
     render(<ThesisEditorPage initialState={state} />);
     await user.click(screen.getByText('导出 JSON'));
+    expect(screen.getByText('导出 ThesisDocument JSON')).toBeInTheDocument();
+    expect(screen.getByText('结构校验通过')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: '导出 JSON' }).at(-1)!);
 
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
     const parsed = JSON.parse(await readBlobText(exportedBlob!));
@@ -355,6 +369,16 @@ describe('structured thesis editor UI', () => {
     expect(screen.getByDisplayValue('导入标题')).toBeInTheDocument();
   });
 
+  it('ImportJson_ShouldShowClearErrorForInvalidJson', async () => {
+    const user = userEvent.setup();
+    render(<ThesisEditorPage />);
+    await user.click(screen.getByText('导入 JSON'));
+    const input = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    await user.upload(input, new File(['{bad-json'], 'bad.json', { type: 'application/json' }));
+
+    expect(await screen.findByText('导入失败：文件不是有效 JSON。')).toBeInTheDocument();
+  });
+
   it('Editor_ShouldCreateHeadingParagraphTableBibliography', async () => {
     const user = userEvent.setup();
     render(<ThesisEditorPage />);
@@ -368,6 +392,16 @@ describe('structured thesis editor UI', () => {
     expect(screen.getByLabelText('正文段落')).toBeInTheDocument();
     expect(screen.getByTestId('block-table')).toBeInTheDocument();
     expect(screen.getByLabelText(/参考文献 key/)).toBeInTheDocument();
+  });
+
+  it('BibliographyManager_ShouldAddTypedJournalEntry', async () => {
+    const user = userEvent.setup();
+    render(<ThesisEditorPage />);
+    await user.click(screen.getByRole('tab', { name: /引用/ }));
+    await user.click(screen.getByText('添加期刊'));
+
+    expect(screen.getByText('期刊')).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/\[序号\] 作者\. 题名\[J\]/)).toBeInTheDocument();
   });
 
   it('RenderPanel_ShouldDisableDocxRenderInFrontendOnlyMode', () => {

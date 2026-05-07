@@ -69,6 +69,9 @@ test('E2E_UserCanCreateStructuredThesisAndExportJson', async ({ page }, testInfo
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出 JSON' }).click();
+  const exportDialog = page.getByRole('dialog');
+  await expect(exportDialog.getByText('导出 ThesisDocument JSON', { exact: true })).toBeVisible();
+  await exportDialog.getByRole('button', { name: /导出 JSON|仍然导出草稿 JSON/ }).click();
   const download = await downloadPromise;
   const downloadPath = testInfo.outputPath('structured-editor-e2e.thesis-document.json');
   await download.saveAs(downloadPath);

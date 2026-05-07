@@ -20,12 +20,14 @@ export function HomePage({
   onNew,
   onTemplates,
   onImportJson,
-  onOpenDraft
+  onOpenDraft,
+  notice
 }: {
   onNew: () => void;
   onTemplates: () => void;
   onImportJson?: (file: File) => void;
   onOpenDraft?: (draftId: string) => void;
+  notice?: { tone: 'success' | 'danger'; title: string; message: string };
 }) {
   const importRef = useRef<HTMLInputElement>(null);
   const [drafts, setDrafts] = useState<LocalDraftEntry[]>([]);
@@ -127,6 +129,14 @@ export function HomePage({
           <strong>当前线上模式</strong>
           <span>支持结构化编辑、本地保存、导入/导出 JSON；DOCX 生成需要连接后端渲染服务。</span>
         </div>
+
+        {notice ? (
+          <div className="home-notice">
+            <InlineAlert tone={notice.tone} title={notice.title}>
+              {notice.message}
+            </InlineAlert>
+          </div>
+        ) : null}
 
         <div className="home-grid">
           <Card title="最近草稿" description="草稿保存在浏览器本地，不会写入公开仓库。">

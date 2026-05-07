@@ -15,6 +15,7 @@ export function App() {
   const [route, setRoute] = useState<Route>(routeFromPath());
   const [editorState, setEditorState] = useState<ThesisEditorState>(createInitialState());
   const [lastRun] = useState<RenderRun | undefined>();
+  const [homeNotice, setHomeNotice] = useState<{ tone: 'success' | 'danger'; title: string; message: string }>();
 
   useEffect(() => {
     const onPopState = () => setRoute(routeFromPath());
@@ -37,13 +38,20 @@ export function App() {
 
   async function handleImportJson(file: File) {
     try {
-      const text = await file.text();
+      const text = await readFileText(file);
       const document = JSON.parse(text) as unknown;
       const state = deserializeFromThesisDocument(document, editorState.templateId);
       setEditorState(state);
+      setHomeNotice(undefined);
       navigate('editor');
-    } catch {
-      // Silently ignore parse errors — user will see the editor with default state
+    } catch (error) {
+      setHomeNotice({
+        tone: 'danger',
+        title: '导入 JSON 失败',
+        message: error instanceof SyntaxError
+          ? '文件不是有效 JSON，请检查文件内容后重新导入。'
+          : '文件无法转换为 ThesisDocument 草稿，请确认导出来源。'
+      });
     }
   }
 
@@ -56,7 +64,11 @@ export function App() {
       setEditorState(state);
       navigate('editor');
     } catch {
-      // Ignore malformed draft data
+      setHomeNotice({
+        tone: 'danger',
+        title: '打开草稿失败',
+        message: '这个本地草稿数据已损坏，可以删除后重新导入 JSON。'
+      });
     }
   }
 
@@ -94,6 +106,7 @@ export function App() {
       onTemplates={() => navigate('templates')}
       onImportJson={handleImportJson}
       onOpenDraft={handleOpenDraft}
+      notice={homeNotice}
     />
   );
 }
@@ -103,4 +116,14 @@ function routeFromPath(): Route {
   if (window.location.pathname.startsWith('/editor')) return 'editor';
   if (window.location.pathname.startsWith('/runs')) return 'run';
   return 'home';
+}
+
+function readFileText(file: File) {
+  if (typeof file.text === 'function') return file.text();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.readAsText(file);
+  });
 }

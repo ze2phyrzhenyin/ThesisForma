@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Button, Checkbox, Field, Input, Modal } from '../ui/Primitives';
+import { useEffect, useState } from 'react';
+import { assetApi } from '../../api/client';
+import { Button, Checkbox, Field, InlineAlert, Input, Modal } from '../ui/Primitives';
 import { blockFactories, type EditorAction } from './editorReducer';
 import { createTableBlock } from './serialization';
 
@@ -46,6 +47,18 @@ export function InsertBlockMenu({
   const [hasHeader, setHasHeader] = useState(true);
   const [figureCaption, setFigureCaption] = useState('图名待填写');
   const [figureAlt, setFigureAlt] = useState('');
+  const [figureFile, setFigureFile] = useState<File>();
+  const [figurePreview, setFigurePreview] = useState('');
+
+  useEffect(() => {
+    if (!figureFile || typeof URL.createObjectURL !== 'function') {
+      setFigurePreview('');
+      return;
+    }
+    const url = URL.createObjectURL(figureFile);
+    setFigurePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [figureFile]);
 
   function insert(type: string) {
     if (type === 'table') return setModal('table');
@@ -76,9 +89,28 @@ export function InsertBlockMenu({
     setModal(undefined);
   }
 
-  function createFigure() {
+  async function createFigure() {
     const block = blockFactories.figure();
     if (block.type === 'figure') {
+      if (figureFile) {
+        const asset = await assetApi.uploadImage(figureFile);
+        dispatch({ type: 'addAsset', asset });
+        dispatch({
+          type: 'insertBlock',
+          sectionId,
+          block: {
+            ...block,
+            caption: figureCaption,
+            altText: figureAlt,
+            imagePath: asset.imagePath,
+            previewUrl: asset.previewUrl,
+            imageContentType: asset.contentType
+          }
+        });
+        setModal(undefined);
+        setFigureFile(undefined);
+        return;
+      }
       dispatch({
         type: 'insertBlock',
         sectionId,
@@ -134,7 +166,7 @@ export function InsertBlockMenu({
                   min={1}
                   max={30}
                   value={rows}
-                  onChange={event => setRows(Number(event.target.value))}
+                  onChange={event => setRows(clampNumber(event.target.value, 1, 30))}
                 />
               </Field>
               <Field label="列数">
@@ -143,7 +175,7 @@ export function InsertBlockMenu({
                   min={1}
                   max={12}
                   value={columns}
-                  onChange={event => setColumns(Number(event.target.value))}
+                  onChange={event => setColumns(clampNumber(event.target.value, 1, 12))}
                 />
               </Field>
               <Checkbox
@@ -153,6 +185,9 @@ export function InsertBlockMenu({
               />
             </div>
             <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <Button type="button" onClick={() => { setRows(3); setColumns(3); setHasHeader(true); }}>
+                常用 3x3
+              </Button>
               <Button onClick={() => setModal(undefined)}>取消</Button>
               <Button variant="primary" onClick={createTable}>
                 创建表格
@@ -169,6 +204,19 @@ export function InsertBlockMenu({
           onClose={() => setModal(undefined)}
         >
           <div className="stack">
+            <InlineAlert tone="muted" title="图片资产策略">
+              前端模式会保留本地预览和资产元数据；真正写入 DOCX 需要后端资产服务。
+            </InlineAlert>
+            <div className="figure-insert-preview">
+              {figurePreview ? <img src={figurePreview} alt={figureAlt || figureCaption} /> : <span>可先选择图片，也可以只创建图片占位块。</span>}
+            </div>
+            <Field label="选择图片">
+              <Input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={event => setFigureFile(event.target.files?.[0])}
+              />
+            </Field>
             <Field label="图名">
               <Input
                 value={figureCaption}
@@ -184,8 +232,8 @@ export function InsertBlockMenu({
             </Field>
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <Button onClick={() => setModal(undefined)}>取消</Button>
-              <Button variant="primary" onClick={createFigure}>
-                插入图片块
+              <Button variant="primary" onClick={() => void createFigure()}>
+                {figureFile ? '上传并插入图片块' : '插入图片块'}
               </Button>
             </div>
           </div>
@@ -193,4 +241,10 @@ export function InsertBlockMenu({
       ) : null}
     </div>
   );
+}
+
+function clampNumber(value: string, min: number, max: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return min;
+  return Math.min(max, Math.max(min, Math.round(parsed)));
 }
