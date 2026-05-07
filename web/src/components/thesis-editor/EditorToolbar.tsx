@@ -38,12 +38,18 @@ export function EditorToolbar({
 
   return (
     <header className="topbar topbar-editor" role="banner">
-      <div className="brand">
+      <button
+        type="button"
+        className="brand brand-home-button"
+        onClick={onHome}
+        aria-label="ThesisForma 返回首页"
+        title="返回首页"
+      >
         <span className="brand-mark">ThesisForma</span>
         <span className="brand-doc-title" title={title}>
           {title}
         </span>
-      </div>
+      </button>
 
       <div className="toolbar-group" aria-label="页面导航">
         <Button type="button" size="sm" onClick={onHome} aria-label="首页">

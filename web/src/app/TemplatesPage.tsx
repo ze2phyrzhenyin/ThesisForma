@@ -22,10 +22,16 @@ export function TemplatesPage({
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <button
+          type="button"
+          className="brand brand-home-button"
+          onClick={onBack}
+          aria-label="ThesisForma 返回首页"
+          title="返回首页"
+        >
           <span className="brand-mark">ThesisForma</span>
           <span className="brand-sub">选择论文模板</span>
-        </div>
+        </button>
         <div className="toolbar-spacer" />
         {onBack ? (
           <Button type="button" onClick={onBack}>

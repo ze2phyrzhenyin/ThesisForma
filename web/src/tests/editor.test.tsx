@@ -122,6 +122,16 @@ describe('structured thesis editor UI', () => {
     expect(await screen.findByText('论文结构化编辑器')).toBeInTheDocument();
   });
 
+  it('AppNavigation_ShouldReturnHomeWhenClickingTopLeftBrand', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: '新建论文' }));
+    expect(await screen.findByTestId('three-column-layout')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'ThesisForma 返回首页' }));
+    expect(await screen.findByText('论文结构化编辑器')).toBeInTheDocument();
+  });
+
   it('Editor_ShouldNotAllowManualFontSizeEditing', () => {
     render(<ThesisEditorPage />);
     expect(screen.getAllByText(/由模板.*控制/).length).toBeGreaterThan(0);

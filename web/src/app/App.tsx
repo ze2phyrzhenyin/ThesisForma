@@ -85,7 +85,7 @@ export function App() {
   }
 
   if (route === 'run') {
-    return <RunPage run={lastRun} onBack={() => navigate('editor')} />;
+    return <RunPage run={lastRun} onBack={() => navigate('editor')} onHome={() => navigate('home')} />;
   }
 
   return (

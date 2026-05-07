@@ -1,14 +1,20 @@
 import { Badge, Button, Card, InlineAlert } from '../components/ui/Primitives';
 import type { RenderRun } from '../components/thesis-editor/types';
 
-export function RunPage({ run, onBack }: { run?: RenderRun; onBack: () => void }) {
+export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () => void; onHome?: () => void }) {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <button
+          type="button"
+          className="brand brand-home-button"
+          onClick={onHome}
+          aria-label="ThesisForma 返回首页"
+          title="返回首页"
+        >
           <span className="brand-mark">ThesisForma</span>
           <span className="brand-sub">生成结果</span>
-        </div>
+        </button>
         <div className="toolbar-spacer" />
         <Button type="button" onClick={onBack}>
           返回编辑器

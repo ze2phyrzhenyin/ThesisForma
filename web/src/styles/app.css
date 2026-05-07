@@ -149,6 +149,36 @@ img { max-width: 100%; display: block; }
   gap: var(--space-3);
   min-width: 0;
 }
+
+.brand-home-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.brand-home-button:hover {
+  background: var(--color-accent-soft);
+}
+
+.brand-home-button:focus-visible {
+  outline: 3px solid rgba(30, 58, 95, 0.18);
+  outline-offset: 2px;
+}
+
+.brand-home-button:disabled {
+  cursor: default;
+}
+
+.brand-home-button:disabled:hover {
+  background: transparent;
+}
+
 .brand-mark {
   font-family: var(--font-serif);
   font-size: var(--text-xl);
