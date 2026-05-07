@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, Card, EmptyState, InlineAlert } from '../components/ui/Primitives';
-import { deleteLocalDraft, loadLocalDrafts, type LocalDraftEntry } from '../components/thesis-editor/localDraftStorage';
+import {
+  deleteLocalDraft,
+  loadLocalDrafts,
+  type LocalDraftEntry
+} from '../components/thesis-editor/localDraftStorage';
 
 function formatDate(iso: string) {
   if (!iso) return '—';
@@ -57,24 +61,25 @@ export function HomePage({
         <section className="hero">
           <div className="hero-copy">
             <span className="eyebrow">
-              Structured thesis workspace
+              Forma · 结构化论文工作台
               <Badge tone="info">Frontend MVP</Badge>
             </span>
-            <h1>把论文写成结构，而不是在网页里排版。</h1>
+            <h1>
+              让结构, <em>替你</em>守住论文格式。
+            </h1>
             <p className="hero-lede">
-              ThesisForma
-              让作者专注于标题、段落、图表、脚注与参考文献等内容结构；学院格式由模板控制，
-              导出稳定的 ThesisDocument JSON 后再交给 OpenXML 渲染服务生成 DOCX。
+              ThesisForma 把论文写作还原为「结构 → 模板 → 渲染」三层。作者只录入标题、段落、图表、引用与参考文献；学院字号、行距、页眉页脚交由模板与
+              .NET OpenXML 渲染器统一生成 DOCX，永远不再手工排版。
             </p>
             <div className="hero-actions">
               <Button variant="primary" size="lg" onClick={onNew}>
                 新建论文
               </Button>
               <Button size="lg" onClick={onTemplates}>
-                选择模板
+                浏览模板
               </Button>
               <Button size="lg" onClick={() => importRef.current?.click()}>
-                导入 JSON
+                导入 JSON 草稿
               </Button>
               <input
                 ref={importRef}
@@ -93,33 +98,33 @@ export function HomePage({
           </div>
 
           <aside className="workflow" aria-label="工作流程">
-            <div className="workflow-title">工作流</div>
+            <div className="workflow-title">Forma 工作流</div>
             <div className="workflow-step">
               <span className="step-num">01</span>
               <div>
                 <strong>录入结构</strong>
-                <p>metadata · section · block · 引用 · 参考文献。</p>
+                <p>metadata · section · block · 引用 · 参考文献，全部以 ID 关联。</p>
               </div>
             </div>
             <div className="workflow-step">
               <span className="step-num">02</span>
               <div>
                 <strong>模板约束</strong>
-                <p>格式规则从 TemplatePackage 读取，不在前端手调样式。</p>
+                <p>格式规则从 TemplatePackage 读取，UI 只显示状态，不在前端手调样式。</p>
               </div>
             </div>
             <div className="workflow-step">
               <span className="step-num">03</span>
               <div>
                 <strong>导出 JSON</strong>
-                <p>前端模式可直接下载 ThesisDocument JSON 草稿。</p>
+                <p>校验通过后即可下载稳定的 ThesisDocument JSON，作为唯一交付源。</p>
               </div>
             </div>
             <div className="workflow-step muted">
               <span className="step-num">04</span>
               <div>
                 <strong>后端生成 DOCX</strong>
-                <p>连接 .NET OpenXML 渲染服务后启用。</p>
+                <p>连接 .NET OpenXML 渲染服务后，自动产出符合学院规范的最终稿。</p>
               </div>
             </div>
           </aside>
@@ -139,11 +144,19 @@ export function HomePage({
         ) : null}
 
         <div className="home-grid">
-          <Card title="最近草稿" description="草稿保存在浏览器本地，不会写入公开仓库。">
+          <Card
+            title="最近草稿"
+            description="自动保存于浏览器本地缓存，不会写入仓库或网络。"
+            action={
+              <Button size="sm" variant="ghost" onClick={onNew}>
+                + 新建
+              </Button>
+            }
+          >
             {drafts.length === 0 ? (
               <EmptyState
-                title="暂无最近草稿"
-                description="点击新建论文，先填写题目、作者和正文结构。"
+                title="还没有草稿"
+                description="开始第一篇论文：先填写题目、作者，然后让结构化编辑器接管格式。"
                 action={
                   <Button variant="primary" onClick={onNew}>
                     开始新建
@@ -153,10 +166,7 @@ export function HomePage({
             ) : (
               <div className="draft-list">
                 {drafts.map(draft => (
-                  <div
-                    key={draft.id}
-                    className="draft-item"
-                  >
+                  <div key={draft.id} className="draft-item">
                     <button
                       type="button"
                       className="draft-open"
@@ -183,13 +193,14 @@ export function HomePage({
 
           <div className="home-side">
             <InlineAlert title="不是 Word 替代品">
-              字体、字号、行距、页边距和页眉页脚由模板与后端渲染器控制，避免手工排版漂移。
+              字体、字号、行距、页边距、页眉页脚由模板与后端渲染器决定，避免手工排版漂移。
             </InlineAlert>
-            <Card title="交付物" description="前端优先保证结构可靠。">
+            <Card title="本地交付物" description="所有产出都围绕一个稳定结构展开。">
               <div className="deliverables">
                 <span>ThesisDocument JSON</span>
-                <span>结构校验问题</span>
-                <span>模板状态提示</span>
+                <span>结构校验报告</span>
+                <span>模板就绪状态</span>
+                <span>本地草稿快照</span>
               </div>
             </Card>
           </div>

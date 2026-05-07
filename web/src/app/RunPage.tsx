@@ -1,7 +1,15 @@
 import { Badge, Button, Card, InlineAlert } from '../components/ui/Primitives';
 import type { RenderRun } from '../components/thesis-editor/types';
 
-export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () => void; onHome?: () => void }) {
+export function RunPage({
+  run,
+  onBack,
+  onHome
+}: {
+  run?: RenderRun;
+  onBack: () => void;
+  onHome?: () => void;
+}) {
   return (
     <div className="app">
       <header className="topbar">
@@ -13,7 +21,7 @@ export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () =
           title="返回首页"
         >
           <span className="brand-mark">ThesisForma</span>
-          <span className="brand-sub">生成结果</span>
+          <span className="brand-sub">渲染结果</span>
         </button>
         <div className="toolbar-spacer" />
         <Button type="button" onClick={onBack}>
@@ -22,10 +30,20 @@ export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () =
       </header>
 
       <main className="page">
+        <header className="page-header">
+          <div>
+            <span className="eyebrow">Render run</span>
+            <h1>结构 → 模板 → DOCX 的最后一步。</h1>
+            <p>
+              这里展示后端 .NET OpenXML 渲染服务返回的运行报告：OpenXML 结构是否合法、格式规范是否通过、可下载 DOCX。
+            </p>
+          </div>
+        </header>
+
         <div className="stack">
           <InlineAlert tone="warning" title="当前部署：前端模式">
             Vercel 部署仅支持结构化编辑与 JSON 导出。在线生成 DOCX 需要连接后端 .NET OpenXML
-            渲染服务。请优先使用编辑器中的"导出 JSON"按钮。
+            渲染服务。请优先使用编辑器中的“导出 JSON”按钮。
           </InlineAlert>
 
           <div
@@ -47,7 +65,9 @@ export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () =
                     >
                       {runStatusLabel(run.status)}
                     </Badge>
-                    <span className="muted">运行 ID：{run.runId}</span>
+                    <span className="muted helper" style={{ fontFamily: 'var(--font-mono)' }}>
+                      运行 ID · {run.runId}
+                    </span>
                   </div>
                   <div className="run-summary">
                     <div className={`run-check ${run.openXmlValid ? 'ok' : 'fail'}`}>
@@ -67,7 +87,7 @@ export function RunPage({ run, onBack, onHome }: { run?: RenderRun; onBack: () =
                 </div>
               ) : (
                 <p className="muted">
-                  尚未生成运行结果。请先在编辑器中使用"生成 DOCX"（需要后端服务）。
+                  尚未生成运行结果。请先在编辑器中使用“生成 DOCX”（需要后端服务）。
                 </p>
               )}
             </Card>

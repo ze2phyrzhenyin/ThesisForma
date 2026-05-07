@@ -30,7 +30,7 @@ export function TemplatesPage({
           title="返回首页"
         >
           <span className="brand-mark">ThesisForma</span>
-          <span className="brand-sub">选择论文模板</span>
+          <span className="brand-sub">模板库</span>
         </button>
         <div className="toolbar-spacer" />
         {onBack ? (
@@ -44,16 +44,16 @@ export function TemplatesPage({
         <header className="page-header">
           <div>
             <span className="eyebrow">Template library</span>
-            <h1>选择格式模板，但不要在网页里手工排版。</h1>
+            <h1>选择模板，把格式权交给系统。</h1>
             <p>
-              模板决定格式规则，编辑器只记录论文内容结构。公开前端只展示虚构示例模板；
-              真实学院草稿应留在私有 workspace。
+              模板由学院或团队事先打包，定义字号、行距、目录、页眉页脚等所有规则。编辑器只负责让你聚焦内容结构；
+              公开站点仅展示虚构示例模板，真实学院草稿请放在私有 workspace。
             </p>
           </div>
-          <div className="alert muted" style={{ maxWidth: 280 }}>
+          <div className="alert muted" style={{ maxWidth: 300 }}>
             <span className="alert-title">前端模式</span>
             <span className="alert-body">
-              可编辑结构、查看模板状态并导出 JSON。在线 DOCX 生成需连接后端服务。
+              可编辑结构、查看模板状态、导出 JSON。在线 DOCX 生成需连接后端服务。
             </span>
           </div>
         </header>
@@ -98,7 +98,11 @@ function TemplateCard({
         </div>
         <StatusPill
           status={
-            template.status === 'ready' ? 'ready' : template.status === 'notReady' ? 'notReady' : 'draft'
+            template.status === 'ready'
+              ? 'ready'
+              : template.status === 'notReady'
+                ? 'notReady'
+                : 'draft'
           }
         >
           {template.status}
@@ -137,13 +141,15 @@ function TemplateCard({
       </div>
 
       {!isReady ? (
-        <p className="helper">此模板仍是草稿，可能存在未映射格式要求。</p>
+        <p className="helper">此模板仍是草稿，可能存在未映射的格式要求。</p>
       ) : null}
 
       <div className="template-card-foot">
-        <span className="muted helper">id: {template.id}</span>
+        <span className="muted helper" style={{ fontFamily: 'var(--font-mono)' }}>
+          id · {template.id}
+        </span>
         <Button variant="primary" onClick={() => onSelect(template.id)}>
-          选择模板
+          选择此模板
         </Button>
       </div>
     </article>
