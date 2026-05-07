@@ -7,7 +7,7 @@ import { RenderPanel } from '../components/thesis-editor/RenderPanel';
 import { HomePage } from '../app/HomePage';
 import { App } from '../app/App';
 import { TemplatesPage } from '../app/TemplatesPage';
-import { Button, Modal } from '../components/design-system/Primitives';
+import { Button, Modal } from '../components/ui/Primitives';
 import { renderApi } from '../api/client';
 import { editorReducer, blockFactories, localValidate } from '../components/thesis-editor/editorReducer';
 import { collectReferenceTargets, createInitialState, createTableBlock, deserializeFromThesisDocument, serializeToThesisDocument, validateEditorState } from '../components/thesis-editor/serialization';

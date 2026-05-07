@@ -1,4 +1,4 @@
-import { Badge, Button, StatusPill } from '../design-system/Primitives';
+import { Badge, Button, StatusPill } from '../ui/Primitives';
 import type { ThesisEditorState } from './types';
 
 export function EditorToolbar({
@@ -38,22 +38,31 @@ export function EditorToolbar({
 
   return (
     <header className="topbar topbar-editor" role="banner">
-      <div className="toolbar-brand">
-        <span className="brand-title">ThesisForma</span>
-        <span className="brand-doc-title" title={title}>{title}</span>
+      <div className="brand">
+        <span className="brand-mark">ThesisForma</span>
+        <span className="brand-doc-title" title={title}>
+          {title}
+        </span>
       </div>
 
-      <nav className="toolbar-nav" aria-label="页面导航">
-        <Button type="button" onClick={onHome} aria-label="首页">首页</Button>
-        <Button type="button" onClick={onTemplates} aria-label="模板">模板</Button>
-        <Button type="button" onClick={onBack} aria-label="后退">后退</Button>
-      </nav>
+      <div className="toolbar-group" aria-label="页面导航">
+        <Button type="button" size="sm" onClick={onHome} aria-label="首页">
+          首页
+        </Button>
+        <Button type="button" size="sm" onClick={onTemplates} aria-label="模板">
+          模板
+        </Button>
+        <Button type="button" size="sm" onClick={onBack} aria-label="后退">
+          后退
+        </Button>
+      </div>
 
       <div className="toolbar-divider" aria-hidden="true" />
 
-      <div className="toolbar-history" aria-label="撤销重做">
+      <div className="toolbar-group" aria-label="撤销重做">
         <Button
           type="button"
+          size="sm"
           onClick={onUndo}
           disabled={!canUndo}
           aria-label="撤销"
@@ -63,6 +72,7 @@ export function EditorToolbar({
         </Button>
         <Button
           type="button"
+          size="sm"
           onClick={onRedo}
           disabled={!canRedo}
           aria-label="重做"
@@ -72,30 +82,41 @@ export function EditorToolbar({
         </Button>
       </div>
 
-      <div className="toolbar-divider" aria-hidden="true" />
+      <div className="toolbar-spacer" />
 
       <div className="toolbar-status" aria-live="polite">
-        <span className={`autosave-label autosave-${state.autosaveStatus}`}>
-          {autosaveLabel(state.autosaveStatus)}
-        </span>
-        {!docxRenderEnabled ? (
-          <StatusPill status="disabled">仅 JSON 导出</StatusPill>
-        ) : null}
+        <span className={`autosave ${state.autosaveStatus}`}>{autosaveLabel(state.autosaveStatus)}</span>
+        {!docxRenderEnabled ? <StatusPill status="disabled">仅 JSON 导出</StatusPill> : null}
         <Badge tone={issueCount > 0 ? (hasErrors ? 'danger' : 'warning') : 'success'}>
           {issueCount > 0 ? `${issueCount} 校验项` : '校验通过'}
         </Badge>
-        <Badge tone="info">{state.template?.name ?? state.templateId}</Badge>
+        <Badge outline>{state.template?.name ?? state.templateId}</Badge>
       </div>
 
-      <div className="toolbar-actions">
-        <Button type="button" onClick={onSave} aria-label="保存">保存</Button>
-        <Button type="button" onClick={onValidate} aria-label="校验">校验</Button>
-        <div className="toolbar-divider" aria-hidden="true" />
-        <Button type="button" onClick={onImportJson} aria-label="导入 JSON">导入 JSON</Button>
-        <Button type="button" variant="primary" onClick={onExportJson} aria-label="导出 JSON">导出 JSON</Button>
-        <div className="toolbar-divider" aria-hidden="true" />
+      <div className="toolbar-divider" aria-hidden="true" />
+
+      <div className="toolbar-group">
+        <Button type="button" size="sm" onClick={onSave} aria-label="保存">
+          保存
+        </Button>
+        <Button type="button" size="sm" onClick={onValidate} aria-label="校验">
+          校验
+        </Button>
+        <Button type="button" size="sm" onClick={onImportJson} aria-label="导入 JSON">
+          导入 JSON
+        </Button>
         <Button
           type="button"
+          variant="primary"
+          size="sm"
+          onClick={onExportJson}
+          aria-label="导出 JSON"
+        >
+          导出 JSON
+        </Button>
+        <Button
+          type="button"
+          size="sm"
           onClick={onRender}
           disabled={!docxRenderEnabled}
           aria-label={docxRenderEnabled ? '生成 DOCX' : '生成 DOCX 需要连接后端渲染服务'}

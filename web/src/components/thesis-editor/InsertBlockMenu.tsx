@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Button, Checkbox, Field, Input, Modal } from '../design-system/Primitives';
+import { Button, Checkbox, Field, Input, Modal } from '../ui/Primitives';
 import { blockFactories, type EditorAction } from './editorReducer';
 import { createTableBlock } from './serialization';
 
-const groups = [
+const GROUPS = [
   {
     title: '常用',
     items: [
-      { type: 'heading', title: '标题', description: '添加一级到六级标题，自动进入大纲。' },
+      { type: 'heading', title: '标题', description: '一级到六级标题，自动进入大纲。' },
       { type: 'paragraph', title: '正文段落', description: '录入正文内容，可插入引用和交叉引用。' },
-      { type: 'table', title: '表格', description: '先设置表名、行列和表头，再填写单元格。' },
+      { type: 'table', title: '表格', description: '设置表名、行列和表头，再填写单元格。' },
       { type: 'figure', title: '图片', description: '上传图片并填写图名和替代文本。' }
     ]
   },
@@ -32,7 +32,13 @@ const groups = [
   }
 ] as const;
 
-export function InsertBlockMenu({ sectionId, dispatch }: { sectionId: string; dispatch: React.Dispatch<EditorAction> }) {
+export function InsertBlockMenu({
+  sectionId,
+  dispatch
+}: {
+  sectionId: string;
+  dispatch: React.Dispatch<EditorAction>;
+}) {
   const [modal, setModal] = useState<'table' | 'figure' | undefined>();
   const [tableCaption, setTableCaption] = useState('表名待填写');
   const [rows, setRows] = useState(3);
@@ -42,18 +48,9 @@ export function InsertBlockMenu({ sectionId, dispatch }: { sectionId: string; di
   const [figureAlt, setFigureAlt] = useState('');
 
   function insert(type: string) {
-    if (type === 'table') {
-      setModal('table');
-      return;
-    }
-    if (type === 'figure') {
-      setModal('figure');
-      return;
-    }
-    if (type === 'bibliography') {
-      dispatch({ type: 'addBibliographyEntry' });
-      return;
-    }
+    if (type === 'table') return setModal('table');
+    if (type === 'figure') return setModal('figure');
+    if (type === 'bibliography') return dispatch({ type: 'addBibliographyEntry' });
     if (type === 'citation' || type === 'reference' || type === 'footnote') {
       alert('请先选中正文段落，再在段落块内插入引用、交叉引用或脚注。');
       return;
@@ -62,7 +59,11 @@ export function InsertBlockMenu({ sectionId, dispatch }: { sectionId: string; di
       dispatch({ type: 'insertBlock', sectionId: 'appendix', block: blockFactories.heading() });
       return;
     }
-    dispatch({ type: 'insertBlock', sectionId, block: blockFactories[type as keyof typeof blockFactories]() });
+    dispatch({
+      type: 'insertBlock',
+      sectionId,
+      block: blockFactories[type as keyof typeof blockFactories]()
+    });
   }
 
   function createTable() {
@@ -78,19 +79,23 @@ export function InsertBlockMenu({ sectionId, dispatch }: { sectionId: string; di
   function createFigure() {
     const block = blockFactories.figure();
     if (block.type === 'figure') {
-      dispatch({ type: 'insertBlock', sectionId, block: { ...block, caption: figureCaption, altText: figureAlt } });
+      dispatch({
+        type: 'insertBlock',
+        sectionId,
+        block: { ...block, caption: figureCaption, altText: figureAlt }
+      });
     }
     setModal(undefined);
   }
 
   return (
     <div className="insert-menu">
-      <div className="insert-menu-header">
+      <div className="insert-menu-head">
         <strong>+ 插入内容</strong>
-        <span className="muted">选择结构块，而不是手工排版。</span>
+        <span>选择结构块，而不是手工排版。</span>
       </div>
       <div className="insert-groups">
-        {groups.map(group => (
+        {GROUPS.map(group => (
           <div className="insert-group" key={group.title}>
             <div className="insert-group-title">{group.title}</div>
             {group.items.map(item => (
@@ -110,40 +115,78 @@ export function InsertBlockMenu({ sectionId, dispatch }: { sectionId: string; di
       </div>
 
       {modal === 'table' ? (
-        <Modal title="插入表格" description="只设置结构信息，表格边框和题注格式由模板控制。" onClose={() => setModal(undefined)}>
+        <Modal
+          title="插入表格"
+          description="只设置结构信息，表格边框和题注格式由模板控制。"
+          onClose={() => setModal(undefined)}
+        >
           <div className="stack">
             <Field label="表名">
-              <Input value={tableCaption} onChange={event => setTableCaption(event.target.value)} />
+              <Input
+                value={tableCaption}
+                onChange={event => setTableCaption(event.target.value)}
+              />
             </Field>
-            <div className="inline-row">
+            <div className="row">
               <Field label="行数">
-                <Input type="number" min={1} max={30} value={rows} onChange={event => setRows(Number(event.target.value))} />
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={rows}
+                  onChange={event => setRows(Number(event.target.value))}
+                />
               </Field>
               <Field label="列数">
-                <Input type="number" min={1} max={12} value={columns} onChange={event => setColumns(Number(event.target.value))} />
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={columns}
+                  onChange={event => setColumns(Number(event.target.value))}
+                />
               </Field>
-              <Checkbox label="第一行为表头" checked={hasHeader} onChange={event => setHasHeader(event.target.checked)} />
+              <Checkbox
+                label="第一行为表头"
+                checked={hasHeader}
+                onChange={event => setHasHeader(event.target.checked)}
+              />
             </div>
-            <div className="inline-row">
-              <Button variant="primary" onClick={createTable}>创建表格</Button>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
               <Button onClick={() => setModal(undefined)}>取消</Button>
+              <Button variant="primary" onClick={createTable}>
+                创建表格
+              </Button>
             </div>
           </div>
         </Modal>
       ) : null}
 
       {modal === 'figure' ? (
-        <Modal title="插入图片" description="先创建图片结构块，进入块内上传图片和维护资产。" onClose={() => setModal(undefined)}>
+        <Modal
+          title="插入图片"
+          description="先创建图片结构块，进入块内上传图片和维护资产。"
+          onClose={() => setModal(undefined)}
+        >
           <div className="stack">
             <Field label="图名">
-              <Input value={figureCaption} onChange={event => setFigureCaption(event.target.value)} />
+              <Input
+                value={figureCaption}
+                onChange={event => setFigureCaption(event.target.value)}
+              />
             </Field>
             <Field label="替代文本">
-              <Input value={figureAlt} onChange={event => setFigureAlt(event.target.value)} placeholder="用于无障碍说明和资产追踪" />
+              <Input
+                value={figureAlt}
+                placeholder="用于无障碍说明和资产追踪"
+                onChange={event => setFigureAlt(event.target.value)}
+              />
             </Field>
-            <div className="inline-row">
-              <Button variant="primary" onClick={createFigure}>插入图片块</Button>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
               <Button onClick={() => setModal(undefined)}>取消</Button>
+              <Button variant="primary" onClick={createFigure}>
+                插入图片块
+              </Button>
             </div>
           </div>
         </Modal>

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ThesisEditorPage } from '../components/thesis-editor/ThesisEditorPage';
-import { createInitialState, deserializeFromThesisDocument } from '../components/thesis-editor/serialization';
+import {
+  createInitialState,
+  deserializeFromThesisDocument
+} from '../components/thesis-editor/serialization';
 import type { RenderRun, ThesisEditorState } from '../components/thesis-editor/types';
 import { HomePage } from './HomePage';
 import { RunPage } from './RunPage';
@@ -11,7 +14,7 @@ type Route = 'home' | 'templates' | 'editor' | 'run';
 export function App() {
   const [route, setRoute] = useState<Route>(routeFromPath());
   const [editorState, setEditorState] = useState<ThesisEditorState>(createInitialState());
-  const [lastRun, setLastRun] = useState<RenderRun | undefined>();
+  const [lastRun] = useState<RenderRun | undefined>();
 
   useEffect(() => {
     const onPopState = () => setRoute(routeFromPath());
@@ -20,7 +23,14 @@ export function App() {
   }, []);
 
   function navigate(next: Route) {
-    const path = next === 'home' ? '/' : next === 'templates' ? '/templates' : next === 'run' ? '/runs/latest' : '/editor/draft';
+    const path =
+      next === 'home'
+        ? '/'
+        : next === 'templates'
+          ? '/templates'
+          : next === 'run'
+            ? '/runs/latest'
+            : '/editor/draft';
     window.history.pushState({}, '', path);
     setRoute(next);
   }
@@ -51,10 +61,15 @@ export function App() {
   }
 
   if (route === 'templates') {
-    return <TemplatesPage onSelect={(templateId) => {
-      setEditorState(createInitialState(templateId));
-      navigate('editor');
-    }} onBack={() => navigate('home')} />;
+    return (
+      <TemplatesPage
+        onSelect={templateId => {
+          setEditorState(createInitialState(templateId));
+          navigate('editor');
+        }}
+        onBack={() => navigate('home')}
+      />
+    );
   }
 
   if (route === 'editor') {
