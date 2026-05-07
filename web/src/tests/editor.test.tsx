@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ThesisEditorPage } from '../components/thesis-editor/ThesisEditorPage';
@@ -76,6 +76,23 @@ describe('structured thesis editor UI', () => {
     expect(screen.getByRole('button', { name: '新建论文' })).toBeInTheDocument();
   });
 
+  it('HomePage_ShouldDeleteLocalDraft', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('thesisforma.document.doc-delete', JSON.stringify({
+      id: 'doc-delete',
+      templateId: 'example-university-engineering',
+      updatedAt: '2026-05-07T00:00:00.000Z',
+      document: { metadata: { title: '待删除草稿' } }
+    }));
+
+    render(<HomePage onNew={vi.fn()} onTemplates={vi.fn()} onOpenDraft={vi.fn()} />);
+    expect(screen.getByText('待删除草稿')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '删除草稿：待删除草稿' }));
+
+    expect(localStorage.getItem('thesisforma.document.doc-delete')).toBeNull();
+    expect(screen.queryByText('待删除草稿')).not.toBeInTheDocument();
+  });
+
   it('TemplatePage_ShouldShowTemplateStatusAndGaps', async () => {
     render(<TemplatesPage onSelect={vi.fn()} />);
     expect(await screen.findByText('Example University Engineering Thesis')).toBeInTheDocument();
@@ -87,6 +104,20 @@ describe('structured thesis editor UI', () => {
   it('Editor_ShouldShowAutosaveStatus', () => {
     render(<ThesisEditorPage />);
     expect(screen.getByText('未保存')).toBeInTheDocument();
+  });
+
+  it('FrontendOnlyAutosave_ShouldPersistMeaningfulDraftLocally', async () => {
+    render(<ThesisEditorPage />);
+    fireEvent.change(screen.getByLabelText('论文题目'), { target: { value: '本地自动保存论文' } });
+
+    await waitFor(() => {
+      const stored = Object.keys(localStorage)
+        .filter(key => key.startsWith('thesisforma.document.'))
+        .map(key => localStorage.getItem(key) ?? '')
+        .join('\n');
+      expect(stored).toContain('本地自动保存论文');
+    }, { timeout: 1800 });
+    expect(screen.getByText('已保存')).toBeInTheDocument();
   });
 
   it('EditorToolbar_ShouldShowHomeBackUndoRedoControls', () => {

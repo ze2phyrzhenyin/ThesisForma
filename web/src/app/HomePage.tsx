@@ -1,39 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, Card, EmptyState, InlineAlert } from '../components/ui/Primitives';
-
-type DraftEntry = {
-  id: string;
-  title: string;
-  templateId: string;
-  updatedAt: string;
-};
-
-function loadDrafts(): DraftEntry[] {
-  const entries: DraftEntry[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key?.startsWith('thesisforma.document.')) continue;
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const envelope = JSON.parse(raw) as {
-        id?: string;
-        document?: { metadata?: { title?: string } };
-        templateId?: string;
-        updatedAt?: string;
-      };
-      entries.push({
-        id: envelope.id ?? key.replace('thesisforma.document.', ''),
-        title: envelope.document?.metadata?.title?.trim() || '未命名论文',
-        templateId: envelope.templateId ?? '',
-        updatedAt: envelope.updatedAt ?? ''
-      });
-    } catch {
-      // Skip malformed entries
-    }
-  }
-  return entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8);
-}
+import { deleteLocalDraft, loadLocalDrafts, type LocalDraftEntry } from '../components/thesis-editor/localDraftStorage';
 
 function formatDate(iso: string) {
   if (!iso) return '—';
@@ -61,11 +28,17 @@ export function HomePage({
   onOpenDraft?: (draftId: string) => void;
 }) {
   const importRef = useRef<HTMLInputElement>(null);
-  const [drafts, setDrafts] = useState<DraftEntry[]>([]);
+  const [drafts, setDrafts] = useState<LocalDraftEntry[]>([]);
 
   useEffect(() => {
-    setDrafts(loadDrafts());
+    setDrafts(loadLocalDrafts());
   }, []);
+
+  function removeDraft(draftId: string) {
+    if (!window.confirm('删除这个本地草稿？该操作不会影响已导出的 JSON 文件。')) return;
+    deleteLocalDraft(draftId);
+    setDrafts(loadLocalDrafts());
+  }
 
   return (
     <div className="app">
@@ -170,16 +143,29 @@ export function HomePage({
             ) : (
               <div className="draft-list">
                 {drafts.map(draft => (
-                  <button
+                  <div
                     key={draft.id}
-                    type="button"
                     className="draft-item"
-                    onClick={() => onOpenDraft?.(draft.id)}
-                    aria-label={`打开草稿：${draft.title}`}
                   >
-                    <span className="draft-title">{draft.title}</span>
-                    <span className="draft-meta">{formatDate(draft.updatedAt)}</span>
-                  </button>
+                    <button
+                      type="button"
+                      className="draft-open"
+                      onClick={() => onOpenDraft?.(draft.id)}
+                      aria-label={`打开草稿：${draft.title}`}
+                    >
+                      <span className="draft-title">{draft.title}</span>
+                      <span className="draft-meta">{formatDate(draft.updatedAt)}</span>
+                    </button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeDraft(draft.id)}
+                      aria-label={`删除草稿：${draft.title}`}
+                    >
+                      删除
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}

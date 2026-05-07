@@ -1,4 +1,5 @@
 import type { AssetRef, RenderRun, TemplateSummary } from '../components/thesis-editor/types';
+import { createLocalDraftId, localDocumentKey, saveLocalDraft } from '../components/thesis-editor/localDraftStorage';
 
 const apiBase = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE ?? '');
 const docxRenderEnabled = parseBoolean(import.meta.env.VITE_ENABLE_DOCX_RENDER, false);
@@ -52,9 +53,8 @@ export const templateApi = {
 export const documentApi = {
   create(body: unknown) {
     if (!apiBase) {
-      const id = localId('doc');
-      const envelope = { id, document: body, templateId: readTemplateId(body), updatedAt: new Date().toISOString() };
-      localStorage.setItem(localDocumentKey(id), JSON.stringify(envelope));
+      const id = createLocalDraftId();
+      const envelope = saveLocalDraft(id, body, readTemplateId(body));
       return Promise.resolve(envelope);
     }
     return request<{ id: string; document: unknown; templateId?: string }>('/api/documents', {
@@ -64,8 +64,7 @@ export const documentApi = {
   },
   save(id: string, document: unknown, templateId?: string) {
     if (!apiBase) {
-      const envelope = { id, document, templateId, updatedAt: new Date().toISOString() };
-      localStorage.setItem(localDocumentKey(id), JSON.stringify(envelope));
+      const envelope = saveLocalDraft(id, document, templateId);
       return Promise.resolve(envelope);
     }
     return request<{ id: string; document: unknown; templateId?: string }>(`/api/documents/${id}`, {
@@ -93,9 +92,8 @@ export const documentApi = {
   },
   importJson(document: unknown, templateId?: string) {
     if (!apiBase) {
-      const id = localId('doc');
-      const envelope = { id, document, templateId, updatedAt: new Date().toISOString() };
-      localStorage.setItem(localDocumentKey(id), JSON.stringify(envelope));
+      const id = createLocalDraftId();
+      const envelope = saveLocalDraft(id, document, templateId);
       return Promise.resolve(envelope);
     }
     return request<{ id: string; document: unknown; templateId?: string }>('/api/documents/import-json', {
@@ -166,10 +164,6 @@ function normalizeBaseUrl(value: string) {
 
 function localId(prefix: string) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)}`;
-}
-
-function localDocumentKey(id: string) {
-  return `thesisforma.document.${id}`;
 }
 
 function readTemplateId(body: unknown) {

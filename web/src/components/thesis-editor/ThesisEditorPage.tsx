@@ -13,6 +13,10 @@ import { TocPreview } from './TocPreview';
 import { ValidationPanel } from './ValidationPanel';
 import { editorReducer, localValidate, type EditorAction } from './editorReducer';
 import {
+  createLocalDraftId,
+  saveLocalDraft
+} from './localDraftStorage';
+import {
   collectReferenceTargets,
   createInitialState,
   deserializeFromThesisDocument,
@@ -68,6 +72,7 @@ export function ThesisEditorPage({
   const [activeTab, setActiveTab] = useState('properties');
   const [toast, setToast] = useState<string>();
   const importInputRef = useRef<HTMLInputElement>(null);
+  const autosaveSignatureRef = useRef('');
 
   const referenceTargets = useMemo(() => collectReferenceTargets(state), [state]);
   const citedKeys = useMemo(() => collectCitations(state), [state]);
@@ -125,6 +130,30 @@ export function ThesisEditorPage({
     const handle = window.setTimeout(() => setToast(undefined), 3200);
     return () => window.clearTimeout(handle);
   }, [toast]);
+
+  useEffect(() => {
+    if (appConfig.apiBase) return;
+    if (!hasMeaningfulDraftContent(state)) return;
+
+    const document = serializeToThesisDocument(state);
+    const signature = JSON.stringify({ document, templateId: state.templateId });
+    if (signature === autosaveSignatureRef.current) return;
+
+    dispatch({ type: 'setAutosaveStatus', status: 'saving' });
+    const handle = window.setTimeout(() => {
+      try {
+        const id = state.documentId ?? createLocalDraftId();
+        saveLocalDraft(id, document, state.templateId);
+        autosaveSignatureRef.current = signature;
+        if (!state.documentId) dispatch({ type: 'setDocumentId', id });
+        dispatch({ type: 'setAutosaveStatus', status: 'saved' });
+      } catch {
+        dispatch({ type: 'setAutosaveStatus', status: 'failed' });
+      }
+    }, 700);
+
+    return () => window.clearTimeout(handle);
+  }, [state.documentId, state.templateId, state.metadata, state.sections, state.bibliography, state.assets, dispatch]);
 
   async function save() {
     dispatch({ type: 'setAutosaveStatus', status: 'saving' });
@@ -445,6 +474,27 @@ function collectCitations(state: ThesisEditorState) {
     }
   }
   return keys;
+}
+
+function hasMeaningfulDraftContent(state: ThesisEditorState) {
+  if (Object.values(state.metadata).some(value => value.trim().length > 0)) return true;
+  if (state.bibliography.length > 0 || state.assets.length > 0) return true;
+
+  return state.sections.some(section => section.blocks.some(block => {
+    if (block.type === 'heading') return block.text.trim().length > 0 && block.text.trim() !== '绪论';
+    if (block.type === 'paragraph') return block.inlines.some(inline => {
+      if (inline.type === 'text') return inline.text.trim().length > 0;
+      return true;
+    });
+    if (block.type === 'abstract') return block.text.trim().length > 0 || block.keywords.length > 0;
+    if (block.type === 'table') {
+      return block.caption.trim().length > 0 && block.caption.trim() !== '表名待填写'
+        || block.rows.some(row => row.cells.some(cell => cell.text.trim().length > 0));
+    }
+    if (block.type === 'figure') return Boolean(block.imagePath) || block.caption.trim().length > 0;
+    if (block.type === 'equation') return block.plainText.trim().length > 0 || Boolean(block.caption?.trim());
+    return false;
+  }));
 }
 
 type EditorHistoryState = {
