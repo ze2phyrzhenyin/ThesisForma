@@ -325,6 +325,12 @@ internal static class ThesisDocxCli
     {
         var root = LocateRepoRoot();
         var result = new TemplateValidationService().Validate(Required(options, "template"), Path.Combine(root, "schemas", "template-package.schema.json"));
+        if (options.ContainsKey("json"))
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), result);
+            return result.IsValid ? 0 : 2;
+        }
+
         if (result.IsValid)
         {
             Console.WriteLine("Template valid");

@@ -84,7 +84,7 @@
         "id": { "$ref": "#/definitions/id" },
         "targetSectionType": { "type": "string", "enum": ["cover", "declaration", "abstract", "toc", "body", "appendix"] },
         "insertPosition": { "type": "string", "enum": ["beforeSection", "afterSection", "replaceSectionContent"] },
-        "pageSetupOverride": { "type": "object" },
+        "pageSetupOverride": { "$ref": "#/definitions/pageSetupOverride" },
         "blocks": { "type": "array", "items": { "$ref": "#/definitions/layoutBlock" } }
       }
     },
@@ -189,6 +189,22 @@
         "id": { "$ref": "#/definitions/id" },
         "description": { "type": "string" },
         "severity": { "type": "string", "enum": ["info", "warning", "breaking"] }
+      }
+    },
+    "pageSetupOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paperSize": { "type": "string", "enum": ["a4", "letter"] },
+        "orientation": { "type": "string", "enum": ["portrait", "landscape"] },
+        "topMarginCm": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "bottomMarginCm": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "leftMarginCm": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "rightMarginCm": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "gutterCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "headerDistanceCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "footerDistanceCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "columns": { "type": "integer", "minimum": 1, "maximum": 4 }
       }
     },
     "alignment": { "type": "string", "enum": ["left", "center", "right", "both"] }

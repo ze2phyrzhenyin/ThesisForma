@@ -118,6 +118,49 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void TemplateValidator_ShouldRejectDuplicateVariableNames()
+    {
+        var path = WriteMutatedTemplate(node =>
+        {
+            node["variables"]!.AsArray().Add(JsonNode.Parse("""{"name":"defenseDate","label":"Duplicate","type":"date"}"""));
+        });
+
+        var result = new TemplateValidationService().Validate(path, Path.Combine(RepoRoot(), "schemas", "template-package.schema.json"));
+
+        Assert.Contains(result.Errors, error => error.Code == "template.variable.duplicate");
+    }
+
+    [Fact]
+    public void TemplateValidator_ShouldRejectMissingPageTemplateVariableReference()
+    {
+        var path = WriteMutatedTemplate(node => node["pageTemplates"]![0]!["blocks"]![2]!["value"] = "{{variables.missingDefenseDate}}");
+
+        var result = new TemplateValidationService().Validate(path, Path.Combine(RepoRoot(), "schemas", "template-package.schema.json"));
+
+        Assert.Contains(result.Errors, error => error.Code == "template.pageTemplate.variable.missing");
+    }
+
+    [Fact]
+    public void TemplateValidator_ShouldRejectMissingPageTemplateImageAssetReference()
+    {
+        var path = WriteMutatedTemplate(node => node["pageTemplates"]![0]!["blocks"]![1]!["assetId"] = "missingLogoAsset");
+
+        var result = new TemplateValidationService().Validate(path, Path.Combine(RepoRoot(), "schemas", "template-package.schema.json"));
+
+        Assert.Contains(result.Errors, error => error.Code == "template.pageTemplate.image.asset.missing");
+    }
+
+    [Fact]
+    public void TemplateValidator_ShouldRejectIllegalPageSetupOverrideMargin()
+    {
+        var path = WriteMutatedTemplate(node => node["pageTemplates"]![0]!["pageSetupOverride"]!["leftMarginCm"] = -1);
+
+        var result = new TemplateValidationService().Validate(path, Path.Combine(RepoRoot(), "schemas", "template-package.schema.json"));
+
+        Assert.Contains(result.Errors, error => error.Code == "template.pageTemplate.pageSetup.margin.invalid");
+    }
+
+    [Fact]
     public void TemplateLoader_ShouldLoadTemplatePackage()
     {
         var template = new TemplateLoader().Load(TemplatePath("example-university-engineering"));
@@ -492,6 +535,18 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void Cli_TemplateValidate_ShouldSupportJsonOutput()
+    {
+        var result = CliRunner.Run(RepoRoot(), "template", "validate", "--template", TemplatePath("example-university-engineering"), "--json");
+        var json = JsonNode.Parse(result.StandardOutput)!;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json["isValid"]!.GetValue<bool>());
+        Assert.NotNull(json["errors"]);
+        Assert.NotNull(json["warnings"]);
+    }
+
+    [Fact]
     public void Cli_TemplateResolve_ShouldWriteResolvedFormatSpec()
     {
         var outPath = Path.Combine(NewTempDirectory(), "resolved.json");
@@ -648,6 +703,8 @@ public sealed class TemplateSystemTests
 
         Assert.Contains(coverage.Rules, rule => rule.RuleId == "tables" && rule.Status == "supported" && rule.RendererCovered);
         Assert.Contains(coverage.Rules, rule => rule.RuleId == "template-inheritance" && rule.Status == "supported" && rule.ValidatorCovered);
+        Assert.Contains(coverage.Rules, rule => rule.RuleId == "page-template-image" && rule.Status == "supported");
+        Assert.Contains(coverage.Rules, rule => rule.RuleId == "document-feature-advanced-table" && rule.Status == "supported");
     }
 
     [Fact]

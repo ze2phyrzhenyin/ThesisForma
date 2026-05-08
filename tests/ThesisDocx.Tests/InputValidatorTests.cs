@@ -180,6 +180,18 @@ public sealed class InputValidatorTests
     }
 
     [Fact]
+    public void InputValidator_ShouldRejectGridSpanTooWide()
+    {
+        var (document, format, baseDir) = LoadFull();
+        var table = FindFirstTable(document);
+        table.Rows[0].Cells[0].GridSpan = 33;
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "table.gridSpan.tooWide");
+    }
+
+    [Fact]
     public void InputValidator_ShouldRejectHeaderRowAfterBodyRow()
     {
         var (document, format, baseDir) = LoadFull();
@@ -190,6 +202,18 @@ public sealed class InputValidatorTests
         var result = new ThesisInputValidator().Validate(document, format, baseDir);
 
         Assert.Contains(result.Errors, error => error.Code == "table.header.afterBody");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldRejectEmptyInlineNotes()
+    {
+        var (document, format, baseDir) = LoadFull();
+        var paragraph = document.Sections.SelectMany(s => s.Blocks).OfType<ParagraphBlock>().First();
+        paragraph.Inlines.Add(new FootnoteInline { NoteId = "fn-empty", Inlines = [new TextInline { Text = " " }] });
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "note.empty");
     }
 
     [Fact]

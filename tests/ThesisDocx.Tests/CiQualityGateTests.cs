@@ -391,6 +391,20 @@ public sealed class CiQualityGateTests
     }
 
     [Fact]
+    public void TemplateAuthoringReportBuilder_ShouldIncludePublishReadinessCoverageChecklist()
+    {
+        var report = BuildAuthoringReport();
+        var codes = report.Checklist.Select(item => item.Code).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("pageTemplate.image", codes);
+        Assert.Contains("formatSpec.bibliography", codes);
+        Assert.Contains("document.advancedTable", codes);
+        Assert.DoesNotContain(report.Checklist, item => item.Status == "fail");
+        Assert.True(((Dictionary<string, bool>)report.TemplateSummary["pageTemplateElementCoverage"])["fieldTable"]);
+        Assert.True(((Dictionary<string, bool>)report.CoverageSummary["documentFeatureCoverage"])["notes"]);
+    }
+
+    [Fact]
     public void TemplateAuthoringMarkdownRenderer_ShouldRenderMergeDecision()
     {
         var markdown = new TemplateAuthoringMarkdownRenderer().Render(BuildAuthoringReport());

@@ -255,10 +255,12 @@ public sealed class ThesisInputValidator
                 break;
             case FootnoteBlock footnote:
                 AddUnique(footnoteIds, footnote.NoteId, $"{path}.noteId", "duplicate.footnoteId", result);
+                ValidateNoteContent(footnote.Inlines, $"{path}.inlines", "footnote", result);
                 VisitInlines(footnote.Inlines, $"{path}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
                 break;
             case EndnoteBlock endnote:
                 AddUnique(endnoteIds, endnote.NoteId, $"{path}.noteId", "duplicate.endnoteId", result);
+                ValidateNoteContent(endnote.Inlines, $"{path}.inlines", "endnote", result);
                 VisitInlines(endnote.Inlines, $"{path}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
                 break;
         }
@@ -295,10 +297,12 @@ public sealed class ThesisInputValidator
                     break;
                 case FootnoteInline footnote:
                     AddUnique(footnoteIds, footnote.NoteId, $"{inlinePath}.noteId", "duplicate.footnoteId", result);
+                    ValidateNoteContent(footnote.Inlines, $"{inlinePath}.inlines", "footnote", result);
                     VisitInlines(footnote.Inlines, $"{inlinePath}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
                     break;
                 case EndnoteInline endnote:
                     AddUnique(endnoteIds, endnote.NoteId, $"{inlinePath}.noteId", "duplicate.endnoteId", result);
+                    ValidateNoteContent(endnote.Inlines, $"{inlinePath}.inlines", "endnote", result);
                     VisitInlines(endnote.Inlines, $"{inlinePath}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
                     break;
             }
@@ -413,6 +417,10 @@ public sealed class ThesisInputValidator
                 {
                     result.Add("table.gridSpan.invalid", $"{cellPath}.gridSpan", "gridSpan must be greater than or equal to 1.");
                 }
+                else if (cell.GridSpan > 32)
+                {
+                    result.Add("table.gridSpan.tooWide", $"{cellPath}.gridSpan", "gridSpan must not exceed 32 logical columns.");
+                }
 
                 var span = Math.Max(1, cell.GridSpan);
                 for (var col = logicalColumns; col < logicalColumns + span; col++)
@@ -453,6 +461,29 @@ public sealed class ThesisInputValidator
     {
         target.Errors.AddRange(source.Errors);
         target.Warnings.AddRange(source.Warnings);
+    }
+
+    private static void ValidateNoteContent(IReadOnlyList<InlineNode> inlines, string path, string kind, ThesisInputValidationResult result)
+    {
+        if (string.IsNullOrWhiteSpace(PlainText(inlines)))
+        {
+            result.Add("note.empty", path, $"{kind} content must not be empty.");
+        }
+    }
+
+    private static string PlainText(IEnumerable<InlineNode> inlines)
+    {
+        return string.Concat(inlines.Select(inline => inline switch
+        {
+            TextInline text => text.Text,
+            HyperlinkInline hyperlink => hyperlink.Text,
+            CitationInline citation => citation.DisplayText,
+            ReferenceInline reference => reference.FallbackText ?? reference.BookmarkName,
+            BookmarkInline bookmark => PlainText(bookmark.Inlines),
+            FootnoteInline footnote => PlainText(footnote.Inlines),
+            EndnoteInline endnote => PlainText(endnote.Inlines),
+            _ => string.Empty
+        }));
     }
 
     private static void AddUnique(Dictionary<string, string> values, string id, string path, string code, ThesisInputValidationResult result)
