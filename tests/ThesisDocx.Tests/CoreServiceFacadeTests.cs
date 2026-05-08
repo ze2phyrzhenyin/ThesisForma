@@ -237,6 +237,22 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void TemplateWorkflowService_ShouldReturnDiagnoseMissingTemplateDiagnostic()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
+        {
+            TemplatePath = Path.Combine(NewTempDirectory(), "missing-template"),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "diagnose")
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        AssertServiceDiagnostic(result, "service.template.pathMissing");
+    }
+
+    [Fact]
     public void TemplateWorkflowService_ShouldReturnDiagnoseMissingSuiteDiagnostic()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
