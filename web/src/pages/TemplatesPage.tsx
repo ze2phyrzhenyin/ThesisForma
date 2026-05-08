@@ -20,8 +20,15 @@ export function TemplatesPage() {
       </header>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>模板库</h1>
-        <p className={styles.subtitle}>挑一个学校 / 学院的格式包，一键开始写作。</p>
+        <div className={styles.headerRow}>
+          <div>
+            <h1 className={styles.title}>模板库</h1>
+            <p className={styles.subtitle}>挑一个学校 / 学院的格式包，一键开始写作。</p>
+          </div>
+          <a className={styles.editorLink} href="/templates/editor">
+            编辑模板包
+          </a>
+        </div>
 
         {isLoading && <p className={styles.muted}>加载中…</p>}
         {isError && <p className={styles.muted}>无法加载模板</p>}
