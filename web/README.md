@@ -32,6 +32,8 @@ npm run dev
 | `npm test`        | 单元测试                   |
 | `npm run e2e`     | Playwright e2e             |
 
+`npm run e2e` 默认启动独立的 Playwright dev server：`http://127.0.0.1:53173`，并且不会复用已有端口上的服务，避免误连到其他本地项目。需要临时换端口时使用 `PLAYWRIGHT_PORT=53174 npm run e2e`。
+
 ## 设计原则
 
 - **结构即骨架**：8 种段（封面 / 摘要 / 目录 / 正文…）固定，左栏导航。
