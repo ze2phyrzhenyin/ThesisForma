@@ -1,9 +1,11 @@
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Ci;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Validation;
+using ThesisDocx.Core.Validation.FormatRuleCoverage;
 using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Services;
@@ -17,7 +19,18 @@ public sealed class ThesisValidateService
             return ValidateInputResult.Failure("service.input.missing", "Document and format are required for validation.");
         }
 
-        var validation = new ThesisInputValidator().Validate(request.Document, request.Format, request.BaseDirectory);
+        var validation = new ThesisInputValidationResult();
+        if (!string.IsNullOrWhiteSpace(request.DocumentPath) && !string.IsNullOrWhiteSpace(request.DocumentSchemaPath))
+        {
+            Merge(validation, new ThesisSchemaValidator().ValidateDocumentFile(request.DocumentPath, request.DocumentSchemaPath));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FormatPath) && !string.IsNullOrWhiteSpace(request.FormatSchemaPath))
+        {
+            Merge(validation, new ThesisSchemaValidator().ValidateFormatFile(request.FormatPath, request.FormatSchemaPath));
+        }
+
+        Merge(validation, new ThesisInputValidator().Validate(request.Document, request.Format, request.BaseDirectory));
         return new ValidateInputResult
         {
             Success = validation.IsValid,
@@ -27,6 +40,16 @@ public sealed class ThesisValidateService
             WarningCount = validation.Warnings.Count,
             VersionReport = validation.VersionReport
         };
+    }
+
+    private static void Merge(ThesisInputValidationResult target, ThesisInputValidationResult source)
+    {
+        target.Errors.AddRange(source.Errors);
+        target.Warnings.AddRange(source.Warnings);
+        if (source.VersionReport.Checks.Count > 0)
+        {
+            target.VersionReport = source.VersionReport;
+        }
     }
 
     public ValidateDocxResult ValidateDocx(ValidateDocxRequest request)
@@ -100,7 +123,11 @@ public sealed class ThesisRenderService
             {
                 Document = request.Document,
                 Format = request.Format,
-                BaseDirectory = request.BaseDirectory
+                BaseDirectory = request.BaseDirectory,
+                DocumentPath = request.DocumentPath,
+                FormatPath = request.FormatPath,
+                DocumentSchemaPath = request.DocumentSchemaPath,
+                FormatSchemaPath = request.FormatSchemaPath
             });
             if (!validation.IsValid)
             {
@@ -188,11 +215,111 @@ public sealed class TemplateResolveService
     }
 }
 
+public sealed class TemplateWorkflowService
+{
+    public TemplateValidateResult Validate(TemplateValidateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TemplatePath))
+        {
+            return TemplateValidateResult.Failure("service.template.missing", "Template path is required.");
+        }
+
+        try
+        {
+            var validation = new TemplateValidationService().Validate(request.TemplatePath, request.SchemaPath);
+            return new TemplateValidateResult
+            {
+                Success = validation.IsValid,
+                IsValid = validation.IsValid,
+                ErrorCount = validation.Errors.Count,
+                WarningCount = validation.Warnings.Count,
+                Diagnostics = validation.Diagnostics,
+                VersionReport = validation.VersionReport,
+                Validation = validation
+            };
+        }
+        catch (Exception ex)
+        {
+            return TemplateValidateResult.Failure("service.template.validateFailed", "Template validation failed.", ex.Message);
+        }
+    }
+
+    public TemplateCoverageResult Coverage(TemplateCoverageRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TemplatePath))
+        {
+            return TemplateCoverageResult.Failure("service.template.missing", "Template path is required.");
+        }
+
+        try
+        {
+            var coverage = new FormatRuleCoverageReporter().Build(request.TemplatePath);
+            return new TemplateCoverageResult
+            {
+                Success = true,
+                Coverage = coverage,
+                TemplateId = coverage.TemplateId,
+                RuleCount = coverage.Rules.Count
+            };
+        }
+        catch (Exception ex)
+        {
+            return TemplateCoverageResult.Failure("service.template.coverageFailed", "Template coverage failed.", ex.Message);
+        }
+    }
+}
+
+public sealed class CiQualityReportService
+{
+    public CiQualityReportServiceResult Build(CiQualityReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.OutputDirectory)
+            || string.IsNullOrWhiteSpace(request.TemplatePath)
+            || string.IsNullOrWhiteSpace(request.DocumentPath)
+            || string.IsNullOrWhiteSpace(request.RequirementsPath)
+            || string.IsNullOrWhiteSpace(request.SuitePath)
+            || string.IsNullOrWhiteSpace(request.NegativeFixturesPath))
+        {
+            return CiQualityReportServiceResult.Failure("service.ci.request.invalid", "CI quality report requires template, document, requirements, suite, negative fixtures, and output directory.");
+        }
+
+        try
+        {
+            var report = new CiQualityReportBuilder().Build(new CiQualityReportOptions
+            {
+                TemplatePath = request.TemplatePath,
+                DocumentPath = request.DocumentPath,
+                RequirementsPath = request.RequirementsPath,
+                SuitePath = request.SuitePath,
+                NegativeFixturesPath = request.NegativeFixturesPath,
+                OutputDirectory = request.OutputDirectory,
+                Threshold = request.Threshold
+            });
+            return new CiQualityReportServiceResult
+            {
+                Success = report.Status != "fail",
+                Report = report,
+                ErrorCount = report.BlockingIssues.Count,
+                WarningCount = report.Warnings.Count,
+                Diagnostics = report.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return CiQualityReportServiceResult.Failure("service.ci.qualityReportFailed", "CI quality report failed.", ex.Message);
+        }
+    }
+}
+
 public sealed class ValidateInputRequest
 {
     public ThesisDocument? Document { get; set; }
     public ThesisFormatSpec? Format { get; set; }
     public string? BaseDirectory { get; set; }
+    public string? DocumentPath { get; set; }
+    public string? FormatPath { get; set; }
+    public string? DocumentSchemaPath { get; set; }
+    public string? FormatSchemaPath { get; set; }
 }
 
 public sealed class ValidateInputResult : ServiceResult
@@ -230,6 +357,10 @@ public sealed class RenderRequest
     public ThesisFormatSpec? Format { get; set; }
     public string OutputPath { get; set; } = string.Empty;
     public string? BaseDirectory { get; set; }
+    public string? DocumentPath { get; set; }
+    public string? FormatPath { get; set; }
+    public string? DocumentSchemaPath { get; set; }
+    public string? FormatSchemaPath { get; set; }
     public bool ValidateInput { get; set; } = true;
     public DocxRenderContext? RenderContext { get; set; }
 }
@@ -267,6 +398,76 @@ public sealed class TemplateResolveServiceResult : ServiceResult
     }
 }
 
+public sealed class TemplateValidateRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+    public string? SchemaPath { get; set; }
+}
+
+public sealed class TemplateValidateResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public ThesisInputValidationResult? Validation { get; set; }
+
+    public static TemplateValidateResult Failure(string code, string message, string? detail = null)
+    {
+        return new TemplateValidateResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateWorkflowService")]
+        };
+    }
+}
+
+public sealed class TemplateCoverageRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+}
+
+public sealed class TemplateCoverageResult : ServiceResult
+{
+    public string TemplateId { get; set; } = string.Empty;
+    public int RuleCount { get; set; }
+    public FormatRuleCoverageMatrix? Coverage { get; set; }
+
+    public static TemplateCoverageResult Failure(string code, string message, string? detail = null)
+    {
+        return new TemplateCoverageResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateWorkflowService")]
+        };
+    }
+}
+
+public sealed class CiQualityReportRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+    public string DocumentPath { get; set; } = string.Empty;
+    public string RequirementsPath { get; set; } = string.Empty;
+    public string SuitePath { get; set; } = string.Empty;
+    public string NegativeFixturesPath { get; set; } = string.Empty;
+    public string OutputDirectory { get; set; } = string.Empty;
+    public double Threshold { get; set; } = 0.85;
+}
+
+public sealed class CiQualityReportServiceResult : ServiceResult
+{
+    public CiQualityReport? Report { get; set; }
+
+    public static CiQualityReportServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new CiQualityReportServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Regression, "CiQualityReportService")]
+        };
+    }
+}
+
 public abstract class ServiceResult
 {
     public bool Success { get; set; }
@@ -275,7 +476,12 @@ public abstract class ServiceResult
     public List<UnifiedDiagnostic> Diagnostics { get; set; } = [];
     public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
-    protected static UnifiedDiagnostic Diagnostic(string code, string message, string? detail = null)
+    protected static UnifiedDiagnostic Diagnostic(
+        string code,
+        string message,
+        string? detail = null,
+        string category = DiagnosticCategory.Rendering,
+        string source = "ThesisWorkflowServices")
     {
         var diagnostic = new UnifiedDiagnostic
         {
@@ -284,8 +490,8 @@ public abstract class ServiceResult
             Path = "$",
             Message = message,
             FixHint = "Check the service request payload and retry.",
-            Category = DiagnosticCategory.Rendering,
-            Source = "ThesisWorkflowServices"
+            Category = category,
+            Source = source
         };
         if (!string.IsNullOrWhiteSpace(detail))
         {

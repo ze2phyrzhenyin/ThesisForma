@@ -84,6 +84,7 @@ internal static class ThesisDocxCli
         var document = ReadJson<ThesisDocument>(documentPath);
         ThesisFormatSpec format;
         DocxRenderContext? renderContext = null;
+        string formatPathForValidation;
         if (hasTemplate)
         {
             var resolution = new TemplateResolver().Resolve(Required(options, "template"), document, ParseCliVariables(options));
@@ -94,13 +95,16 @@ internal static class ThesisDocxCli
             }
 
             format = resolution.FormatSpec ?? new ThesisFormatSpec();
+            formatPathForValidation = WriteTempFormatSpec(format);
             renderContext = CreateRenderContext(resolution);
         }
         else
         {
-            format = ReadJson<ThesisFormatSpec>(Required(options, "format"));
+            formatPathForValidation = Required(options, "format");
+            format = ReadJson<ThesisFormatSpec>(formatPathForValidation);
         }
 
+        var schemaRoot = Path.Combine(LocateRepoRoot(), "schemas");
         ResolveRelativeImagePaths(document, Path.GetDirectoryName(Path.GetFullPath(documentPath))!);
         var render = new ThesisRenderService().Render(new RenderRequest
         {
@@ -108,6 +112,10 @@ internal static class ThesisDocxCli
             Format = format,
             OutputPath = outputPath,
             BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(documentPath)),
+            DocumentPath = documentPath,
+            FormatPath = formatPathForValidation,
+            DocumentSchemaPath = Path.Combine(schemaRoot, "thesis-document.schema.json"),
+            FormatSchemaPath = Path.Combine(schemaRoot, "thesis-format-spec.schema.json"),
             ValidateInput = !options.ContainsKey("skip-input-validation"),
             RenderContext = renderContext
         });
@@ -169,6 +177,7 @@ internal static class ThesisDocxCli
         }
 
         ThesisFormatSpec format;
+        string formatPathForValidation;
         if (hasTemplate)
         {
             var resolution = new TemplateResolver().Resolve(Required(options, "template"), document, ParseCliVariables(options));
@@ -179,17 +188,24 @@ internal static class ThesisDocxCli
             }
 
             format = resolution.FormatSpec ?? new ThesisFormatSpec();
+            formatPathForValidation = WriteTempFormatSpec(format);
         }
         else
         {
-            format = ReadJson<ThesisFormatSpec>(Required(options, "format"));
+            formatPathForValidation = Required(options, "format");
+            format = ReadJson<ThesisFormatSpec>(formatPathForValidation);
         }
 
+        var schemaRoot = Path.Combine(LocateRepoRoot(), "schemas");
         var result = new ThesisValidateService().ValidateInput(new ValidateInputRequest
         {
             Document = document,
             Format = format,
-            BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(documentPath))
+            BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(documentPath)),
+            DocumentPath = documentPath,
+            FormatPath = formatPathForValidation,
+            DocumentSchemaPath = Path.Combine(schemaRoot, "thesis-document.schema.json"),
+            FormatSchemaPath = Path.Combine(schemaRoot, "thesis-format-spec.schema.json")
         });
 
         if (options.ContainsKey("json"))
@@ -318,20 +334,41 @@ internal static class ThesisDocxCli
     private static int TemplateValidate(Dictionary<string, string> options)
     {
         var root = LocateRepoRoot();
-        var result = new TemplateValidationService().Validate(Required(options, "template"), Path.Combine(root, "schemas", "template-package.schema.json"));
+        var serviceResult = new TemplateWorkflowService().Validate(new TemplateValidateRequest
+        {
+            TemplatePath = Required(options, "template"),
+            SchemaPath = Path.Combine(root, "schemas", "template-package.schema.json")
+        });
+        var result = serviceResult.Validation;
         if (options.ContainsKey("json"))
         {
-            WriteJsonOutput(options.GetValueOrDefault("out"), result);
-            return result.IsValid ? 0 : 2;
+            if (result is not null)
+            {
+                WriteJsonOutput(options.GetValueOrDefault("out"), result);
+            }
+            else
+            {
+                WriteJsonOutput(options.GetValueOrDefault("out"), serviceResult);
+            }
+
+            return serviceResult.Success ? 0 : 2;
         }
 
-        if (result.IsValid)
+        if (serviceResult.Success)
         {
             Console.WriteLine("Template valid");
             return 0;
         }
 
-        WriteInputErrors(result);
+        if (result is not null)
+        {
+            WriteInputErrors(result);
+        }
+        else
+        {
+            WriteDiagnostics(serviceResult.Diagnostics);
+        }
+
         return 2;
     }
 
@@ -374,9 +411,26 @@ internal static class ThesisDocxCli
 
     private static int TemplateCoverage(Dictionary<string, string> options)
     {
-        var coverage = new FormatRuleCoverageReporter().Build(Required(options, "template"));
-        WriteJsonOutput(options.GetValueOrDefault("out"), coverage);
-        return 0;
+        var result = new TemplateWorkflowService().Coverage(new TemplateCoverageRequest
+        {
+            TemplatePath = Required(options, "template")
+        });
+        if (result.Success)
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), result.Coverage);
+            return 0;
+        }
+
+        if (options.ContainsKey("json") || options.ContainsKey("out"))
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), result);
+        }
+        else
+        {
+            WriteDiagnostics(result.Diagnostics);
+        }
+
+        return 2;
     }
 
     private static int TemplateRegression(Dictionary<string, string> options)
@@ -635,7 +689,7 @@ internal static class ThesisDocxCli
             && double.TryParse(rawThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : 0.85;
-        var report = new CiQualityReportBuilder().Build(new CiQualityReportOptions
+        var result = new CiQualityReportService().Build(new CiQualityReportRequest
         {
             TemplatePath = Required(options, "template"),
             DocumentPath = Required(options, "document"),
@@ -645,6 +699,13 @@ internal static class ThesisDocxCli
             Threshold = threshold,
             OutputDirectory = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? Directory.GetCurrentDirectory()
         });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(outPath, result);
+            return 2;
+        }
+
         WriteJsonOutput(outPath, report);
         if (options.TryGetValue("markdown", out var markdownPath))
         {
