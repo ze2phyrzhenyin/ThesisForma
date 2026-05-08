@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ThesisDocx.Core.Diff;
 using ThesisDocx.Core.Diff.Layout;
 using ThesisDocx.Core.Extraction;
@@ -1128,7 +1129,10 @@ internal static class ThesisDocxCli
 
     private static int PrivacyScan(Dictionary<string, string> options)
     {
-        var guardOptions = new PrivacyGuardOptions { Path = Required(options, "path") };
+        var scanPath = Required(options, "path");
+        var guardOptions = options.TryGetValue("policy", out var policyPath)
+            ? PrivacyGuardOptions.FromPolicy(scanPath, ReadPrivacyPolicy(policyPath))
+            : new PrivacyGuardOptions { Path = scanPath };
         if (options.TryGetValue("max-evidence-excerpt-length", out var maxEvidenceExcerptLength))
         {
             guardOptions.MaxEvidenceExcerptLength = int.Parse(maxEvidenceExcerptLength, CultureInfo.InvariantCulture);
@@ -1144,8 +1148,15 @@ internal static class ThesisDocxCli
             guardOptions.MaxWarningCount = int.Parse(maxWarnings, CultureInfo.InvariantCulture);
         }
 
-        guardOptions.SuppressedWarningCodes = SplitOptionList(options, "suppress-warning-code").ToHashSet(StringComparer.Ordinal);
-        guardOptions.SuppressedWarningPathPrefixes = SplitOptionList(options, "suppress-warning-path").ToHashSet(StringComparer.Ordinal);
+        if (options.ContainsKey("suppress-warning-code"))
+        {
+            guardOptions.SuppressedWarningCodes = SplitOptionList(options, "suppress-warning-code").ToHashSet(StringComparer.Ordinal);
+        }
+
+        if (options.ContainsKey("suppress-warning-path"))
+        {
+            guardOptions.SuppressedWarningPathPrefixes = SplitOptionList(options, "suppress-warning-path").ToHashSet(StringComparer.Ordinal);
+        }
 
         var serviceResult = new PrivacyWorkflowService().Scan(new PrivacyScanRequest { Options = guardOptions });
         var result = serviceResult.Scan;
@@ -1449,6 +1460,15 @@ internal static class ThesisDocxCli
             ?? throw new InvalidOperationException($"Could not deserialize {path}.");
     }
 
+    private static OnboardingPrivacyPolicy ReadPrivacyPolicy(string path)
+    {
+        var node = JsonNode.Parse(File.ReadAllText(path))
+            ?? throw new InvalidOperationException($"Could not parse privacy policy {path}.");
+        var policyNode = node["privacy"] is JsonObject ? node["privacy"] : node;
+        return policyNode.Deserialize<OnboardingPrivacyPolicy>(ThesisJson.Options)
+            ?? throw new InvalidOperationException($"Could not deserialize privacy policy {path}.");
+    }
+
     private static ThesisInputValidationResult ValidateInputFiles(string documentPath, string formatPath, ThesisDocument document, ThesisFormatSpec format)
     {
         var result = new ThesisInputValidationResult();
@@ -1702,7 +1722,7 @@ internal static class ThesisDocxCli
         thesis-docx template authoring-report --template examples/templates/example-university-engineering --document examples/full-thesis/document.json --requirements examples/requirements/example-engineering-requirements.json --suite examples/template-regression/template-regression-suite.json --threshold 0.85 --out out/template-authoring-report.json
         thesis-docx negative-fixtures run --manifest examples/negative-fixtures/negative-fixture-manifest.json --out out/negative-fixtures-report.json
         thesis-docx ci quality-report --template examples/templates/example-university-engineering --document examples/full-thesis/document.json --requirements examples/requirements/example-engineering-requirements.json --suite examples/template-regression/template-regression-suite.json --negative-fixtures examples/negative-fixtures/negative-fixture-manifest.json --threshold 0.85 --out out/ci/quality-report.json --markdown out/ci/quality-report.md
-        thesis-docx privacy scan --path examples --out out/privacy-scan-examples.json
+        thesis-docx privacy scan --path examples --policy examples/onboarding/example-engineering-pilot/onboarding.json --out out/privacy-scan-examples.json
         thesis-docx onboarding init --workspace onboarding-workspaces/pilot-example --school "Example University" --college "Example Engineering College" --degree-type master --locale zh-CN
         thesis-docx onboarding validate --workspace examples/onboarding/example-engineering-pilot
         thesis-docx onboarding summary --workspace examples/onboarding/example-engineering-pilot --out out/onboarding.summary.json --markdown out/onboarding.summary.md

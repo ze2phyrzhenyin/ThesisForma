@@ -551,6 +551,41 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void Cli_PrivacyScan_ShouldLoadPolicyFile()
+    {
+        var workspace = CopyExampleWorkspace();
+        Directory.CreateDirectory(Path.Combine(workspace, "reports"));
+        File.WriteAllText(Path.Combine(workspace, "reports", "rendered-draft.docx"), "not a real docx");
+        var policyPath = Path.Combine(NewTempDirectory(), "privacy-policy.json");
+        File.WriteAllText(
+            policyPath,
+            JsonSerializer.Serialize(
+                new OnboardingPrivacyPolicy
+                {
+                    SuppressedWarningCodes = ["privacy.generatedArtifact.forbidden"]
+                },
+                ThesisJson.Options));
+        var output = Path.Combine(NewTempDirectory(), "privacy.json");
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "privacy",
+            "scan",
+            "--path",
+            workspace,
+            "--policy",
+            policyPath,
+            "--out",
+            output);
+        var json = JsonNode.Parse(File.ReadAllText(output))!;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.True(json["suppressedWarningCount"]!.GetValue<int>() > 0);
+        Assert.DoesNotContain(json["findings"]!.AsArray(), finding => finding?["code"]?.GetValue<string>() == "privacy.warningThreshold.exceeded");
+    }
+
+    [Fact]
     public void OnboardingReportBuilder_ShouldBuildReportForExampleWorkspace()
     {
         var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
