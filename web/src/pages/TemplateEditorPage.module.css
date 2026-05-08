@@ -150,9 +150,14 @@
 .field select,
 .variableItem input,
 .variableItem select,
+.assetItem input,
+.assetItem select,
 .pageTemplateItem input,
 .pageTemplateItem select,
-.layoutBlock input {
+.layoutBlock input,
+.layoutBlock textarea,
+.layoutBlock select,
+.blockAddRow select {
   border: 1px solid var(--color-border);
   border-radius: var(--r-sm);
   color: var(--color-text);
@@ -173,6 +178,7 @@
 }
 
 .variableList,
+.assetList,
 .pageTemplateList {
   display: flex;
   flex-direction: column;
@@ -182,6 +188,16 @@
 .variableItem {
   display: grid;
   grid-template-columns: 1fr 1fr 120px auto 1.1fr 1fr auto;
+  gap: var(--sp-2);
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2);
+}
+
+.assetItem {
+  display: grid;
+  grid-template-columns: 1fr 120px 1.4fr 1fr 1.2fr auto auto;
   gap: var(--sp-2);
   align-items: center;
   border: 1px solid var(--color-border);
@@ -209,32 +225,110 @@
 }
 
 .pageTemplateItem {
-  display: grid;
-  grid-template-columns: 1fr 180px;
-  gap: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
   border: 1px solid var(--color-border);
   border-radius: var(--r-sm);
-  padding: var(--sp-2);
+  padding: var(--sp-3);
+}
+
+.pageTemplateMeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 210px;
+  gap: var(--sp-2);
+}
+
+.blockAddRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.blockAddRow select {
+  max-width: 220px;
+}
+
+.blockAddRow button,
+.blockTools button {
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  color: var(--color-text-soft);
+  font-size: var(--fs-xs);
+  padding: var(--sp-1) var(--sp-2);
 }
 
 .layoutBlocks {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
 }
 
 .layoutBlock {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: var(--sp-2);
-  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2);
 }
 
 .layoutBlock code {
   color: var(--color-brand);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
+}
+
+.blockSummary {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+
+.blockSummary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blockTools {
+  display: flex;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.blockDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--sp-3);
+}
+
+.blockFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.blockPreview,
+.templatePreview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface-soft);
+  color: var(--color-text-soft);
+  font-size: var(--fs-xs);
+  padding: var(--sp-2);
+}
+
+.templatePreview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
 }
 
 .validation {
@@ -299,6 +393,15 @@
   }
 
   .variableItem {
+    grid-template-columns: 1fr;
+  }
+
+  .assetItem {
+    grid-template-columns: 1fr;
+  }
+
+  .pageTemplateMeta,
+  .blockFieldGrid {
     grid-template-columns: 1fr;
   }
 }

@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Brand } from '@/components/Brand';
-import type { ApiIssue, TemplatePackage, TemplateVariable } from '@/types';
+import type {
+  ApiIssue,
+  TemplateAsset,
+  TemplatePackage,
+  TemplateVariable
+} from '@/types';
 import {
   cleanTemplatePackage,
   createBlankTemplatePackage,
@@ -10,6 +15,7 @@ import {
   parseTemplatePackageJson,
   validateTemplatePackage
 } from '@/templates/templateContract';
+import { PageTemplatesPanel } from '@/templates/TemplatePageTemplatesPanel';
 import styles from './TemplateEditorPage.module.css';
 
 const VARIABLE_TYPES: TemplateVariable['type'][] = [
@@ -234,6 +240,7 @@ export function TemplateEditorPage() {
             )}
           </section>
 
+          <AssetsPanel template={template} update={update} />
           <FormatSpecPanel template={template} update={update} />
           <PageTemplatesPanel template={template} update={update} />
           <ValidationPanel issues={issues} />
@@ -359,7 +366,7 @@ function FormatSpecPanel({
   );
 }
 
-function PageTemplatesPanel({
+function AssetsPanel({
   template,
   update
 }: {
@@ -369,83 +376,53 @@ function PageTemplatesPanel({
   return (
     <section className={styles.panel}>
       <header className={styles.panelHeader}>
-        <h2>Page Templates</h2>
+        <h2>Assets</h2>
         <button
           type="button"
           onClick={() =>
             update((t) => {
-              t.pageTemplates = [
-                ...(t.pageTemplates ?? []),
-                {
-                  id: `page-${(t.pageTemplates ?? []).length + 1}`,
-                  targetSectionType: 'cover',
-                  insertPosition: 'replaceSectionContent',
-                  blocks: [{ type: 'text', value: '{{metadata.title}}', alignment: 'center' }]
-                }
+              t.assets = [
+                ...(t.assets ?? []),
+                { id: `asset${(t.assets ?? []).length + 1}`, type: 'image', path: 'assets/image.png', contentType: 'image/png' }
               ];
             })
           }
         >
-          ＋ 新增文本模板
+          ＋ 新增 asset
         </button>
       </header>
-      {(template.pageTemplates ?? []).length === 0 ? (
-        <div className={styles.empty}>暂无页面模板。</div>
+      {(template.assets ?? []).length === 0 ? (
+        <div className={styles.empty}>暂无 assets。图片元素引用 assetId 时，需要在这里或导入 JSON 中提供对应 asset。</div>
       ) : (
-        <div className={styles.pageTemplateList}>
-          {(template.pageTemplates ?? []).map((pageTemplate, templateIndex) => (
-            <div key={pageTemplate.id} className={styles.pageTemplateItem}>
-              <input
-                value={pageTemplate.id}
-                onChange={(e) =>
-                  update((t) => {
-                    if (t.pageTemplates?.[templateIndex]) t.pageTemplates[templateIndex].id = e.target.value;
-                  })
-                }
-              />
-              <select
-                value={pageTemplate.targetSectionType}
-                onChange={(e) =>
-                  update((t) => {
-                    if (t.pageTemplates?.[templateIndex]) t.pageTemplates[templateIndex].targetSectionType = e.target.value;
-                  })
-                }
-              >
-                {['cover', 'declaration', 'abstract', 'toc', 'body', 'appendix'].map((kind) => (
-                  <option key={kind} value={kind}>
-                    {kind}
+        <div className={styles.assetList}>
+          {(template.assets ?? []).map((asset, index) => (
+            <div key={`${asset.id}-${index}`} className={styles.assetItem}>
+              <input value={asset.id} placeholder="id" onChange={(e) => updateAsset(update, index, { id: e.target.value })} />
+              <select value={asset.type} onChange={(e) => updateAsset(update, index, { type: e.target.value })}>
+                {['image', 'font', 'staticDocxFragment', 'text'].map((type) => (
+                  <option key={type} value={type}>
+                    {type}
                   </option>
                 ))}
               </select>
-              <div className={styles.layoutBlocks}>
-                {pageTemplate.blocks.map((block, blockIndex) => (
-                  <div key={blockIndex} className={styles.layoutBlock}>
-                    <code>{block.type}</code>
-                    {'value' in block && (
-                      <input
-                        value={block.value}
-                        onChange={(e) =>
-                          update((t) => {
-                            const item = t.pageTemplates?.[templateIndex]?.blocks[blockIndex];
-                            if (item && 'value' in item) item.value = e.target.value;
-                          })
-                        }
-                      />
-                    )}
-                    {'label' in block && (
-                      <input
-                        value={block.label}
-                        onChange={(e) =>
-                          update((t) => {
-                            const item = t.pageTemplates?.[templateIndex]?.blocks[blockIndex];
-                            if (item && 'label' in item) item.label = e.target.value;
-                          })
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+              <input value={asset.path} placeholder="assets/logo.png" onChange={(e) => updateAsset(update, index, { path: e.target.value })} />
+              <input value={asset.contentType} placeholder="image/png" onChange={(e) => updateAsset(update, index, { contentType: e.target.value })} />
+              <input value={asset.description ?? ''} placeholder="description" onChange={(e) => updateAsset(update, index, { description: e.target.value })} />
+              <label className={styles.checkbox}>
+                <input type="checkbox" checked={asset.required === true} onChange={(e) => updateAsset(update, index, { required: e.target.checked })} />
+                required
+              </label>
+              <button
+                type="button"
+                className={styles.removeBtn}
+                onClick={() =>
+                  update((t) => {
+                    t.assets?.splice(index, 1);
+                  })
+                }
+              >
+                删除
+              </button>
             </div>
           ))}
         </div>
@@ -505,6 +482,17 @@ function updateVariable(
   update((template) => {
     const variable = template.variables?.[index];
     if (variable) Object.assign(variable, patch);
+  });
+}
+
+function updateAsset(
+  update: (updater: (draft: TemplatePackage) => void) => void,
+  index: number,
+  patch: Partial<TemplateAsset>
+) {
+  update((template) => {
+    const asset = template.assets?.[index];
+    if (asset) Object.assign(asset, patch);
   });
 }
 

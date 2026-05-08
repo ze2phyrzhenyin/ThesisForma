@@ -66,10 +66,19 @@ export interface TemplatePackage {
   formatSpec?: ThesisFormatSpecDraft;
   formatSpecRef?: string;
   variables?: TemplateVariable[];
-  assets?: unknown[];
+  assets?: TemplateAsset[];
   pageTemplates?: PageTemplateDraft[];
   complianceRules?: unknown[];
   notes?: string[];
+}
+
+export interface TemplateAsset {
+  id: string;
+  type: 'image' | 'font' | 'staticDocxFragment' | 'text' | string;
+  path: string;
+  contentType: string;
+  description?: string;
+  required?: boolean;
 }
 
 export interface ThesisFormatSpecDraft {
@@ -133,28 +142,72 @@ export interface PageTemplateDraft {
   blocks: TemplateLayoutBlock[];
 }
 
+export interface TemplateFontOverride {
+  eastAsia?: string;
+  latin?: string;
+  sizePt?: number;
+  bold?: boolean;
+  italic?: boolean;
+}
+
+export interface TemplateSpacerBlock {
+  type: 'spacer';
+  heightCm: number;
+}
+
+export interface TemplateTextBlock {
+  type: 'text';
+  value: string;
+  style?: string;
+  alignment?: 'left' | 'center' | 'right' | 'both' | string;
+  fontOverride?: TemplateFontOverride;
+  spacingBeforePt?: number;
+  spacingAfterPt?: number;
+}
+
+export interface TemplateMetadataFieldBlock {
+  type: 'metadataField';
+  label: string;
+  sourcePath?: string;
+  variableName?: string;
+  valueTemplate?: string;
+  layout?: 'inline' | 'labelValueLine' | 'tableRow' | string;
+  underline?: boolean;
+  alignment?: 'left' | 'center' | 'right' | 'both' | string;
+}
+
+export interface TemplateImageBlock {
+  type: 'image';
+  assetId: string;
+  widthCm?: number;
+  heightCm?: number;
+  alignment?: 'left' | 'center' | 'right' | 'both' | string;
+}
+
+export interface TemplateFieldTableBlock {
+  type: 'fieldTable';
+  columns?: number;
+  rows: TemplateMetadataFieldBlock[][];
+  borderMode?: 'none' | 'full' | 'bottomLine' | 'custom' | string;
+  labelColumnWidthCm?: number;
+  valueColumnWidthCm?: number;
+}
+
+export interface TemplateDeclarationTextBlock {
+  type: 'declarationText';
+  paragraphs: string[];
+  signatureFields?: TemplateMetadataFieldBlock[];
+}
+
+export interface TemplatePageBreakBlock {
+  type: 'pageBreak';
+}
+
 export type TemplateLayoutBlock =
-  | { type: 'spacer'; heightCm: number }
-  | {
-      type: 'text';
-      value: string;
-      style?: string;
-      alignment?: 'left' | 'center' | 'right' | 'both' | string;
-      fontOverride?: unknown;
-      spacingBeforePt?: number;
-      spacingAfterPt?: number;
-    }
-  | {
-      type: 'metadataField';
-      label: string;
-      sourcePath?: string;
-      variableName?: string;
-      valueTemplate?: string;
-      layout?: 'inline' | 'labelValueLine' | 'tableRow' | string;
-      underline?: boolean;
-      alignment?: 'left' | 'center' | 'right' | 'both' | string;
-    }
-  | { type: 'image'; assetId: string; widthCm?: number; heightCm?: number; alignment?: string }
-  | { type: 'fieldTable'; columns?: number; rows: TemplateLayoutBlock[][]; borderMode?: string }
-  | { type: 'declarationText'; paragraphs: string[]; signatureFields?: TemplateLayoutBlock[] }
-  | { type: 'pageBreak' };
+  | TemplateSpacerBlock
+  | TemplateTextBlock
+  | TemplateMetadataFieldBlock
+  | TemplateImageBlock
+  | TemplateFieldTableBlock
+  | TemplateDeclarationTextBlock
+  | TemplatePageBreakBlock;

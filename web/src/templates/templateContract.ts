@@ -1,5 +1,20 @@
-import type { ApiIssue, TemplatePackage, TemplateVariable, ThesisFormatSpecDraft } from '@/types';
+import type {
+  ApiIssue,
+  PageTemplateDraft,
+  TemplateAsset,
+  TemplateLayoutBlock,
+  TemplateMetadataFieldBlock,
+  TemplatePackage,
+  TemplateVariable,
+  ThesisFormatSpecDraft
+} from '@/types';
 import { downloadJson } from '@/editor/documentContract';
+import {
+  METADATA_SOURCE_PATHS,
+  cleanLayoutBlock,
+  cleanTemplateAsset,
+  isPageTemplateBlockType
+} from './pageTemplateBlocks';
 
 export interface ParseTemplateResult {
   ok: boolean;
@@ -111,8 +126,8 @@ export function cleanTemplatePackage(template: TemplatePackage): TemplatePackage
     formatSpec: template.formatSpec,
     formatSpecRef: template.formatSpecRef,
     variables: template.variables?.map(cleanVariable),
-    assets: template.assets,
-    pageTemplates: template.pageTemplates,
+    assets: template.assets?.map(cleanTemplateAsset),
+    pageTemplates: template.pageTemplates?.map(cleanPageTemplate),
     complianceRules: template.complianceRules,
     notes: template.notes
   });
@@ -141,6 +156,7 @@ export function validateTemplatePackage(template: TemplatePackage): ApiIssue[] {
     issues.push(issue('template.formatSpec.required', '必须提供 formatSpec、formatSpecRef 或 extends。', 'error', '$'));
   }
   validateVariables(template.variables ?? [], issues);
+  validateAssets(template.assets ?? [], issues);
   validateFormatSpec(template.formatSpec, issues);
   validatePageTemplates(template, issues);
   return issues;
@@ -178,8 +194,10 @@ function normalizeTemplatePackage(value: Record<string, unknown>): TemplatePacka
     ...(isRecord(value.formatSpec) ? { formatSpec: value.formatSpec as ThesisFormatSpecDraft } : {}),
     ...(typeof value.formatSpecRef === 'string' ? { formatSpecRef: value.formatSpecRef } : {}),
     variables: Array.isArray(value.variables) ? value.variables.filter(isRecord).map(normalizeVariable) : [],
-    ...(Array.isArray(value.assets) ? { assets: value.assets } : {}),
-    ...(Array.isArray(value.pageTemplates) ? { pageTemplates: value.pageTemplates as TemplatePackage['pageTemplates'] } : {}),
+    ...(Array.isArray(value.assets) ? { assets: value.assets.filter(isRecord).map(normalizeAsset) } : {}),
+    ...(Array.isArray(value.pageTemplates)
+      ? { pageTemplates: value.pageTemplates.filter(isRecord).map(normalizePageTemplate) }
+      : {}),
     ...(Array.isArray(value.complianceRules) ? { complianceRules: value.complianceRules } : {}),
     ...(Array.isArray(value.notes) ? { notes: value.notes.filter((note): note is string => typeof note === 'string') } : {})
   };
@@ -201,6 +219,97 @@ function normalizeVariable(value: Record<string, unknown>): TemplateVariable {
   };
 }
 
+function normalizeAsset(value: Record<string, unknown>): TemplateAsset {
+  return {
+    id: stringValue(value.id),
+    type: stringValue(value.type) || 'image',
+    path: stringValue(value.path),
+    contentType: stringValue(value.contentType),
+    ...(typeof value.description === 'string' ? { description: value.description } : {}),
+    ...(typeof value.required === 'boolean' ? { required: value.required } : {})
+  };
+}
+
+function normalizePageTemplate(value: Record<string, unknown>): PageTemplateDraft {
+  return {
+    id: stringValue(value.id),
+    targetSectionType: stringValue(value.targetSectionType) || 'cover',
+    insertPosition: stringValue(value.insertPosition) || 'replaceSectionContent',
+    ...(isRecord(value.pageSetupOverride) ? { pageSetupOverride: value.pageSetupOverride } : {}),
+    blocks: Array.isArray(value.blocks)
+      ? value.blocks.map(normalizeLayoutBlock).filter((block): block is TemplateLayoutBlock => block !== null)
+      : []
+  };
+}
+
+function normalizeLayoutBlock(value: unknown): TemplateLayoutBlock | null {
+  if (!isRecord(value) || !isPageTemplateBlockType(value.type)) return null;
+  switch (value.type) {
+    case 'spacer':
+      return { type: value.type, heightCm: numberValue(value.heightCm, 0) };
+    case 'text':
+      return {
+        type: value.type,
+        value: stringValue(value.value),
+        ...(typeof value.style === 'string' ? { style: value.style } : {}),
+        ...(typeof value.alignment === 'string' ? { alignment: value.alignment } : {}),
+        ...(isRecord(value.fontOverride) ? { fontOverride: value.fontOverride } : {}),
+        ...(typeof value.spacingBeforePt === 'number' ? { spacingBeforePt: value.spacingBeforePt } : {}),
+        ...(typeof value.spacingAfterPt === 'number' ? { spacingAfterPt: value.spacingAfterPt } : {})
+      };
+    case 'metadataField':
+      return normalizeMetadataFieldBlock(value);
+    case 'image':
+      return {
+        type: value.type,
+        assetId: stringValue(value.assetId),
+        ...(typeof value.widthCm === 'number' ? { widthCm: value.widthCm } : {}),
+        ...(typeof value.heightCm === 'number' ? { heightCm: value.heightCm } : {}),
+        ...(typeof value.alignment === 'string' ? { alignment: value.alignment } : {})
+      };
+    case 'fieldTable':
+      return {
+        type: value.type,
+        ...(typeof value.columns === 'number' ? { columns: value.columns } : {}),
+        rows: Array.isArray(value.rows)
+          ? value.rows.map((row) =>
+              Array.isArray(row)
+                ? row.filter(isRecord).map(normalizeMetadataFieldBlock)
+                : []
+            )
+          : [],
+        ...(typeof value.borderMode === 'string' ? { borderMode: value.borderMode } : {}),
+        ...(typeof value.labelColumnWidthCm === 'number' ? { labelColumnWidthCm: value.labelColumnWidthCm } : {}),
+        ...(typeof value.valueColumnWidthCm === 'number' ? { valueColumnWidthCm: value.valueColumnWidthCm } : {})
+      };
+    case 'declarationText':
+      return {
+        type: value.type,
+        paragraphs: Array.isArray(value.paragraphs)
+          ? value.paragraphs.filter((item): item is string => typeof item === 'string')
+          : [],
+        ...(Array.isArray(value.signatureFields)
+          ? { signatureFields: value.signatureFields.filter(isRecord).map(normalizeMetadataFieldBlock) }
+          : {})
+      };
+    case 'pageBreak':
+      return { type: value.type };
+  }
+}
+
+function normalizeMetadataFieldBlock(value: Record<string, unknown>): TemplateMetadataFieldBlock {
+  return {
+    type: 'metadataField',
+    label: stringValue(value.label),
+    ...(typeof value.sourcePath === 'string' ? { sourcePath: value.sourcePath } : {}),
+    ...(typeof value.variableName === 'string' ? { variableName: value.variableName } : {}),
+    ...(typeof value.valueTemplate === 'string' ? { valueTemplate: value.valueTemplate } : {}),
+    ...(typeof value.layout === 'string' ? { layout: value.layout } : {}),
+    ...(typeof value.underline === 'boolean' ? { underline: value.underline } : {}),
+    ...(typeof value.alignment === 'string' ? { alignment: value.alignment } : {})
+  };
+}
+
 function cleanVariable(variable: TemplateVariable): TemplateVariable {
   return stripNulls({
     name: variable.name,
@@ -217,6 +326,16 @@ function cleanVariable(variable: TemplateVariable): TemplateVariable {
   });
 }
 
+function cleanPageTemplate(pageTemplate: PageTemplateDraft): PageTemplateDraft {
+  return stripNulls({
+    id: pageTemplate.id,
+    targetSectionType: pageTemplate.targetSectionType,
+    insertPosition: pageTemplate.insertPosition,
+    pageSetupOverride: pageTemplate.pageSetupOverride,
+    blocks: pageTemplate.blocks.map(cleanLayoutBlock)
+  });
+}
+
 function validateVariables(variables: TemplateVariable[], issues: ApiIssue[]): void {
   const seen = new Map<string, number>();
   variables.forEach((variable, index) => {
@@ -229,6 +348,17 @@ function validateVariables(variables: TemplateVariable[], issues: ApiIssue[]): v
     if (variable.sourcePath && !/^(metadata|variables)\.[A-Za-z][A-Za-z0-9_.-]*$/.test(variable.sourcePath)) {
       issues.push(issue('template.variable.sourcePath.invalid', 'sourcePath 必须以 metadata. 或 variables. 开头。', 'error', `$.variables[${index}].sourcePath`));
     }
+  });
+}
+
+function validateAssets(assets: TemplateAsset[], issues: ApiIssue[]): void {
+  const seen = new Set<string>();
+  assets.forEach((asset, index) => {
+    if (!asset.id.trim()) issues.push(issue('template.asset.id.required', 'asset id 不能为空。', 'error', `$.assets[${index}].id`));
+    if (seen.has(asset.id)) issues.push(issue('template.asset.duplicate', `asset ${asset.id} 重复。`, 'error', `$.assets[${index}].id`));
+    seen.add(asset.id);
+    if (!asset.path.trim()) issues.push(issue('template.asset.path.required', 'asset path 不能为空。', 'error', `$.assets[${index}].path`));
+    if (!asset.contentType.trim()) issues.push(issue('template.asset.contentType.required', 'asset contentType 不能为空。', 'error', `$.assets[${index}].contentType`));
   });
 }
 
@@ -251,13 +381,166 @@ function validateFormatSpec(formatSpec: ThesisFormatSpecDraft | undefined, issue
 
 function validatePageTemplates(template: TemplatePackage, issues: ApiIssue[]): void {
   const variables = new Set((template.variables ?? []).map((variable) => variable.name));
+  const assets = new Set((template.assets ?? []).map((asset) => asset.id));
+  const metadataPaths = new Set<string>(METADATA_SOURCE_PATHS);
   (template.pageTemplates ?? []).forEach((pageTemplate, templateIndex) => {
+    const path = `$.pageTemplates[${templateIndex}]`;
+    if (!pageTemplate.id.trim()) {
+      issues.push(issue('template.pageTemplate.id.required', 'page template id 不能为空。', 'error', `${path}.id`));
+    }
+    if (!['cover', 'declaration', 'abstract', 'toc', 'body', 'appendix'].includes(pageTemplate.targetSectionType)) {
+      issues.push(issue('template.pageTemplate.target.invalid', 'targetSectionType 不在 schema 枚举中。', 'error', `${path}.targetSectionType`));
+    }
+    if (!['beforeSection', 'afterSection', 'replaceSectionContent'].includes(pageTemplate.insertPosition)) {
+      issues.push(issue('template.pageTemplate.insertPosition.invalid', 'insertPosition 不在 schema 枚举中。', 'error', `${path}.insertPosition`));
+    }
+    validatePageSetupOverride(pageTemplate.pageSetupOverride, `${path}.pageSetupOverride`, issues);
     pageTemplate.blocks?.forEach((block, blockIndex) => {
-      if ('variableName' in block && block.variableName && !variables.has(block.variableName)) {
-        issues.push(issue('template.pageTemplate.variable.missing', `页面模板引用了不存在的变量 ${block.variableName}。`, 'warning', `$.pageTemplates[${templateIndex}].blocks[${blockIndex}].variableName`));
-      }
+      validateLayoutBlock(block, `${path}.blocks[${blockIndex}]`, variables, assets, metadataPaths, issues);
     });
   });
+}
+
+function validateLayoutBlock(
+  block: TemplateLayoutBlock,
+  path: string,
+  variables: Set<string>,
+  assets: Set<string>,
+  metadataPaths: Set<string>,
+  issues: ApiIssue[]
+): void {
+  switch (block.type) {
+    case 'spacer':
+      if (!Number.isFinite(block.heightCm) || block.heightCm < 0 || block.heightCm > 20) {
+        issues.push(issue('template.pageTemplate.spacer.height.invalid', 'spacer.heightCm 必须在 0 到 20 之间。', 'error', `${path}.heightCm`));
+      }
+      return;
+    case 'text':
+      if (!block.value.trim()) {
+        issues.push(issue('template.pageTemplate.text.empty', '固定文本内容为空。', 'warning', `${path}.value`));
+      }
+      validateVariableReferences(block.value, `${path}.value`, variables, issues);
+      validateFontOverride(block.fontOverride, `${path}.fontOverride`, issues);
+      validateNonNegative(block.spacingBeforePt, `${path}.spacingBeforePt`, 'template.pageTemplate.spacing.invalid', issues);
+      validateNonNegative(block.spacingAfterPt, `${path}.spacingAfterPt`, 'template.pageTemplate.spacing.invalid', issues);
+      return;
+    case 'metadataField':
+      validateMetadataField(block, path, variables, metadataPaths, issues);
+      return;
+    case 'image':
+      if (!block.assetId.trim()) {
+        issues.push(issue('template.pageTemplate.image.asset.required', '图片元素缺少 assetId。', 'error', `${path}.assetId`));
+      } else if (!assets.has(block.assetId)) {
+        issues.push(issue('template.pageTemplate.image.asset.missing', `图片元素引用了不存在的 asset ${block.assetId}。`, 'error', `${path}.assetId`));
+      }
+      validatePositive(block.widthCm, `${path}.widthCm`, 'template.pageTemplate.image.size.invalid', issues);
+      validatePositive(block.heightCm, `${path}.heightCm`, 'template.pageTemplate.image.size.invalid', issues);
+      return;
+    case 'fieldTable':
+      if (block.columns !== undefined && (!Number.isInteger(block.columns) || block.columns < 1 || block.columns > 6)) {
+        issues.push(issue('template.pageTemplate.fieldTable.columns.invalid', 'fieldTable.columns 必须是 1 到 6 的整数。', 'error', `${path}.columns`));
+      }
+      validatePositive(block.labelColumnWidthCm, `${path}.labelColumnWidthCm`, 'template.pageTemplate.fieldTable.width.invalid', issues);
+      validatePositive(block.valueColumnWidthCm, `${path}.valueColumnWidthCm`, 'template.pageTemplate.fieldTable.width.invalid', issues);
+      block.rows.forEach((row, rowIndex) => {
+        row.forEach((field, fieldIndex) =>
+          validateMetadataField(field, `${path}.rows[${rowIndex}][${fieldIndex}]`, variables, metadataPaths, issues)
+        );
+      });
+      return;
+    case 'declarationText':
+      if (block.paragraphs.length === 0 || block.paragraphs.every((paragraph) => !paragraph.trim())) {
+        issues.push(issue('template.pageTemplate.declaration.empty', 'declarationText 至少需要一段声明文本。', 'warning', `${path}.paragraphs`));
+      }
+      block.paragraphs.forEach((paragraph, index) => validateVariableReferences(paragraph, `${path}.paragraphs[${index}]`, variables, issues));
+      block.signatureFields?.forEach((field, index) =>
+        validateMetadataField(field, `${path}.signatureFields[${index}]`, variables, metadataPaths, issues)
+      );
+      return;
+    case 'pageBreak':
+      return;
+  }
+}
+
+function validateMetadataField(
+  block: TemplateMetadataFieldBlock,
+  path: string,
+  variables: Set<string>,
+  metadataPaths: Set<string>,
+  issues: ApiIssue[]
+): void {
+  if (!block.label.trim()) {
+    issues.push(issue('template.pageTemplate.metadataField.label.required', 'metadataField.label 不能为空。', 'error', `${path}.label`));
+  }
+  if (block.variableName && !variables.has(block.variableName)) {
+    issues.push(issue('template.pageTemplate.variable.missing', `页面模板引用了不存在的变量 ${block.variableName}。`, 'error', `${path}.variableName`));
+  }
+  if (block.sourcePath) {
+    if (!/^(metadata|variables)\.[A-Za-z][A-Za-z0-9_.-]*$/.test(block.sourcePath)) {
+      issues.push(issue('template.pageTemplate.sourcePath.invalid', 'sourcePath 必须以 metadata. 或 variables. 开头。', 'error', `${path}.sourcePath`));
+    } else if (block.sourcePath.startsWith('metadata.') && !metadataPaths.has(block.sourcePath)) {
+      issues.push(issue('template.pageTemplate.metadataField.unknown', `未知 metadata 字段 ${block.sourcePath}。`, 'warning', `${path}.sourcePath`));
+    }
+  }
+  if (!block.sourcePath && !block.variableName && !block.valueTemplate) {
+    issues.push(issue('template.pageTemplate.metadataField.binding.empty', 'metadataField 缺少 sourcePath、variableName 或 valueTemplate。', 'warning', path));
+  }
+  if (block.valueTemplate) validateVariableReferences(block.valueTemplate, `${path}.valueTemplate`, variables, issues);
+}
+
+function validateVariableReferences(
+  value: string,
+  path: string,
+  variables: Set<string>,
+  issues: ApiIssue[]
+): void {
+  for (const match of value.matchAll(/\{\{\s*variables\.([A-Za-z][A-Za-z0-9_.-]*)\s*\}\}/g)) {
+    const name = match[1];
+    if (!variables.has(name)) {
+      issues.push(issue('template.pageTemplate.variable.missing', `页面模板引用了不存在的变量 ${name}。`, 'error', path));
+    }
+  }
+}
+
+function validateFontOverride(value: unknown, path: string, issues: ApiIssue[]): void {
+  if (!value || typeof value !== 'object') return;
+  const size = (value as { sizePt?: unknown }).sizePt;
+  if (typeof size === 'number' && (size < 1 || size > 72)) {
+    issues.push(issue('template.pageTemplate.fontSize.invalid', '元素字号必须在 1 到 72 pt 之间。', 'error', `${path}.sizePt`));
+  }
+}
+
+function validatePageSetupOverride(value: unknown, path: string, issues: ApiIssue[]): void {
+  if (!value || typeof value !== 'object') return;
+  const page = value as Record<string, unknown>;
+  for (const key of ['topMarginCm', 'bottomMarginCm', 'leftMarginCm', 'rightMarginCm', 'headerDistanceCm', 'footerDistanceCm'] as const) {
+    const v = page[key];
+    if (typeof v === 'number' && v < 0) {
+      issues.push(issue('template.pageTemplate.pageSetup.negative', `${key} 不能为负数。`, 'error', `${path}.${key}`));
+    }
+  }
+}
+
+function validateNonNegative(
+  value: number | undefined,
+  path: string,
+  code: string,
+  issues: ApiIssue[]
+): void {
+  if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+    issues.push(issue(code, '数值不能为负数。', 'error', path));
+  }
+}
+
+function validatePositive(
+  value: number | undefined,
+  path: string,
+  code: string,
+  issues: ApiIssue[]
+): void {
+  if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+    issues.push(issue(code, '数值必须大于 0。', 'error', path));
+  }
 }
 
 function issue(
@@ -275,6 +558,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function numberValue(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function isVariableType(value: unknown): value is TemplateVariable['type'] {
