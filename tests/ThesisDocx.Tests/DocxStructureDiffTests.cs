@@ -125,6 +125,24 @@ public sealed class DocxStructureDiffTests
     }
 
     [Fact]
+    public void DocxStructureDiff_ShouldDetectChangedEndnotesPart()
+    {
+        var source = StructuralDocxFixtureFactory.RenderNotesDocx();
+        var copy = MutateDocx(source, document =>
+        {
+            document.MainDocumentPart!.EndnotesPart!.Endnotes!.Elements<W.Endnote>().First(note => note.Id?.Value > 0).Remove();
+            document.MainDocumentPart.EndnotesPart.Endnotes.Save();
+        });
+
+        var result = new DocxStructureDiffEngine().Compare(source, copy);
+
+        Assert.Contains(result.Changes, change =>
+            change.Category == "notes"
+            && change.Severity == DocxDiffSeverity.Breaking
+            && change.Path.Contains("endnotes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void DocxStructureDiff_ShouldDetectChangedCustomProperties()
     {
         var copy = MutateFullDocx(document =>
@@ -137,6 +155,62 @@ public sealed class DocxStructureDiffTests
         var result = DiffAgainstFull(copy);
 
         Assert.Contains(result.Changes, change => change.Category == "customProperties" && change.Path.Contains("RendererVersion", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DocxStructureDiff_ShouldDetectRemovedCustomProperty()
+    {
+        var source = StructuralDocxFixtureFactory.RenderCustomPropertiesDocx();
+        var copy = MutateDocx(source, document =>
+        {
+            var property = document.CustomFilePropertiesPart!.Properties!.Elements<CustomDocumentProperty>()
+                .First(p => p.Name?.Value == "ThesisDocx.TemplateId");
+            property.Remove();
+            document.CustomFilePropertiesPart.Properties.Save();
+        });
+
+        var result = new DocxStructureDiffEngine().Compare(source, copy);
+
+        Assert.Contains(result.Changes, change =>
+            change.Category == "customProperties"
+            && change.Path.Contains("ThesisDocx.TemplateId", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DocxStructureDiff_ShouldDetectAdvancedTableVerticalMergeValueChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderAdvancedTableDocx();
+        var copy = MutateDocx(source, document =>
+        {
+            var merge = document.MainDocumentPart!.Document.Descendants<W.VerticalMerge>()
+                .First(m => m.Val?.Value == W.MergedCellValues.Restart);
+            merge.Val = W.MergedCellValues.Continue;
+            document.MainDocumentPart.Document.Save();
+        });
+
+        var result = new DocxStructureDiffEngine().Compare(source, copy);
+
+        Assert.Contains(result.Changes, change =>
+            change.Category == "table"
+            && change.Severity == DocxDiffSeverity.Breaking
+            && change.Path.Contains("vMerge.values", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DocxStructureDiff_ShouldDetectAdvancedTablePaginationMarkerChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderAdvancedTableDocx();
+        var copy = MutateDocx(source, document =>
+        {
+            document.MainDocumentPart!.Document.Descendants<W.TableHeader>().First().Remove();
+            document.MainDocumentPart.Document.Descendants<W.CantSplit>().First().Remove();
+            document.MainDocumentPart.Document.Save();
+        });
+
+        var result = new DocxStructureDiffEngine().Compare(source, copy);
+
+        Assert.Contains(result.Changes, change => change.Category == "table" && change.Path.Contains("tblHeader.count", StringComparison.Ordinal));
+        Assert.Contains(result.Changes, change => change.Category == "table" && change.Path.Contains("cantSplit.count", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -163,6 +237,11 @@ public sealed class DocxStructureDiffTests
     private static string MutateFullDocx(Action<WordprocessingDocument> mutate)
     {
         var source = TestRenderHelper.RenderFullThesis().DocxPath;
+        return MutateDocx(source, mutate);
+    }
+
+    private static string MutateDocx(string source, Action<WordprocessingDocument> mutate)
+    {
         var copy = CopyDocx(source);
         using var document = WordprocessingDocument.Open(copy, true);
         mutate(document);

@@ -36,6 +36,24 @@ public sealed class LayoutSignatureTests
     }
 
     [Fact]
+    public void LayoutSignature_ShouldExtractAdvancedTableDetails()
+    {
+        var signature = new DocxLayoutSignatureExtractor().Extract(StructuralDocxFixtureFactory.RenderAdvancedTableDocx());
+        var table = Assert.Single(signature.Tables);
+
+        Assert.Contains("fixed", table.LayoutType ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.False(string.IsNullOrWhiteSpace(table.WidthType));
+        Assert.Contains(table.GridSpanValues, value => value == "2");
+        Assert.Contains(table.VerticalMergeValues, value => value.Contains("restart", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(table.VerticalMergeValues, value => value.Contains("continue", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, table.RepeatHeaderRowCount);
+        Assert.True(table.CantSplitRowCount >= 1);
+        Assert.Contains(table.CellWidths, width => width.Contains("dxa", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(table.CellVerticalAlignments, alignment => alignment.Contains("center", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(table.CellBorders, border => border.Contains("double", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void LayoutSignature_ShouldExtractFigureSummary()
     {
         var signature = ExtractFull();
@@ -134,6 +152,25 @@ public sealed class LayoutSignatureTests
     }
 
     [Fact]
+    public void LayoutSignatureComparer_ShouldDetectEndnoteChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderNotesDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            document.MainDocumentPart!.EndnotesPart!.Endnotes!.Elements<W.Endnote>().First(note => note.Id?.Value > 0).Remove();
+            document.MainDocumentPart.EndnotesPart.Endnotes.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.BreakingDifferences, diff =>
+            diff.Category == "notes"
+            && diff.Path.Contains("endnotes", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void LayoutSignatureComparer_ShouldDetectCustomPropertyChanges()
     {
         var source = StructuralDocxFixtureFactory.RenderCustomPropertiesDocx();
@@ -154,6 +191,27 @@ public sealed class LayoutSignatureTests
     }
 
     [Fact]
+    public void LayoutSignatureComparer_ShouldDetectRemovedCustomProperty()
+    {
+        var source = StructuralDocxFixtureFactory.RenderCustomPropertiesDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            var property = document.CustomFilePropertiesPart!.Properties!.Elements<DocumentFormat.OpenXml.CustomProperties.CustomDocumentProperty>()
+                .First(property => property.Name?.Value == "ThesisDocx.TemplateId");
+            property.Remove();
+            document.CustomFilePropertiesPart.Properties.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.Warnings, diff =>
+            diff.Category == "customProperties"
+            && diff.Path.Contains("ThesisDocx.TemplateId", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void LayoutSignatureComparer_ShouldDetectAdvancedTableChanges()
     {
         var source = StructuralDocxFixtureFactory.RenderAdvancedTableDocx();
@@ -168,6 +226,27 @@ public sealed class LayoutSignatureTests
         var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
 
         Assert.Contains(result.BreakingDifferences, diff => diff.Category == "table");
+    }
+
+    [Fact]
+    public void LayoutSignatureComparer_ShouldDetectAdvancedTableVerticalMergeValueChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderAdvancedTableDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            var merge = document.MainDocumentPart!.Document.Descendants<W.VerticalMerge>()
+                .First(m => m.Val?.Value == W.MergedCellValues.Restart);
+            merge.Val = W.MergedCellValues.Continue;
+            document.MainDocumentPart.Document.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.BreakingDifferences, diff =>
+            diff.Category == "table"
+            && diff.Path.Contains("verticalMergeValues", StringComparison.OrdinalIgnoreCase));
     }
 
     private static DocxLayoutSignature ExtractFull()

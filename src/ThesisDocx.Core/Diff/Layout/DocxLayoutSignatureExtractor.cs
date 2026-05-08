@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.CustomProperties;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.OpenXml;
@@ -9,6 +10,8 @@ namespace ThesisDocx.Core.Diff.Layout;
 
 public sealed class DocxLayoutSignatureExtractor
 {
+    private const string WordprocessingNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
     public DocxLayoutSignature Extract(string docxPath)
     {
         using var document = WordprocessingDocument.Open(docxPath, false);
@@ -99,16 +102,29 @@ public sealed class DocxLayoutSignatureExtractor
             {
                 var props = table.GetFirstChild<W.TableProperties>();
                 var width = props?.GetFirstChild<W.TableWidth>();
+                var layout = props?.GetFirstChild<W.TableLayout>();
+                var gridSpanValues = table.Descendants<W.GridSpan>().Select(span => WordAttribute(span, "val") ?? span.Val?.Value.ToString() ?? "missing").ToList();
+                var verticalMergeValues = table.Descendants<W.VerticalMerge>().Select(merge => WordAttribute(merge, "val") ?? "continue").ToList();
+                var cellWidths = table.Descendants<W.TableCellWidth>().Select(width => $"{WordAttribute(width, "type") ?? "missing"}:{WordAttribute(width, "w") ?? "missing"}").ToList();
+                var cellVerticalAlignments = table.Descendants<W.TableCellVerticalAlignment>().Select(alignment => WordAttribute(alignment, "val") ?? "missing").ToList();
                 return new LayoutTableSignature
                 {
                     Index = index,
+                    LayoutType = layout is null ? null : WordAttribute(layout, "type"),
                     WidthType = width?.Type?.Value.ToString(),
                     Width = width?.Width?.Value,
                     Borders = SummarizeBorders(props?.GetFirstChild<W.TableBorders>()),
-                    HasGridSpan = table.Descendants<W.GridSpan>().Any(),
-                    HasVerticalMerge = table.Descendants<W.VerticalMerge>().Any(),
+                    HasGridSpan = gridSpanValues.Count > 0,
+                    GridSpanValues = gridSpanValues,
+                    HasVerticalMerge = verticalMergeValues.Count > 0,
+                    VerticalMergeValues = verticalMergeValues,
                     HasRepeatHeaderRows = table.Descendants<W.TableHeader>().Any(),
-                    HasCantSplitRows = table.Descendants<W.CantSplit>().Any()
+                    RepeatHeaderRowCount = table.Descendants<W.TableHeader>().Count(),
+                    HasCantSplitRows = table.Descendants<W.CantSplit>().Any(),
+                    CantSplitRowCount = table.Descendants<W.CantSplit>().Count(),
+                    CellWidths = cellWidths,
+                    CellVerticalAlignments = cellVerticalAlignments,
+                    CellBorders = table.Descendants<W.TableCellBorders>().Select(SummarizeCellBorders).ToList()
                 };
             })
             .ToList();
@@ -207,5 +223,30 @@ public sealed class DocxLayoutSignatureExtractor
             $"insideH={borders.InsideHorizontalBorder?.Val?.Value}:{borders.InsideHorizontalBorder?.Size?.Value}",
             $"insideV={borders.InsideVerticalBorder?.Val?.Value}:{borders.InsideVerticalBorder?.Size?.Value}"
         });
+    }
+
+    private static string SummarizeCellBorders(W.TableCellBorders borders)
+    {
+        return string.Join(";", new[]
+        {
+            $"top={WordAttribute(borders.TopBorder, "val")}:{WordAttribute(borders.TopBorder, "sz")}:{WordAttribute(borders.TopBorder, "color")}",
+            $"bottom={WordAttribute(borders.BottomBorder, "val")}:{WordAttribute(borders.BottomBorder, "sz")}:{WordAttribute(borders.BottomBorder, "color")}",
+            $"left={WordAttribute(borders.LeftBorder, "val")}:{WordAttribute(borders.LeftBorder, "sz")}:{WordAttribute(borders.LeftBorder, "color")}",
+            $"right={WordAttribute(borders.RightBorder, "val")}:{WordAttribute(borders.RightBorder, "sz")}:{WordAttribute(borders.RightBorder, "color")}"
+        });
+    }
+
+    private static string? WordAttribute(OpenXmlElement? element, string localName)
+    {
+        if (element is null)
+        {
+            return null;
+        }
+
+        var attribute = element.GetAttributes()
+            .FirstOrDefault(a =>
+                string.Equals(a.LocalName, localName, StringComparison.Ordinal)
+                && (string.Equals(a.NamespaceUri, WordprocessingNamespace, StringComparison.Ordinal) || string.IsNullOrEmpty(a.NamespaceUri)));
+        return string.IsNullOrWhiteSpace(attribute.Value) ? null : attribute.Value;
     }
 }

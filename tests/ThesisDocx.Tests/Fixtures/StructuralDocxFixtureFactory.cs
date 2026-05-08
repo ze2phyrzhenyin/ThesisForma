@@ -27,8 +27,18 @@ internal static class StructuralDocxFixtureFactory
             new TableBlock
             {
                 Caption = "Advanced table",
+                Width = new TableWidthSpec { Type = TableWidthKind.Percent, Value = 85 },
                 Layout = TableLayoutKind.Fixed,
                 RepeatHeaderRows = 1,
+                Borders = new TableBordersSpec
+                {
+                    Top = new BorderSpec { Style = BorderStyleKind.Single, Size = 8 },
+                    Bottom = new BorderSpec { Style = BorderStyleKind.Single, Size = 8 },
+                    Left = new BorderSpec { Style = BorderStyleKind.Single, Size = 4 },
+                    Right = new BorderSpec { Style = BorderStyleKind.Single, Size = 4 },
+                    InsideH = new BorderSpec { Style = BorderStyleKind.Single, Size = 4 },
+                    InsideV = new BorderSpec { Style = BorderStyleKind.Single, Size = 4 }
+                },
                 Rows =
                 [
                     new TableRowNode
@@ -37,15 +47,22 @@ internal static class StructuralDocxFixtureFactory
                         CantSplit = true,
                         Cells =
                         [
-                            new TableCellNode { Text = "Merged", GridSpan = 2 },
-                            new TableCellNode { Text = "Tail" }
+                            new TableCellNode { Text = "Merged", GridSpan = 2, VerticalAlignment = TableCellVerticalAlignment.Center },
+                            new TableCellNode { Text = "Tail", VerticalAlignment = TableCellVerticalAlignment.Center }
                         ]
                     },
                     new TableRowNode
                     {
                         Cells =
                         [
-                            new TableCellNode { Text = "VMerge", VerticalMerge = VerticalMergeKind.Restart },
+                            new TableCellNode
+                            {
+                                Text = "VMerge",
+                                VerticalMerge = VerticalMergeKind.Restart,
+                                WidthCm = 3,
+                                VerticalAlignment = TableCellVerticalAlignment.Center,
+                                Borders = new TableBordersSpec { Bottom = new BorderSpec { Style = BorderStyleKind.Double, Size = 8 } }
+                            },
                             new TableCellNode { Text = "A" },
                             new TableCellNode { Text = "B" }
                         ]
@@ -54,7 +71,7 @@ internal static class StructuralDocxFixtureFactory
                     {
                         Cells =
                         [
-                            new TableCellNode { Text = string.Empty, VerticalMerge = VerticalMergeKind.Continue },
+                            new TableCellNode { Text = string.Empty, VerticalMerge = VerticalMergeKind.Continue, WidthCm = 3 },
                             new TableCellNode { Text = "C" },
                             new TableCellNode { Text = "D" }
                         ]

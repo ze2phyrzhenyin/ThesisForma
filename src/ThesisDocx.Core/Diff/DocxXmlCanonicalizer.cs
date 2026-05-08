@@ -219,8 +219,17 @@ public sealed class DocxXmlCanonicalizer
                 markers[$"{partName}:table[{i}].borders"] = SummarizeBorderElement(borders);
                 var width = tables[i].Descendants().FirstOrDefault(e => e.Name.LocalName == "tblW");
                 markers[$"{partName}:table[{i}].width"] = JoinAttrs(width, "type", "w");
+                var layout = tables[i].Descendants().FirstOrDefault(e => e.Name.LocalName == "tblLayout");
+                markers[$"{partName}:table[{i}].layout"] = JoinAttrs(layout, "type");
                 markers[$"{partName}:table[{i}].gridSpan.count"] = tables[i].Descendants().Count(e => e.Name.LocalName == "gridSpan").ToString();
+                markers[$"{partName}:table[{i}].gridSpan.values"] = string.Join(",", tables[i].Descendants().Where(e => e.Name.LocalName == "gridSpan").Select(e => Attr(e, "val") ?? "missing"));
                 markers[$"{partName}:table[{i}].vMerge.count"] = tables[i].Descendants().Count(e => e.Name.LocalName == "vMerge").ToString();
+                markers[$"{partName}:table[{i}].vMerge.values"] = string.Join(",", tables[i].Descendants().Where(e => e.Name.LocalName == "vMerge").Select(e => Attr(e, "val") ?? "continue"));
+                markers[$"{partName}:table[{i}].tblHeader.count"] = tables[i].Descendants().Count(e => e.Name.LocalName == "tblHeader").ToString();
+                markers[$"{partName}:table[{i}].cantSplit.count"] = tables[i].Descendants().Count(e => e.Name.LocalName == "cantSplit").ToString();
+                markers[$"{partName}:table[{i}].cellWidths"] = string.Join("|", tables[i].Descendants().Where(e => e.Name.LocalName == "tcW").Select(e => JoinAttrs(e, "type", "w")));
+                markers[$"{partName}:table[{i}].cellVerticalAlignments"] = string.Join(",", tables[i].Descendants().Where(e => e.Name.LocalName == "vAlign").Select(e => Attr(e, "val") ?? "missing"));
+                markers[$"{partName}:table[{i}].cellBorders"] = string.Join("|", tables[i].Descendants().Where(e => e.Name.LocalName == "tcBorders").Select(e => SummarizeBorderElement(e, "top", "bottom", "left", "right")));
             }
         }
 
@@ -271,14 +280,15 @@ public sealed class DocxXmlCanonicalizer
             : string.Join(";", names.Select(name => $"{name}={Attr(element, name) ?? "missing"}"));
     }
 
-    private static string SummarizeBorderElement(XElement? borders)
+    private static string SummarizeBorderElement(XElement? borders, params string[] names)
     {
         if (borders is null)
         {
             return "missing";
         }
 
-        return string.Join(";", new[] { "top", "bottom", "left", "right", "insideH", "insideV" }
+        names = names.Length == 0 ? ["top", "bottom", "left", "right", "insideH", "insideV"] : names;
+        return string.Join(";", names
             .Select(name =>
             {
                 var edge = borders.Elements().FirstOrDefault(e => e.Name.LocalName == name);

@@ -14,11 +14,17 @@ public sealed class LayoutSignatureComparer
         var targetValues = Flatten(JsonSerializer.SerializeToNode(targetSignature, ThesisJson.Options), "$");
         baseValues.Remove("$.sourcePath");
         targetValues.Remove("$.sourcePath");
+        var compareTableDetails = HasTableDetailSignature(baseSignature) && HasTableDetailSignature(targetSignature);
 
         var differences = new List<LayoutSignatureDifference>();
         var allPaths = baseValues.Keys.Concat(targetValues.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         foreach (var path in allPaths)
         {
+            if (!compareTableDetails && IsTableDetailPath(path))
+            {
+                continue;
+            }
+
             var baseValue = baseValues.GetValueOrDefault(path);
             var targetValue = targetValues.GetValueOrDefault(path);
             if (string.Equals(baseValue, targetValue, StringComparison.Ordinal))
@@ -103,5 +109,31 @@ public sealed class LayoutSignatureComparer
         if (path.Contains(".customProperties", StringComparison.Ordinal)) return "customProperties";
         if (path.Contains(".bibliography", StringComparison.Ordinal)) return "bibliography";
         return "layout";
+    }
+
+    private static bool HasTableDetailSignature(DocxLayoutSignature signature)
+    {
+        return signature.Tables.Any(table =>
+            !string.IsNullOrWhiteSpace(table.LayoutType)
+            || table.GridSpanValues.Count > 0
+            || table.VerticalMergeValues.Count > 0
+            || table.RepeatHeaderRowCount > 0
+            || table.CantSplitRowCount > 0
+            || table.CellWidths.Count > 0
+            || table.CellVerticalAlignments.Count > 0
+            || table.CellBorders.Count > 0);
+    }
+
+    private static bool IsTableDetailPath(string path)
+    {
+        return path.Contains(".tables", StringComparison.Ordinal)
+            && (path.Contains(".layoutType", StringComparison.Ordinal)
+                || path.Contains(".gridSpanValues", StringComparison.Ordinal)
+                || path.Contains(".verticalMergeValues", StringComparison.Ordinal)
+                || path.Contains(".repeatHeaderRowCount", StringComparison.Ordinal)
+                || path.Contains(".cantSplitRowCount", StringComparison.Ordinal)
+                || path.Contains(".cellWidths", StringComparison.Ordinal)
+                || path.Contains(".cellVerticalAlignments", StringComparison.Ordinal)
+                || path.Contains(".cellBorders", StringComparison.Ordinal));
     }
 }

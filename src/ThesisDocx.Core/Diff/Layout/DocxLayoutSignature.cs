@@ -77,6 +77,8 @@ public sealed class LayoutTableSignature
 {
     public int Index { get; set; }
 
+    public string? LayoutType { get; set; }
+
     public string? WidthType { get; set; }
 
     public string? Width { get; set; }
@@ -85,11 +87,25 @@ public sealed class LayoutTableSignature
 
     public bool HasGridSpan { get; set; }
 
+    public List<string> GridSpanValues { get; set; } = [];
+
     public bool HasVerticalMerge { get; set; }
+
+    public List<string> VerticalMergeValues { get; set; } = [];
 
     public bool HasRepeatHeaderRows { get; set; }
 
+    public int RepeatHeaderRowCount { get; set; }
+
     public bool HasCantSplitRows { get; set; }
+
+    public int CantSplitRowCount { get; set; }
+
+    public List<string> CellWidths { get; set; } = [];
+
+    public List<string> CellVerticalAlignments { get; set; } = [];
+
+    public List<string> CellBorders { get; set; } = [];
 }
 
 public sealed class LayoutFigureSignature
