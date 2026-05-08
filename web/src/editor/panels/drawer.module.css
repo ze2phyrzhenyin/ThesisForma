@@ -30,6 +30,12 @@
   background: var(--color-brand-soft);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
 .empty {
   padding: var(--sp-6) var(--sp-4);
   color: var(--color-text-mute);
@@ -70,6 +76,44 @@
 
 .item:hover .removeBtn {
   opacity: 1;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-right: var(--sp-6);
+}
+
+.itemHeader strong {
+  font-size: var(--fs-sm);
+}
+
+.itemHeader code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--color-brand);
+}
+
+.section {
+  min-height: 0;
+}
+
+.sectionTitle {
+  margin: var(--sp-3) var(--sp-4) var(--sp-1);
+  color: var(--color-text-soft);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--color-text-mute);
+  font-size: var(--fs-2xs);
+}
+
+.warning {
+  color: var(--color-warning);
+  font-size: var(--fs-2xs);
 }
 
 .idInput {

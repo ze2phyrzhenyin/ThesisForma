@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from './EditorContext';
 import type { Editor } from '@tiptap/react';
 import type { BibliographyEntry, BibliographyBlock } from '@/types';
+import { makeNoteInline, type NoteKind } from './notes';
 import styles from './InlineActionBar.module.css';
 
 interface Props {
@@ -112,6 +113,24 @@ export function InlineActionBar({ editor, visible }: Props) {
       >
         @
       </button>
+      <button
+        type="button"
+        className={styles.btn}
+        onClick={() => insertNote('footnote')}
+        aria-label="插入脚注"
+        title="插入脚注"
+      >
+        脚
+      </button>
+      <button
+        type="button"
+        className={styles.btn}
+        onClick={() => insertNote('endnote')}
+        aria-label="插入尾注"
+        title="插入尾注"
+      >
+        尾
+      </button>
 
       {mode === 'citation' && (
         <div className={styles.popover}>
@@ -201,5 +220,19 @@ export function InlineActionBar({ editor, visible }: Props) {
     if (!editor || !linkUrl) return;
     editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
     setMode(null);
+  }
+
+  function insertNote(kind: NoteKind) {
+    if (!editor) return;
+    const noteId = `${kind === 'footnote' ? 'fn' : 'en'}-${Date.now().toString(36)}`;
+    const inline = makeNoteInline(kind, noteId, kind === 'footnote' ? '脚注内容' : '尾注内容');
+    const attrs = {
+      noteId,
+      inlinesJson: JSON.stringify(inline.inlines),
+      label: kind === 'footnote' ? `[脚注 ${noteId}]` : `[尾注 ${noteId}]`
+    };
+    editor.commands.focus();
+    if (kind === 'footnote') editor.commands.insertFootnote(attrs);
+    else editor.commands.insertEndnote(attrs);
   }
 }

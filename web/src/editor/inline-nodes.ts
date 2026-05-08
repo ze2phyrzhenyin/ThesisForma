@@ -13,6 +13,10 @@ declare module '@tiptap/core' {
     referenceChip: {
       insertReference: (attrs: { bookmarkName: string; fallbackText: string }) => ReturnType;
     };
+    noteChip: {
+      insertFootnote: (attrs: { noteId: string; inlinesJson: string; label: string }) => ReturnType;
+      insertEndnote: (attrs: { noteId: string; inlinesJson: string; label: string }) => ReturnType;
+    };
   }
 }
 
@@ -93,3 +97,49 @@ export const ReferenceNode = Node.create({
     };
   }
 });
+
+function noteNode(name: 'footnote' | 'endnote', labelPrefix: string) {
+  return Node.create({
+    name,
+    group: 'inline',
+    inline: true,
+    atom: true,
+    selectable: true,
+
+    addAttributes() {
+      return {
+        noteId: { default: '' },
+        inlinesJson: { default: '[]' },
+        label: { default: '' }
+      };
+    },
+
+    parseHTML() {
+      return [{ tag: `span[data-${name}]` }];
+    },
+
+    renderHTML({ HTMLAttributes, node }) {
+      return [
+        'span',
+        mergeAttributes(HTMLAttributes, {
+          [`data-${name}`]: node.attrs.noteId,
+          class: name === 'footnote' ? 'tf-footnote-chip' : 'tf-endnote-chip'
+        }),
+        node.attrs.label || `[${labelPrefix} ${node.attrs.noteId}]`
+      ];
+    },
+
+    addCommands() {
+      const commandName = name === 'footnote' ? 'insertFootnote' : 'insertEndnote';
+      return {
+        [commandName]:
+          (attrs: { noteId: string; inlinesJson: string; label: string }) =>
+          ({ commands }: { commands: { insertContent: (value: unknown) => boolean } }) =>
+            commands.insertContent({ type: this.name, attrs })
+      };
+    }
+  });
+}
+
+export const FootnoteNode = noteNode('footnote', '脚注');
+export const EndnoteNode = noteNode('endnote', '尾注');

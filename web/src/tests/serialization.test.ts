@@ -28,6 +28,15 @@ describe('inline serialization with citations / references / hyperlinks', () => 
     expect(pmDocToInlines(inlinesToPMDoc(inlines))).toEqual(inlines);
   });
 
+  it('round-trips footnote and endnote chips without losing note content', () => {
+    const inlines: Inline[] = [
+      { type: 'text', text: '正文' },
+      { type: 'footnote', noteId: 'fn-1', inlines: [{ type: 'text', text: '脚注内容' }] },
+      { type: 'endnote', noteId: 'en-1', inlines: [{ type: 'text', text: '尾注内容' }] }
+    ];
+    expect(pmDocToInlines(inlinesToPMDoc(inlines))).toEqual(inlines);
+  });
+
   it('preserves bold + italic combo', () => {
     const inlines: Inline[] = [{ type: 'text', text: 'mixed', bold: true, italic: true }];
     expect(pmDocToInlines(inlinesToPMDoc(inlines))).toEqual(inlines);

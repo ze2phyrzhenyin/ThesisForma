@@ -1,7 +1,20 @@
+import { useMemo, useState } from 'react';
 import { useEditorActions } from '../EditorContext';
 import { BlockShell } from './BlockShell';
-import { newBlockId } from '../ids';
-import type { TableBlock as TableBlockData, TableRow, TableCell } from '@/types';
+import type { ApiIssue, TableBlock as TableBlockData, TableCell } from '@/types';
+import {
+  addTableColumn,
+  addTableRow,
+  deleteTableColumn,
+  deleteTableRow,
+  mergeTableRange,
+  normalizeRange,
+  splitMergedCell,
+  tableGridWidth,
+  validateTableGrid,
+  type CellAddress,
+  type CellRange
+} from '../tableOps';
 import styles from './blocks.module.css';
 import tStyles from './TableBlock.module.css';
 
@@ -13,20 +26,13 @@ interface Props {
   totalBlocks: number;
 }
 
-function newRow(cellCount: number): TableRow {
-  return {
-    id: newBlockId('tr'),
-    cells: Array.from({ length: cellCount }, () => ({ id: newBlockId('tc'), text: '' }))
-  };
-}
-
-function maxColCount(rows: TableRow[]): number {
-  return rows.reduce((max, r) => Math.max(max, r.cells.length), 0);
-}
-
 export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlocks }: Props) {
   const actions = useEditorActions();
-  const cols = maxColCount(block.rows);
+  const [anchor, setAnchor] = useState<CellAddress | null>(null);
+  const [range, setRange] = useState<CellRange | null>(null);
+  const [opIssues, setOpIssues] = useState<ApiIssue[]>([]);
+  const cols = tableGridWidth(block);
+  const gridIssues = useMemo(() => validateTableGrid(block), [block]);
 
   const update = (updater: (b: TableBlockData) => void) =>
     actions.updateBlock(sectionIndex, blockIndex, (b) => {
@@ -42,30 +48,67 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
 
   const addRow = (afterRowIdx: number) =>
     update((b) => {
-      const cellCount = Math.max(maxColCount(b.rows), 1);
-      b.rows.splice(afterRowIdx + 1, 0, newRow(cellCount));
+      Object.assign(b, addTableRow(b, afterRowIdx));
     });
 
   const deleteRow = (rowIdx: number) =>
     update((b) => {
-      if (b.rows.length > 1) b.rows.splice(rowIdx, 1);
+      const result = deleteTableRow(b, rowIdx);
+      setOpIssues(result.issues);
+      Object.assign(b, result.table);
     });
 
   const addCol = (afterColIdx: number) =>
     update((b) => {
-      for (const row of b.rows) {
-        row.cells.splice(afterColIdx + 1, 0, { id: newBlockId('tc'), text: '' });
-      }
+      Object.assign(b, addTableColumn(b, afterColIdx));
     });
 
   const deleteCol = (colIdx: number) =>
     update((b) => {
-      const cellCount = maxColCount(b.rows);
-      if (cellCount <= 1) return;
-      for (const row of b.rows) {
-        if (row.cells.length > colIdx) row.cells.splice(colIdx, 1);
-      }
+      const result = deleteTableColumn(b, colIdx);
+      setOpIssues(result.issues);
+      Object.assign(b, result.table);
     });
+
+  const selectCell = (address: CellAddress) => {
+    if (!anchor) {
+      setAnchor(address);
+      setRange(normalizeRange(address, address));
+      setOpIssues([]);
+      return;
+    }
+    const next = normalizeRange(anchor, address);
+    setRange(next);
+    setOpIssues([]);
+  };
+
+  const clearSelection = () => {
+    setAnchor(null);
+    setRange(null);
+    setOpIssues([]);
+  };
+
+  const mergeSelection = () => {
+    if (!range) return;
+    update((b) => {
+      const result = mergeTableRange(b, range);
+      setOpIssues(result.issues);
+      Object.assign(b, result.table);
+    });
+  };
+
+  const splitSelection = () => {
+    const target = range ? { row: range.rowStart, col: range.colStart } : anchor;
+    if (!target) return;
+    update((b) => {
+      const result = splitMergedCell(b, target);
+      setOpIssues(result.issues);
+      Object.assign(b, result.table);
+    });
+  };
+
+  const hasMergeSelection =
+    Boolean(range) && (range!.rowStart !== range!.rowEnd || range!.colStart !== range!.colEnd);
 
   return (
     <BlockShell
@@ -114,6 +157,26 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
               {p === 'before' ? '前' : '后'}
             </button>
           ))}
+          <span className={styles.toolbarSeparator}>·</span>
+          <button
+            type="button"
+            className={styles.toolbarBtn}
+            onClick={mergeSelection}
+            disabled={!hasMergeSelection}
+          >
+            合并所选
+          </button>
+          <button
+            type="button"
+            className={styles.toolbarBtn}
+            onClick={splitSelection}
+            disabled={!range}
+          >
+            拆分单元格
+          </button>
+          <button type="button" className={styles.toolbarBtn} onClick={clearSelection} disabled={!range}>
+            清除选择
+          </button>
         </>
       }
     >
@@ -126,7 +189,30 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
             placeholder="表 1-1 …"
             onChange={(e) => update((b) => (b.caption = e.target.value))}
           />
+          <label className={tStyles.repeatControl}>
+            表头行
+            <input
+              type="number"
+              min={0}
+              max={20}
+              value={block.repeatHeaderRows ?? block.rows.filter((row) => row.isHeader).length}
+              onChange={(e) =>
+                update((b) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n) && n >= 0) b.repeatHeaderRows = Math.min(20, Math.floor(n));
+                })
+              }
+            />
+          </label>
         </div>
+
+        {(gridIssues.length > 0 || opIssues.length > 0) && (
+          <div className={tStyles.issues} role="alert">
+            {[...opIssues, ...gridIssues].slice(0, 4).map((issue, i) => (
+              <div key={`${issue.code}-${i}`}>{issue.message}</div>
+            ))}
+          </div>
+        )}
 
         <div className={tStyles.tableWrap} data-style={block.style ?? 'normal'}>
           <table className={tStyles.table}>
@@ -174,23 +260,39 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
             <tbody>
               {block.rows.map((row, rIdx) => (
                 <tr key={row.id ?? rIdx} className={row.isHeader ? tStyles.headerRow : ''}>
-                  {Array.from({ length: cols }).map((_, cIdx) => {
-                    const cell = row.cells[cIdx] ?? { text: '' };
+                  {row.cells.map((cell, cIdx) => {
+                    const colStart = row.cells
+                      .slice(0, cIdx)
+                      .reduce((sum, current) => sum + (current.gridSpan ?? 1), 0);
+                    const colEnd = colStart + (cell.gridSpan ?? 1) - 1;
+                    const selectedCell =
+                      range &&
+                      rIdx >= range.rowStart &&
+                      rIdx <= range.rowEnd &&
+                      colEnd >= range.colStart &&
+                      colStart <= range.colEnd;
                     return (
-                      <td key={cell.id ?? cIdx} className={tStyles.cell}>
+                      <td
+                        key={cell.id ?? cIdx}
+                        className={tStyles.cell}
+                        data-selected={selectedCell === true}
+                        data-vmerge={cell.verticalMerge ?? 'none'}
+                        colSpan={cell.gridSpan ?? 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectCell({ row: rIdx, col: colStart });
+                        }}
+                      >
                         <textarea
                           rows={1}
                           className={tStyles.cellInput}
                           value={cell.text ?? ''}
-                          placeholder="…"
+                          placeholder={cell.verticalMerge === 'continue' ? '纵向合并延续' : '…'}
+                          disabled={cell.verticalMerge === 'continue'}
                           onChange={(e) => {
-                            // Ensure we have a real cell at this column.
                             update((b) => {
                               const r = b.rows[rIdx];
                               if (!r) return;
-                              while (r.cells.length <= cIdx) {
-                                r.cells.push({ id: newBlockId('tc'), text: '' });
-                              }
                               const target = r.cells[cIdx];
                               target.text = e.target.value;
                               delete target.blocks;
@@ -198,6 +300,9 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
                             updateCell(rIdx, cIdx, () => undefined);
                           }}
                         />
+                        {(cell.gridSpan ?? 1) > 1 && (
+                          <span className={tStyles.mergeBadge}>×{cell.gridSpan}</span>
+                        )}
                       </td>
                     );
                   })}
@@ -217,6 +322,22 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
                       data-active={row.isHeader === true}
                     >
                       H
+                    </button>
+                    <button
+                      type="button"
+                      title="禁止跨页断行"
+                      onClick={() =>
+                        update((b) => {
+                          const r = b.rows[rIdx];
+                          if (!r) return;
+                          if (r.cantSplit) delete r.cantSplit;
+                          else r.cantSplit = true;
+                        })
+                      }
+                      className={tStyles.miniBtn}
+                      data-active={row.cantSplit === true}
+                    >
+                      S
                     </button>
                     <button
                       type="button"
@@ -248,6 +369,11 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
           <button type="button" className={tStyles.addBtn} onClick={() => addCol(cols - 1)}>
             ＋ 添加列
           </button>
+          {range && (
+            <span className={tStyles.selectionHint}>
+              已选 {range.rowEnd - range.rowStart + 1} × {range.colEnd - range.colStart + 1}
+            </span>
+          )}
         </div>
       </div>
     </BlockShell>

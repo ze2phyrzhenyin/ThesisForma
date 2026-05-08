@@ -4,7 +4,7 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import { Extension } from '@tiptap/core';
-import { CitationNode, ReferenceNode } from './inline-nodes';
+import { CitationNode, EndnoteNode, FootnoteNode, ReferenceNode } from './inline-nodes';
 import { useEffect, useRef } from 'react';
 import type { Inline } from '@/types';
 import { inlinesToPMDoc, pmDocToInlines, type PMDoc } from './inlines';
@@ -63,6 +63,8 @@ export function InlineEditor({
       }),
       CitationNode,
       ReferenceNode,
+      FootnoteNode,
+      EndnoteNode,
       Placeholder.configure({
         placeholder: placeholder ?? '',
         emptyEditorClass: 'empty',

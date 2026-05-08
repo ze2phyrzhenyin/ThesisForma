@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { BibliographyPanel } from './panels/BibliographyPanel';
+import { NotesPanel } from './panels/NotesPanel';
 import { ValidationPanel } from './panels/ValidationPanel';
 import type { ApiIssue } from '@/types';
 import styles from './RightRail.module.css';
 
-export type DrawerKey = 'bibliography' | 'validation' | null;
+export type DrawerKey = 'bibliography' | 'notes' | 'validation' | null;
 
 const DRAWERS: { key: NonNullable<DrawerKey>; label: string; icon: string }[] = [
-  { key: 'bibliography', label: '参考文献', icon: '📚' },
+  { key: 'bibliography', label: '参考文献', icon: '文' },
+  { key: 'notes', label: '脚注尾注', icon: '注' },
   { key: 'validation', label: '校验问题', icon: '⚠' }
 ];
 
@@ -70,6 +72,7 @@ export function RightRail({ open, onChange, validation, onRunValidation }: Props
       {open !== null && (
         <div className={styles.drawer} role="region" aria-label="右侧抽屉">
           {open === 'bibliography' && <BibliographyPanel />}
+          {open === 'notes' && <NotesPanel />}
           {open === 'validation' && (
             <ValidationPanel
               issues={validation.issues}
