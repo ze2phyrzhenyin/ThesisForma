@@ -307,14 +307,19 @@ function normalizeBlock(value: unknown, path: string, issues: ApiIssue[]): Block
         ...(value.style === 'threeLine' || value.style === 'custom' || value.style === 'normal'
           ? { style: value.style }
           : {}),
+        ...(isRecord(value.width) ? { width: value.width as unknown as Extract<Block, { type: 'table' }>['width'] } : {}),
         ...(isAlignment(value.alignment) ? { alignment: value.alignment } : {}),
         ...(value.layout === 'autofit' || value.layout === 'fixed' ? { layout: value.layout } : {}),
         ...(typeof value.allowRowBreakAcrossPages === 'boolean'
           ? { allowRowBreakAcrossPages: value.allowRowBreakAcrossPages }
           : {}),
         ...(typeof value.repeatHeaderRows === 'number' ? { repeatHeaderRows: value.repeatHeaderRows } : {}),
+        ...(isRecord(value.borders) ? { borders: value.borders as Extract<Block, { type: 'table' }>['borders'] } : {}),
+        ...(isRecord(value.cellMargins)
+          ? { cellMargins: value.cellMargins as Extract<Block, { type: 'table' }>['cellMargins'] }
+          : {}),
         rows: Array.isArray(value.rows)
-          ? value.rows.map((row) => normalizeTableRow(row)).filter(isTableRow)
+          ? value.rows.map((row, rowIndex) => normalizeTableRow(row, `${path}.rows[${rowIndex}]`, issues)).filter(isTableRow)
           : []
       };
     case 'quote':
@@ -385,14 +390,16 @@ function normalizeBlock(value: unknown, path: string, issues: ApiIssue[]): Block
   }
 }
 
-function normalizeTableRow(value: unknown): TableRow | null {
+function normalizeTableRow(value: unknown, path: string, issues: ApiIssue[]): TableRow | null {
   if (!isRecord(value)) return null;
   return {
     ...(typeof value.id === 'string' ? { id: value.id } : {}),
     ...(typeof value.isHeader === 'boolean' ? { isHeader: value.isHeader } : {}),
     ...(typeof value.cantSplit === 'boolean' ? { cantSplit: value.cantSplit } : {}),
     ...(typeof value.heightPt === 'number' ? { heightPt: value.heightPt } : {}),
-    cells: Array.isArray(value.cells) ? value.cells.map(normalizeTableCell).filter(isTableCell) : []
+    cells: Array.isArray(value.cells)
+      ? value.cells.map((cell, cellIndex) => normalizeTableCell(cell, `${path}.cells[${cellIndex}]`, issues)).filter(isTableCell)
+      : []
   };
 }
 
@@ -400,15 +407,25 @@ function isTableRow(value: TableRow | null): value is TableRow {
   return value !== null;
 }
 
-function normalizeTableCell(value: unknown): TableCell | null {
+function normalizeTableCell(value: unknown, path: string, issues: ApiIssue[]): TableCell | null {
   if (!isRecord(value)) return null;
   return {
     ...(typeof value.id === 'string' ? { id: value.id } : {}),
     ...(typeof value.text === 'string' ? { text: value.text } : { text: '' }),
     ...(typeof value.gridSpan === 'number' && value.gridSpan > 1 ? { gridSpan: value.gridSpan } : {}),
-    ...(value.verticalMerge === 'restart' || value.verticalMerge === 'continue'
+    ...(value.verticalMerge === 'none' || value.verticalMerge === 'restart' || value.verticalMerge === 'continue'
       ? { verticalMerge: value.verticalMerge }
-      : {})
+      : {}),
+    ...(isRecord(value.width) ? { width: value.width as unknown as TableCell['width'] } : {}),
+    ...(typeof value.widthCm === 'number' ? { widthCm: value.widthCm } : {}),
+    ...(isAlignment(value.alignment) ? { alignment: value.alignment } : {}),
+    ...(value.verticalAlignment === 'top' || value.verticalAlignment === 'center' || value.verticalAlignment === 'bottom'
+      ? { verticalAlignment: value.verticalAlignment }
+      : {}),
+    ...(typeof value.shading === 'string' ? { shading: value.shading } : {}),
+    ...(isRecord(value.borders) ? { borders: value.borders as TableCell['borders'] } : {}),
+    ...(isRecord(value.cellMargins) ? { cellMargins: value.cellMargins as TableCell['cellMargins'] } : {}),
+    ...(Array.isArray(value.blocks) ? { blocks: normalizeBlocks(value.blocks, `${path}.blocks`, issues) } : {})
   };
 }
 
@@ -503,7 +520,158 @@ function cleanSection(section: Section): Section {
 }
 
 function cleanBlock(block: Block): Block {
-  return stripNulls(block);
+  switch (block.type) {
+    case 'paragraph':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        inlines: block.inlines.map(cleanInline),
+        ...(block.styleId ? { styleId: block.styleId } : {}),
+        ...(block.alignment ? { alignment: block.alignment } : {})
+      });
+    case 'heading':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        level: block.level,
+        inlines: block.inlines.map(cleanInline),
+        ...(block.bookmarkName ? { bookmarkName: block.bookmarkName } : {}),
+        ...(typeof block.numbered === 'boolean' ? { numbered: block.numbered } : {})
+      });
+    case 'list':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        ...(typeof block.ordered === 'boolean' ? { ordered: block.ordered } : {}),
+        items: block.items.map((item) => ({ blocks: item.blocks.map(cleanBlock) }))
+      });
+    case 'figure':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        caption: block.caption,
+        ...(block.imagePath ? { imagePath: block.imagePath } : {}),
+        ...(block.imageDataBase64 ? { imageDataBase64: block.imageDataBase64 } : {}),
+        imageContentType: block.imageContentType,
+        ...(typeof block.widthCm === 'number' ? { widthCm: block.widthCm } : {}),
+        ...(typeof block.heightCm === 'number' ? { heightCm: block.heightCm } : {})
+      });
+    case 'table':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        ...(block.bookmarkId ? { bookmarkId: block.bookmarkId } : {}),
+        caption: block.caption,
+        ...(block.captionPosition ? { captionPosition: block.captionPosition } : {}),
+        ...(block.style ? { style: block.style } : {}),
+        ...(block.width ? { width: block.width } : {}),
+        ...(block.alignment ? { alignment: block.alignment } : {}),
+        ...(block.layout ? { layout: block.layout } : {}),
+        ...(typeof block.allowRowBreakAcrossPages === 'boolean'
+          ? { allowRowBreakAcrossPages: block.allowRowBreakAcrossPages }
+          : {}),
+        ...(typeof block.repeatHeaderRows === 'number' ? { repeatHeaderRows: block.repeatHeaderRows } : {}),
+        ...(block.borders ? { borders: block.borders } : {}),
+        ...(block.cellMargins ? { cellMargins: block.cellMargins } : {}),
+        rows: block.rows.map(cleanTableRow)
+      });
+    case 'quote':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        inlines: block.inlines.map(cleanInline)
+      });
+    case 'equation':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        ...(block.bookmarkId ? { bookmarkId: block.bookmarkId } : {}),
+        ...(block.bookmarkName ? { bookmarkName: block.bookmarkName } : {}),
+        ...(block.placeholder ? { placeholder: block.placeholder } : {}),
+        ...(block.sourceType ? { sourceType: block.sourceType } : {}),
+        ...(block.omml ? { omml: block.omml } : {}),
+        ...(block.latex ? { latex: block.latex } : {}),
+        ...(block.plainText ? { plainText: block.plainText } : {}),
+        ...(typeof block.display === 'boolean' ? { display: block.display } : {}),
+        ...(block.alignment ? { alignment: block.alignment } : {}),
+        ...(block.caption ? { caption: block.caption } : {}),
+        ...(block.numbering ? { numbering: block.numbering } : {}),
+        ...(typeof block.allowWordUpdate === 'boolean' ? { allowWordUpdate: block.allowWordUpdate } : {})
+      });
+    case 'pageBreak':
+    case 'sectionBreak':
+      return stripNulls({ type: block.type, ...(block.id ? { id: block.id } : {}) });
+    case 'bibliography':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        entries: block.entries.map((entry) => ({ id: entry.id, text: entry.text }))
+      });
+    case 'footnote':
+    case 'endnote':
+      return stripNulls({
+        type: block.type,
+        ...(block.id ? { id: block.id } : {}),
+        noteId: block.noteId,
+        inlines: block.inlines.map(cleanInline)
+      });
+  }
+}
+
+function cleanTableRow(row: TableRow): TableRow {
+  return stripNulls({
+    ...(row.id ? { id: row.id } : {}),
+    ...(typeof row.isHeader === 'boolean' ? { isHeader: row.isHeader } : {}),
+    ...(typeof row.cantSplit === 'boolean' ? { cantSplit: row.cantSplit } : {}),
+    ...(typeof row.heightPt === 'number' ? { heightPt: row.heightPt } : {}),
+    cells: row.cells.map(cleanTableCell)
+  });
+}
+
+function cleanTableCell(cell: TableCell): TableCell {
+  return stripNulls({
+    ...(cell.id ? { id: cell.id } : {}),
+    ...(typeof cell.text === 'string' ? { text: cell.text } : {}),
+    ...(cell.blocks ? { blocks: cell.blocks.map(cleanBlock) } : {}),
+    ...(typeof cell.gridSpan === 'number' ? { gridSpan: cell.gridSpan } : {}),
+    ...(cell.verticalMerge ? { verticalMerge: cell.verticalMerge } : {}),
+    ...(cell.width ? { width: cell.width } : {}),
+    ...(typeof cell.widthCm === 'number' ? { widthCm: cell.widthCm } : {}),
+    ...(cell.alignment ? { alignment: cell.alignment } : {}),
+    ...(cell.verticalAlignment ? { verticalAlignment: cell.verticalAlignment } : {}),
+    ...(cell.shading ? { shading: cell.shading } : {}),
+    ...(cell.borders ? { borders: cell.borders } : {}),
+    ...(cell.cellMargins ? { cellMargins: cell.cellMargins } : {})
+  });
+}
+
+function cleanInline(inline: Inline): Inline {
+  switch (inline.type) {
+    case 'text':
+      return stripNulls({
+        type: inline.type,
+        text: inline.text,
+        ...(inline.bold ? { bold: inline.bold } : {}),
+        ...(inline.italic ? { italic: inline.italic } : {}),
+        ...(inline.underline ? { underline: inline.underline } : {}),
+        ...(inline.verticalAlignment ? { verticalAlignment: inline.verticalAlignment } : {})
+      });
+    case 'hyperlink':
+      return stripNulls({ type: inline.type, text: inline.text, uri: inline.uri });
+    case 'citation':
+      return stripNulls({ type: inline.type, targetId: inline.targetId, displayText: inline.displayText });
+    case 'bookmark':
+      return stripNulls({ type: inline.type, name: inline.name, inlines: inline.inlines.map(cleanInline) });
+    case 'reference':
+      return stripNulls({
+        type: inline.type,
+        bookmarkName: inline.bookmarkName,
+        ...(inline.fallbackText ? { fallbackText: inline.fallbackText } : {})
+      });
+    case 'footnote':
+    case 'endnote':
+      return stripNulls({ type: inline.type, noteId: inline.noteId, inlines: inline.inlines.map(cleanInline) });
+  }
 }
 
 function validateMetadata(document: ThesisDocument, issues: ApiIssue[]) {

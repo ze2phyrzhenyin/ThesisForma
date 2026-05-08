@@ -12,6 +12,7 @@ export interface NoteEntry {
   blockIndex: number;
   inlineIndex: number | null;
   locationLabel: string;
+  referenceCount: number;
 }
 
 export function collectNotes(document: ThesisDocument): NoteEntry[] {
@@ -27,7 +28,8 @@ export function collectNotes(document: ThesisDocument): NoteEntry[] {
           sectionIndex,
           blockIndex,
           inlineIndex: null,
-          locationLabel
+          locationLabel,
+          referenceCount: 1
         });
       }
       getEditableInlines(block)?.forEach((inline, inlineIndex) => {
@@ -39,13 +41,22 @@ export function collectNotes(document: ThesisDocument): NoteEntry[] {
             sectionIndex,
             blockIndex,
             inlineIndex,
-            locationLabel
+            locationLabel,
+            referenceCount: 1
           });
         }
       });
     });
   });
-  return notes;
+  const counts = new Map<string, number>();
+  notes.forEach((note) => {
+    const key = `${note.kind}:${note.noteId}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+  return notes.map((note) => ({
+    ...note,
+    referenceCount: counts.get(`${note.kind}:${note.noteId}`) ?? 1
+  }));
 }
 
 export function insertNoteAtBlockEnd(
@@ -68,7 +79,8 @@ export function insertNoteAtBlockEnd(
       sectionIndex,
       blockIndex,
       inlineIndex: inlines.length - 1,
-      locationLabel: `${document.sections[sectionIndex].title ?? document.sections[sectionIndex].kind} / 块 ${blockIndex + 1}`
+      locationLabel: `${document.sections[sectionIndex].title ?? document.sections[sectionIndex].kind} / 块 ${blockIndex + 1}`,
+      referenceCount: 1
     };
   }
   const bodyIndex = document.sections.findIndex((section) => section.kind === 'body');
@@ -87,7 +99,8 @@ export function insertNoteAtBlockEnd(
     sectionIndex: targetSectionIndex,
     blockIndex: targetSection.blocks.length - 1,
     inlineIndex: 1,
-    locationLabel: `${targetSection.title ?? targetSection.kind} / 块 ${targetSection.blocks.length}`
+    locationLabel: `${targetSection.title ?? targetSection.kind} / 块 ${targetSection.blocks.length}`,
+    referenceCount: 1
   };
 }
 

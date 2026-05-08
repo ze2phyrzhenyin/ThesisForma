@@ -115,7 +115,19 @@ function noteNode(name: 'footnote' | 'endnote', labelPrefix: string) {
     },
 
     parseHTML() {
-      return [{ tag: `span[data-${name}]` }];
+      return [
+        {
+          tag: `span[data-${name}]`,
+          getAttrs: (node) => {
+            if (!(node instanceof HTMLElement)) return false;
+            return {
+              noteId: node.getAttribute(`data-${name}`) ?? '',
+              inlinesJson: node.getAttribute('data-inlines-json') ?? '[]',
+              label: node.getAttribute('data-label') ?? node.textContent ?? ''
+            };
+          }
+        }
+      ];
     },
 
     renderHTML({ HTMLAttributes, node }) {
@@ -123,6 +135,9 @@ function noteNode(name: 'footnote' | 'endnote', labelPrefix: string) {
         'span',
         mergeAttributes(HTMLAttributes, {
           [`data-${name}`]: node.attrs.noteId,
+          'data-inlines-json': node.attrs.inlinesJson,
+          'data-label': node.attrs.label,
+          title: node.attrs.noteId,
           class: name === 'footnote' ? 'tf-footnote-chip' : 'tf-endnote-chip'
         }),
         node.attrs.label || `[${labelPrefix} ${node.attrs.noteId}]`

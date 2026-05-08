@@ -28,11 +28,32 @@ const validDoc: ThesisDocument = {
 };
 
 describe('ThesisDocument contract helpers', () => {
+  it('imports a legal minimal ThesisDocument', () => {
+    const result = parseThesisDocumentJson(JSON.stringify(validDoc));
+    expect(result.ok).toBe(true);
+    expect(result.document?.metadata.title).toBe('测试论文');
+  });
+
   it('rejects missing schemaVersion and metadata', () => {
     const result = parseThesisDocumentJson(JSON.stringify({ sections: [] }));
     expect(result.ok).toBe(false);
     expect(result.issues.map((issue) => issue.code)).toContain('document.schemaVersion.required');
     expect(result.issues.map((issue) => issue.code)).toContain('document.metadata.required');
+  });
+
+  it('rejects missing sections', () => {
+    const result = parseThesisDocumentJson(JSON.stringify({ schemaVersion: '1.1.0', metadata: validDoc.metadata }));
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain('document.sections.required');
+  });
+
+  it('reports malformed and non-object JSON clearly', () => {
+    expect(parseThesisDocumentJson('{bad').issues[0].code).toBe('json.parse');
+    for (const value of ['[]', 'null', '"text"']) {
+      const result = parseThesisDocumentJson(value);
+      expect(result.ok).toBe(false);
+      expect(result.issues[0].code).toBe('document.type');
+    }
   });
 
   it('imports unknown local properties as warnings without crashing', () => {
@@ -54,6 +75,91 @@ describe('ThesisDocument contract helpers', () => {
       sections: [{ ...validDoc.sections[0], startOnNewPage: undefined }]
     };
     expect(JSON.stringify(cleanThesisDocument(dirty))).not.toContain('undefined');
+  });
+
+  it('cleans UI-only fields while preserving schema-backed table fields', () => {
+    const dirty = {
+      ...validDoc,
+      sections: [
+        {
+          kind: 'body',
+          blocks: [
+            {
+              type: 'table',
+              caption: '表 1',
+              uiSelection: { row: 0, col: 0 },
+              width: { type: 'percent', value: 100 },
+              borders: { bottom: { style: 'single', size: 4 } },
+              rows: [
+                {
+                  cells: [
+                    {
+                      text: 'A',
+                      gridSpan: 2,
+                      verticalAlignment: 'center',
+                      shading: 'EEEEEE',
+                      cellMargins: { leftCm: 0.1 }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    } as unknown as ThesisDocument;
+
+    const cleaned = cleanThesisDocument(dirty);
+    const table = cleaned.sections[0].blocks[0];
+
+    expect('uiSelection' in table).toBe(false);
+    expect(table).toMatchObject({
+      type: 'table',
+      width: { type: 'percent', value: 100 },
+      borders: { bottom: { style: 'single', size: 4 } },
+      rows: [{ cells: [{ gridSpan: 2, verticalAlignment: 'center', shading: 'EEEEEE', cellMargins: { leftCm: 0.1 } }] }]
+    });
+  });
+
+  it('preserves legal table fields during import normalization', () => {
+    const result = parseThesisDocumentJson(
+      JSON.stringify({
+        ...validDoc,
+        sections: [
+          {
+            kind: 'body',
+            blocks: [
+              {
+                type: 'table',
+                caption: '表 1',
+                width: { type: 'percent', value: 100 },
+                rows: [
+                  {
+                    cells: [
+                      {
+                        text: 'A',
+                        widthCm: 3,
+                        alignment: 'center',
+                        verticalAlignment: 'bottom',
+                        borders: { top: { style: 'single' } }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      })
+    );
+
+    const table = result.document?.sections[0].blocks[0];
+    expect(result.ok).toBe(true);
+    expect(table).toMatchObject({
+      type: 'table',
+      width: { type: 'percent', value: 100 },
+      rows: [{ cells: [{ widthCm: 3, alignment: 'center', verticalAlignment: 'bottom', borders: { top: { style: 'single' } } }] }]
+    });
   });
 
   it('validates duplicate note ids as errors', () => {
@@ -79,5 +185,11 @@ describe('ThesisDocument contract helpers', () => {
 
   it('builds safe export file names', () => {
     expect(exportFileNameForDocument(validDoc)).toMatch(/^测试论文-张三-2026-05-08\.json$/);
+    expect(
+      exportFileNameForDocument({
+        ...validDoc,
+        metadata: { ...validDoc.metadata, title: '标题 / A B:*?', author: '王 五' }
+      })
+    ).toBe('标题-A-B-王-五-2026-05-08.json');
   });
 });

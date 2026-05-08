@@ -87,7 +87,9 @@ function NoteGroup({ title, entries, allEntries, onUpdate, onRemove }: NoteGroup
                 <strong>{noteLabel(entry.kind, Math.max(index, 0))}</strong>
                 <code>{entry.noteId}</code>
               </div>
-              <div className={drawerStyles.muted}>{entry.locationLabel}</div>
+              <div className={drawerStyles.muted}>
+                {entry.locationLabel} · 被引用 {entry.referenceCount} 次
+              </div>
               <textarea
                 className={drawerStyles.textInput}
                 rows={3}
@@ -96,6 +98,9 @@ function NoteGroup({ title, entries, allEntries, onUpdate, onRemove }: NoteGroup
                 onChange={(e) => onUpdate(entry, e.target.value)}
               />
               {!entry.text.trim() && <div className={drawerStyles.warning}>内容为空，将在校验中显示警告。</div>}
+              {entry.referenceCount > 1 && (
+                <div className={drawerStyles.warning}>该 noteId 被多个注释标记复用，导出校验会报重复 id。</div>
+              )}
               <button
                 type="button"
                 className={drawerStyles.removeBtn}

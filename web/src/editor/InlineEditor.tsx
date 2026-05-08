@@ -154,6 +154,8 @@ function sameInlines(a: Inline[], b: Inline[]): boolean {
       if ((x.bold ?? false) !== (y.bold ?? false)) return false;
       if ((x.italic ?? false) !== (y.italic ?? false)) return false;
       if ((x.underline ?? false) !== (y.underline ?? false)) return false;
+    } else if (JSON.stringify(x) !== JSON.stringify(y)) {
+      return false;
     }
   }
   return true;
