@@ -3,37 +3,38 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-mkdir -p out/ci
+OUT_DIR="${CI_OUT_DIR:-out/ci}"
+mkdir -p "$OUT_DIR"
 
 dotnet run --project src/ThesisDocx.Cli -- requirements report \
   --requirements examples/requirements/example-engineering-requirements.json \
   --template examples/templates/example-university-engineering \
-  --out out/ci/example-engineering.requirements-report.json
+  --out "$OUT_DIR/example-engineering.requirements-report.json"
 
 dotnet run --project src/ThesisDocx.Cli -- baseline compare \
   --suite examples/template-regression/template-regression-suite.json \
-  --out out/ci/baseline-compare-report.json
+  --out "$OUT_DIR/baseline-compare-report.json"
 
 dotnet run --project src/ThesisDocx.Cli -- baseline compare \
   --fixtures examples/format-fixtures \
-  --out out/ci/format-fixtures-baseline-compare.json
+  --out "$OUT_DIR/format-fixtures-baseline-compare.json"
 
 dotnet run --project src/ThesisDocx.Cli -- template regression \
   --suite examples/template-regression/template-regression-suite.json \
-  --out out/ci/template-regression-report.json
+  --out "$OUT_DIR/template-regression-report.json"
 
 dotnet run --project src/ThesisDocx.Cli -- template gate \
   --template examples/templates/example-university-engineering \
   --document examples/full-thesis/document.json \
-  --out out/ci/template-gate-report.json
+  --out "$OUT_DIR/template-gate-report.json"
 
 dotnet run --project src/ThesisDocx.Cli -- template diagnose \
   --template examples/templates/example-university-engineering \
   --document examples/full-thesis/document.json \
   --requirements examples/requirements/example-engineering-requirements.json \
   --suite examples/template-regression/template-regression-suite.json \
-  --out out/ci/template-diagnostic-report.json \
-  --markdown out/ci/template-diagnostic-report.md
+  --out "$OUT_DIR/template-diagnostic-report.json" \
+  --markdown "$OUT_DIR/template-diagnostic-report.md"
 
 dotnet run --project src/ThesisDocx.Cli -- template authoring-report \
   --template examples/templates/example-university-engineering \
@@ -41,5 +42,5 @@ dotnet run --project src/ThesisDocx.Cli -- template authoring-report \
   --requirements examples/requirements/example-engineering-requirements.json \
   --suite examples/template-regression/template-regression-suite.json \
   --threshold 0.85 \
-  --out out/ci/template-authoring-report.json \
-  --markdown out/ci/template-authoring-report.md
+  --out "$OUT_DIR/template-authoring-report.json" \
+  --markdown "$OUT_DIR/template-authoring-report.md"

@@ -51,6 +51,8 @@ public sealed class CiQualityGateTests
     {
         var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate"));
 
+        Assert.Contains("CI_OUT_DIR", content);
+        Assert.Contains("--out)", content);
         Assert.Contains("out/ci", content);
         Assert.DoesNotContain("/tmp/", content);
     }
@@ -60,8 +62,8 @@ public sealed class CiQualityGateTests
     {
         var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-render-examples"));
 
-        Assert.Contains("out/ci/simple.docx", content);
-        Assert.Contains("out/ci/template-full.docx", content);
+        Assert.Contains("$OUT_DIR/simple.docx", content);
+        Assert.Contains("$OUT_DIR/template-full.docx", content);
     }
 
     [Fact]

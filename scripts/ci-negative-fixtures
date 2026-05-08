@@ -3,8 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-mkdir -p out/ci
+OUT_DIR="${CI_OUT_DIR:-out/ci}"
+mkdir -p "$OUT_DIR"
 
 dotnet run --project src/ThesisDocx.Cli -- negative-fixtures run \
   --manifest examples/negative-fixtures/negative-fixture-manifest.json \
-  --out out/ci/negative-fixtures-report.json
+  --out "$OUT_DIR/negative-fixtures-report.json"

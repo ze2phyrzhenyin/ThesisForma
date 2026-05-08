@@ -3,23 +3,24 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-mkdir -p out/ci
+OUT_DIR="${CI_OUT_DIR:-out/ci}"
+mkdir -p "$OUT_DIR"
 
 dotnet run --project src/ThesisDocx.Cli -- render \
   --document examples/simple-thesis/document.json \
   --format examples/format-specs/basic-cn-thesis.json \
-  --out out/ci/simple.docx
+  --out "$OUT_DIR/simple.docx"
 
 dotnet run --project src/ThesisDocx.Cli -- validate \
-  --docx out/ci/simple.docx \
+  --docx "$OUT_DIR/simple.docx" \
   --format examples/format-specs/basic-cn-thesis.json
 
 dotnet run --project src/ThesisDocx.Cli -- render \
   --document examples/full-thesis/document.json \
   --template examples/templates/example-university-engineering \
   --var variables.defenseDate=2026-06-01 \
-  --out out/ci/template-full.docx
+  --out "$OUT_DIR/template-full.docx"
 
 dotnet run --project src/ThesisDocx.Cli -- validate \
-  --docx out/ci/template-full.docx \
+  --docx "$OUT_DIR/template-full.docx" \
   --template examples/templates/example-university-engineering
