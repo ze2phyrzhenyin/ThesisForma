@@ -1,177 +1,177 @@
-import type { AssetRef, RenderRun, TemplateSummary } from '../components/thesis-editor/types';
-import { createLocalDraftId, localDocumentKey, saveLocalDraft } from '../components/thesis-editor/localDraftStorage';
+import type {
+  ApiError,
+  AssetUploadResponse,
+  CreateDocumentRequest,
+  DocumentEnvelope,
+  DocumentValidationResponse,
+  RenderRunResponse,
+  TemplateDetail,
+  TemplateSummary,
+  ThesisDocument
+} from '@/types';
 
-const apiBase = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_BASE ?? '');
-const docxRenderEnabled = parseBoolean(import.meta.env.VITE_ENABLE_DOCX_RENDER, false);
+const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
-export const appConfig = {
-  appMode: import.meta.env.VITE_APP_MODE ?? 'frontend-only',
-  apiBase,
-  docxRenderEnabled: docxRenderEnabled && apiBase.length > 0,
-  localExportEnabled: parseBoolean(import.meta.env.VITE_ENABLE_LOCAL_EXPORT, true)
-};
+export class ThesisApiError extends Error {
+  readonly status: number;
+  readonly payload: ApiError | null;
 
-const demoTemplates: TemplateSummary[] = [
-  {
-    id: 'example-university-engineering',
-    name: 'Example University Engineering Thesis',
-    school: 'Example University',
-    college: 'Example Engineering College',
-    version: '1.0.0',
-    status: 'ready',
-    coverage: 0.875,
-    readiness: 'ready',
-    tags: ['example']
+  constructor(status: number, payload: ApiError | null, fallback: string) {
+    super(payload?.message ?? fallback);
+    this.status = status;
+    this.payload = payload;
+    this.name = 'ThesisApiError';
   }
-];
+}
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  if (!apiBase) {
-    throw new Error('API is not configured for this frontend deployment.');
-  }
-  const response = await fetch(apiBase + url, {
-    headers: init?.body instanceof FormData ? undefined : { 'content-type': 'application/json', ...init?.headers },
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(init?.headers ?? {})
+    },
     ...init
   });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(payload.message ?? `Request failed: ${response.status}`);
+
+  if (!res.ok) {
+    let payload: ApiError | null = null;
+    try {
+      payload = (await res.json()) as ApiError;
+    } catch {
+      // ignore
+    }
+    throw new ThesisApiError(res.status, payload, `${init?.method ?? 'GET'} ${path} failed: ${res.status}`);
   }
-  return response.json() as Promise<T>;
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return (await res.json()) as T;
+  }
+  return (await res.text()) as unknown as T;
 }
 
-export const templateApi = {
-  async list(): Promise<TemplateSummary[]> {
-    if (!apiBase) {
-      return demoTemplates;
-    }
-    const response = await request<{ templates: TemplateSummary[] }>('/api/templates');
-    return response.templates;
-  }
-};
+// ───── Templates ───────────────────────────────────────────────────────────
 
-export const documentApi = {
-  create(body: unknown) {
-    if (!apiBase) {
-      const id = createLocalDraftId();
-      const envelope = saveLocalDraft(id, body, readTemplateId(body));
-      return Promise.resolve(envelope);
-    }
-    return request<{ id: string; document: unknown; templateId?: string }>('/api/documents', {
-      method: 'POST',
-      body: JSON.stringify(body)
-    });
-  },
-  save(id: string, document: unknown, templateId?: string) {
-    if (!apiBase) {
-      const envelope = saveLocalDraft(id, document, templateId);
-      return Promise.resolve(envelope);
-    }
-    return request<{ id: string; document: unknown; templateId?: string }>(`/api/documents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ document, templateId })
-    });
-  },
-  validate(id: string, templateId?: string) {
-    if (!apiBase) {
-      void id;
-      void templateId;
-      return Promise.resolve({ isValid: true, issues: [] });
-    }
-    return request<{ isValid: boolean; issues: any[] }>(`/api/documents/${id}/validate`, {
-      method: 'POST',
-      body: JSON.stringify({ templateId })
-    });
-  },
-  exportJson(id: string) {
-    if (!apiBase) {
-      const item = localStorage.getItem(localDocumentKey(id));
-      return Promise.resolve(new Response(item ?? '{}', { headers: { 'content-type': 'application/json' } }));
-    }
-    return fetch(apiBase + `/api/documents/${id}/export-json`, { method: 'POST' });
-  },
-  importJson(document: unknown, templateId?: string) {
-    if (!apiBase) {
-      const id = createLocalDraftId();
-      const envelope = saveLocalDraft(id, document, templateId);
-      return Promise.resolve(envelope);
-    }
-    return request<{ id: string; document: unknown; templateId?: string }>('/api/documents/import-json', {
-      method: 'POST',
-      body: JSON.stringify({ document, templateId })
-    });
-  }
-};
-
-export const assetApi = {
-  async uploadImage(file: File): Promise<AssetRef> {
-    if (!apiBase) {
-      const assetId = localId('asset');
-      return {
-        assetId,
-        fileName: file.name,
-        imagePath: `local-assets/${assetId}/${safeFileName(file.name)}`,
-        previewUrl: typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '',
-        contentType: file.type || 'application/octet-stream'
-      };
-    }
-    const form = new FormData();
-    form.append('file', file);
-    const response = await request<{ assetId: string; fileName: string; imagePath: string; previewUrl: string; contentType: string }>('/api/assets/images', {
-      method: 'POST',
-      body: form
-    });
-    return response;
-  }
-};
-
-export const renderApi = {
-  render(documentId: string, templateId?: string) {
-    if (!appConfig.docxRenderEnabled) {
-      void templateId;
-      return Promise.resolve({
-        runId: 'render-disabled',
-        status: 'disabled',
-        openXmlValid: false,
-        formatValid: false,
-        downloadUrl: '',
-        issues: [{
-          code: 'render.backendRequired',
-          severity: 'info',
-          message: '当前部署仅支持结构化编辑与 JSON 导出；DOCX 生成需要连接后端渲染服务。',
-          suggestedAction: '部署 ThesisDocx.Api 或设置 VITE_API_BASE_URL 并启用 VITE_ENABLE_DOCX_RENDER。'
-        }]
-      } satisfies RenderRun);
-    }
-    return request<RenderRun>(`/api/documents/${documentId}/render`, {
-      method: 'POST',
-      body: JSON.stringify({ templateId })
-    });
-  },
-  getRun(runId: string) {
-    return request<RenderRun>(`/api/runs/${runId}`);
-  }
-};
-
-function parseBoolean(value: unknown, fallback: boolean) {
-  if (typeof value !== 'string' || value.length === 0) return fallback;
-  return value.toLowerCase() === 'true';
+export async function listTemplates(): Promise<TemplateSummary[]> {
+  const res = await request<{ templates: TemplateSummary[] }>('/api/templates');
+  return res.templates;
 }
 
-function normalizeBaseUrl(value: string) {
-  return value.trim().replace(/\/$/, '');
+export async function getTemplate(id: string): Promise<TemplateDetail> {
+  return request<TemplateDetail>(`/api/templates/${encodeURIComponent(id)}`);
 }
 
-function localId(prefix: string) {
-  return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)}`;
+// ───── Documents ───────────────────────────────────────────────────────────
+
+export async function createDocument(req: CreateDocumentRequest): Promise<DocumentEnvelope> {
+  return request<DocumentEnvelope>('/api/documents', {
+    method: 'POST',
+    body: JSON.stringify(req)
+  });
 }
 
-function readTemplateId(body: unknown) {
-  return typeof body === 'object' && body !== null && 'templateId' in body
-    ? String((body as { templateId?: unknown }).templateId ?? '')
-    : undefined;
+export async function getDocument(id: string): Promise<DocumentEnvelope> {
+  return request<DocumentEnvelope>(`/api/documents/${encodeURIComponent(id)}`);
 }
 
-function safeFileName(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, '_');
+export async function saveDocument(
+  id: string,
+  document: ThesisDocument,
+  templateId?: string | null
+): Promise<DocumentEnvelope> {
+  return request<DocumentEnvelope>(`/api/documents/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ document: stripNulls(document), templateId: templateId ?? null })
+  });
+}
+
+/**
+ * Recursively drop properties whose value is `null` or `undefined`. The .NET
+ * serializer emits nulls for optional fields, but our JSON schema validator
+ * rejects them ("string" doesn't allow null). We sanitize before sending.
+ */
+function stripNulls<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripNulls(v)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === null || v === undefined) continue;
+      out[k] = stripNulls(v);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
+export async function validateDocument(
+  id: string,
+  templateId?: string | null
+): Promise<DocumentValidationResponse> {
+  return request<DocumentValidationResponse>(`/api/documents/${encodeURIComponent(id)}/validate`, {
+    method: 'POST',
+    body: JSON.stringify({ templateId: templateId ?? null })
+  });
+}
+
+export async function renderDocument(
+  id: string,
+  templateId?: string | null
+): Promise<RenderRunResponse> {
+  return request<RenderRunResponse>(`/api/documents/${encodeURIComponent(id)}/render`, {
+    method: 'POST',
+    body: JSON.stringify({ templateId: templateId ?? null })
+  });
+}
+
+export async function getRun(runId: string): Promise<RenderRunResponse> {
+  return request<RenderRunResponse>(`/api/runs/${encodeURIComponent(runId)}`);
+}
+
+export function runDownloadUrl(runId: string): string {
+  return `${BASE}/api/runs/${encodeURIComponent(runId)}/download`;
+}
+
+// ───── Import / Export ─────────────────────────────────────────────────────
+
+export async function importDocumentJson(
+  document: ThesisDocument,
+  templateId?: string | null
+): Promise<DocumentEnvelope> {
+  return request<DocumentEnvelope>('/api/documents/import-json', {
+    method: 'POST',
+    body: JSON.stringify({ document: stripNulls(document), templateId: templateId ?? null })
+  });
+}
+
+export function exportDocumentJsonUrl(id: string): string {
+  return `${BASE}/api/documents/${encodeURIComponent(id)}/export-json`;
+}
+
+// ───── Assets ──────────────────────────────────────────────────────────────
+
+export async function uploadImage(file: File): Promise<AssetUploadResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${BASE}/api/assets/images`, { method: 'POST', body: form });
+  if (!res.ok) {
+    let payload: ApiError | null = null;
+    try {
+      payload = (await res.json()) as ApiError;
+    } catch {
+      // ignore
+    }
+    throw new ThesisApiError(res.status, payload, `Upload failed: ${res.status}`);
+  }
+  return (await res.json()) as AssetUploadResponse;
+}
+
+export function assetUrl(assetId: string): string {
+  return `${BASE}/api/assets/${encodeURIComponent(assetId)}`;
 }

@@ -1,0 +1,131 @@
+.eq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  padding: 2px;
+  width: fit-content;
+}
+
+.tab {
+  padding: 2px 12px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-xs);
+  color: var(--color-text-soft);
+}
+
+.tab[data-active='true'] {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.latexPane {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  align-items: stretch;
+}
+
+.codeInput {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  padding: var(--sp-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  resize: vertical;
+  width: 100%;
+}
+
+.codeInput:focus {
+  border-color: var(--color-brand);
+  outline: none;
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  min-height: 90px;
+  overflow-x: auto;
+}
+
+.previewHint {
+  color: var(--color-text-faint);
+  font-size: var(--fs-xs);
+}
+
+.previewBody {
+  text-align: center;
+}
+
+.previewError {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--color-error);
+  background: var(--color-error-soft);
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
+}
+
+.captionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.captionLabel {
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+}
+
+.captionInput {
+  flex: 1;
+  padding: 4px var(--sp-2);
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-family: var(--font-serif);
+}
+
+.captionInput:focus {
+  border-color: var(--color-brand);
+  border-style: solid;
+  outline: none;
+}
+
+.formatInput {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  padding: 2px 6px;
+  width: 100px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+}

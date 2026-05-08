@@ -1,0 +1,136 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  height: var(--layout-topbar);
+  padding: 0 var(--sp-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--sp-10) var(--sp-6) var(--sp-16);
+  width: 100%;
+}
+
+.title {
+  font-size: var(--fs-3xl);
+  margin: 0 0 var(--sp-2);
+}
+
+.subtitle {
+  color: var(--color-text-soft);
+  margin: 0 0 var(--sp-8);
+}
+
+.muted {
+  color: var(--color-text-mute);
+  font-size: var(--fs-sm);
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-lg);
+  background: var(--color-surface);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-2);
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.name {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.version {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+}
+
+.meta {
+  font-size: var(--fs-sm);
+  color: var(--color-text-soft);
+}
+
+.tags {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: var(--fs-2xs);
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: var(--color-surface-soft);
+  color: var(--color-text-soft);
+}
+
+.cardFoot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.status {
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+
+.status[data-status='ready'] {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.status[data-status='review'] {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.useBtn {
+  font-size: var(--fs-sm);
+  color: var(--color-brand);
+  font-weight: 500;
+}
+
+.useBtn:hover {
+  color: var(--color-brand-strong);
+}

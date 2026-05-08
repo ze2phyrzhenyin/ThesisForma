@@ -1,0 +1,12 @@
+.box {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--r-md);
+  background: var(--color-surface-soft);
+}
+
+.box strong {
+  display: block;
+  margin-bottom: var(--sp-1);
+  color: var(--color-text);
+}

@@ -1,0 +1,112 @@
+.nav {
+  padding: var(--sp-4) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupTitle {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+  padding: 0 var(--sp-2) var(--sp-1);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  color: var(--color-text-soft);
+  text-align: left;
+  width: 100%;
+  position: relative;
+}
+
+.item:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.itemActive {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: 500;
+}
+
+.itemActive:hover {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+}
+
+.itemMuted {
+  color: var(--color-text-mute);
+}
+
+.itemDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.itemAdd {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--color-text-faint);
+}
+
+.item:hover .itemAdd {
+  color: var(--color-brand);
+}
+
+.outlineItem {
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+  padding: 4px var(--sp-2);
+  text-align: left;
+  width: 100%;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outlineItem:hover {
+  color: var(--color-text);
+  background: var(--color-surface-soft);
+}
+
+.outlineItem[data-level='1'] {
+  padding-left: var(--sp-2);
+  color: var(--color-text-soft);
+}
+
+.outlineItem[data-level='2'] {
+  padding-left: var(--sp-4);
+}
+
+.outlineItem[data-level='3'] {
+  padding-left: var(--sp-6);
+}
+
+.outlineItem[data-level='4'],
+.outlineItem[data-level='5'],
+.outlineItem[data-level='6'] {
+  padding-left: var(--sp-8);
+}

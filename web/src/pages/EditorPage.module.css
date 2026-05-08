@@ -1,0 +1,45 @@
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbarFallback {
+  display: flex;
+  align-items: center;
+  height: var(--layout-topbar);
+  padding: 0 var(--sp-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--layout-rail-left) 1fr auto;
+  min-height: 0;
+}
+
+.page[data-focus-mode='true'] .layout {
+  grid-template-columns: 1fr;
+}
+
+.leftRail {
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-y: auto;
+}
+
+.canvas {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-soft);
+}

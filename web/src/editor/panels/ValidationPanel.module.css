@@ -1,0 +1,93 @@
+.statusBar {
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-xs);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.statusBar[data-status='idle'] {
+  color: var(--color-text-mute);
+}
+
+.statusBar[data-status='ok'] {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.statusBar[data-status='error'] {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+
+.checkedAt {
+  color: var(--color-text-mute);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.item {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-border);
+}
+
+.item[data-severity='error'] {
+  border-left-color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.item[data-severity='warning'] {
+  border-left-color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.severity {
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--color-text-mute);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+}
+
+.message {
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  margin-bottom: var(--sp-1);
+}
+
+.pathBtn {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--color-brand);
+  padding: 2px 4px;
+  border-radius: var(--r-xs);
+  margin: 0;
+}
+
+.pathBtn:hover {
+  background: var(--color-brand-soft);
+}

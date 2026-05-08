@@ -1,0 +1,146 @@
+/* ── Paragraph ────────────────────────────────────────────────── */
+
+.paragraph {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-relaxed);
+  color: var(--color-text);
+}
+
+.paragraph[data-align='center'] {
+  text-align: center;
+}
+
+.paragraph[data-align='right'] {
+  text-align: right;
+}
+
+.paragraph[data-align='both'] {
+  text-align: justify;
+}
+
+/* ── Heading ──────────────────────────────────────────────────── */
+
+.heading {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: var(--lh-tight);
+}
+
+.heading[data-level='1'] {
+  font-size: var(--fs-3xl);
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+
+.heading[data-level='2'] {
+  font-size: var(--fs-2xl);
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+
+.heading[data-level='3'] {
+  font-size: var(--fs-xl);
+  margin: var(--sp-3) 0 var(--sp-1);
+}
+
+.heading[data-level='4'],
+.heading[data-level='5'],
+.heading[data-level='6'] {
+  font-size: var(--fs-lg);
+  margin: var(--sp-2) 0;
+}
+
+/* ── Quote ────────────────────────────────────────────────────── */
+
+.quote {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-relaxed);
+  color: var(--color-text-soft);
+  padding-left: var(--sp-4);
+  border-left: 3px solid var(--color-border-strong);
+}
+
+/* ── List ─────────────────────────────────────────────────────── */
+
+.list {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-normal);
+  margin: 0;
+  padding-left: var(--sp-6);
+}
+
+.listItem {
+  margin: var(--sp-1) 0;
+}
+
+/* ── Breaks ───────────────────────────────────────────────────── */
+
+.break {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--color-text-mute);
+  font-size: var(--fs-xs);
+  user-select: none;
+}
+
+.breakLine {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.breakText {
+  letter-spacing: 0.04em;
+}
+
+/* ── Unsupported ──────────────────────────────────────────────── */
+
+.unsupported {
+  padding: var(--sp-3);
+  background: var(--color-warning-soft);
+  border-radius: var(--r-sm);
+  color: var(--color-warning);
+  font-size: var(--fs-sm);
+}
+
+/* ── Toolbar primitives (shared by block bottom toolbar) ─────── */
+
+.toolbarLabel {
+  color: var(--color-text-mute);
+}
+
+.toolbarBtn {
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  color: var(--color-text-soft);
+  font-size: var(--fs-xs);
+  background: transparent;
+}
+
+.toolbarBtn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.toolbarBtn[data-active='true'] {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border-color: transparent;
+}
+
+.toolbarSeparator {
+  color: var(--color-text-faint);
+  padding: 0 var(--sp-1);
+}
+
+.toolbarCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-soft);
+  cursor: pointer;
+}

@@ -1,0 +1,87 @@
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px 1fr 56px;
+  gap: var(--sp-2);
+  padding: 6px 0;
+  border-radius: var(--r-md);
+  transition: background var(--t-fast) var(--ease);
+}
+
+.shell:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.selected {
+  background: rgba(59, 91, 219, 0.04);
+}
+
+.gutter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.gutterControls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.iconBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  color: var(--color-text-mute);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  transition:
+    color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+
+.iconBtn:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.bodyInner {
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--color-surface-soft);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+
+.badge {
+  font-size: var(--fs-2xs);
+  color: var(--color-text-faint);
+  text-align: right;
+  padding-top: 4px;
+  user-select: none;
+}

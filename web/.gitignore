@@ -1,1 +1,9 @@
+node_modules
+dist
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
 .vercel
+.env
+.env.local
