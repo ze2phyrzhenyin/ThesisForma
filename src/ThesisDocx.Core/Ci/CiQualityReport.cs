@@ -1,4 +1,5 @@
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Ci;
 
@@ -17,7 +18,10 @@ public sealed class CiQualityReport
     public List<UnifiedDiagnostic> Diagnostics => BlockingIssues
         .Concat(Warnings)
         .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .Concat(VersionReport.Diagnostics)
         .ToList();
+
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     public List<string> RecommendedNextActions { get; set; } = [];
 

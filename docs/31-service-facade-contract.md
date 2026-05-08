@@ -32,6 +32,15 @@ Facade results share these fields:
 
 `versionReport` uses `SchemaVersionSupport` and has a stable `reportVersion`, `isValid`, `checks[]`, and `diagnostics[]`. `checks[].direction` is one of `current`, `supported`, `old`, `future`, `missing`, `unsupported`, or `unknown`. Schema-aware CLI JSON consumers should read this report instead of reimplementing supported-version checks. Unsupported versions also surface as normalized diagnostics when they affect operation success, and the same shape is documented by `schemas/version-report.schema.json`.
 
+The same version report is now carried through the long-running template quality reports:
+
+- `template gate`
+- `template diagnose`
+- `template authoring-report`
+- `ci quality-report`
+
+These reports include checks for `thesisDocument`, `templatePackage`, and the resolved `thesisFormatSpec` when all inputs are available. This is additive: the historical report root object is preserved, and `versionReport` is a stable nested contract for machine consumers.
+
 Specific facades may also return:
 
 - `isValid`
@@ -76,3 +85,9 @@ For successful commands, CLI output keeps the historical report shape:
 - `onboarding package-validate` writes `TemplatePilotPackageValidationResult`.
 
 The facade result wrapper is emitted only when a command cannot produce its normal report.
+
+## Versioning Boundaries
+
+Migration hooks are intentionally no-op today. A supported older version may pass with `direction: "supported"`, but the facade does not rewrite it to the current version. Unsupported old, future, missing, or malformed versions report `versionReport.isValid: false` and populate `versionReport.diagnostics[]` with stable codes such as `thesis.schemaVersion.unsupported`, `format.schemaVersion.unsupported`, or `template.schemaVersion.unsupported`.
+
+Future API wrappers should pass through `versionReport` unchanged. They should not infer version support from message text or from enum ordering in the web client.

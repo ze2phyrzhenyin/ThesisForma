@@ -1,4 +1,5 @@
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Templates.Authoring;
 
@@ -31,7 +32,10 @@ public sealed class TemplateAuthoringReport
     public List<UnifiedDiagnostic> Diagnostics => BlockingIssues
         .Concat(Warnings)
         .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .Concat(VersionReport.Diagnostics)
         .ToList();
+
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     public List<string> RecommendedNextActions { get; set; } = [];
 

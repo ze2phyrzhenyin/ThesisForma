@@ -46,6 +46,8 @@ public sealed class CiQualityReportBuilder
             CoverageThreshold = options.Threshold
         });
         AddCheck(report, "authoring", "Template authoring report", authoring.PublishReadiness != "notReady", authoring.PublishReadiness, ("authoringReport", Path.Combine(options.OutputDirectory, "template-authoring-report.json")));
+        report.VersionReport.MergeFrom(gate.VersionReport);
+        report.VersionReport.MergeFrom(authoring.VersionReport);
 
         var negative = new NegativeFixtureRunner().Run(options.NegativeFixturesPath);
         AddCheck(report, "negativeFixtures", "Negative fixtures", negative.Passed, $"{negative.Cases.Count} negative case(s)", ("negativeFixturesReport", Path.Combine(options.OutputDirectory, "negative-fixtures-report.json")));

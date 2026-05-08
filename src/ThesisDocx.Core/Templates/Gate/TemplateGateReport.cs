@@ -1,6 +1,7 @@
 namespace ThesisDocx.Core.Templates.Gate;
 
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Versioning;
 
 public sealed class TemplateGateReport
 {
@@ -18,7 +19,10 @@ public sealed class TemplateGateReport
 
     public List<UnifiedDiagnostic> MachineDiagnostics => Diagnostics
         .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .Concat(VersionReport.Diagnostics)
         .ToList();
+
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     public List<FixHint> FixHints { get; set; } = [];
 

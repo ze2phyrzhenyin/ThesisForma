@@ -102,18 +102,50 @@ public sealed class CliJsonContractTests
         AssertReportFile(root, "requirements report", Path.Combine(temp, "requirements-report.json"),
             path => CliRunner.Run(root, "requirements", "report", "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--out", path));
         AssertReportFile(root, "template gate", Path.Combine(temp, "template-gate.json"),
-            path => CliRunner.Run(root, "template", "gate", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--out", path));
+            path => CliRunner.Run(root, "template", "gate", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--out", path),
+            expectedVersionKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
         AssertReportFile(root, "template diagnose", Path.Combine(temp, "template-diagnose.json"),
-            path => CliRunner.Run(root, "template", "diagnose", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--out", path));
+            path => CliRunner.Run(root, "template", "diagnose", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--out", path),
+            expectedVersionKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
         AssertReportFile(root, "template authoring-report", Path.Combine(temp, "template-authoring.json"),
-            path => CliRunner.Run(root, "template", "authoring-report", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--threshold", "0.85", "--out", path));
+            path => CliRunner.Run(root, "template", "authoring-report", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--threshold", "0.85", "--out", path),
+            expectedVersionKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
         AssertReportFile(root, "negative-fixtures", Path.Combine(temp, "negative-fixtures.json"),
             path => CliRunner.Run(root, "negative-fixtures", "run", "--manifest", Path.Combine(root, "examples", "negative-fixtures", "negative-fixture-manifest.json"), "--out", path));
         AssertReportFile(root, "ci quality-report", Path.Combine(temp, "ci-quality.json"),
-            path => CliRunner.Run(root, "ci", "quality-report", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--negative-fixtures", Path.Combine(root, "examples", "negative-fixtures", "negative-fixture-manifest.json"), "--threshold", "0.85", "--out", path));
+            path => CliRunner.Run(root, "ci", "quality-report", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--document", Path.Combine(root, "examples", "full-thesis", "document.json"), "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--suite", Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"), "--negative-fixtures", Path.Combine(root, "examples", "negative-fixtures", "negative-fixture-manifest.json"), "--threshold", "0.85", "--out", path),
+            expectedVersionKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
     }
 
-    private static void AssertReportFile(string root, string name, string outputPath, Func<string, CliResult> run)
+    [Fact]
+    public void CliJson_TemplateGateUnsupportedVersion_ShouldExposeVersionReport()
+    {
+        var root = RepoRoot();
+        var temp = NewTempDirectory();
+        var documentPath = Path.Combine(temp, "future-document.json");
+        File.WriteAllText(
+            documentPath,
+            File.ReadAllText(Path.Combine(root, "examples", "full-thesis", "document.json"))
+                .Replace("\"schemaVersion\": \"1.1.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
+        var outputPath = Path.Combine(temp, "gate.json");
+
+        var result = CliRunner.Run(
+            root,
+            "template", "gate",
+            "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"),
+            "--document", documentPath,
+            "--out", outputPath);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+        var json = ParseObject(File.ReadAllText(outputPath));
+        var versionReport = AssertVersionReport(json, expectedKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
+        Assert.False(versionReport["isValid"]!.GetValue<bool>());
+        Assert.Equal("future", RequiredVersionCheck(versionReport, "thesisDocument")["direction"]!.GetValue<string>());
+        AssertDiagnosticContract(RequiredVersionDiagnostic(versionReport, "thesis.schemaVersion.unsupported"), "error", "schema");
+    }
+
+    private static void AssertReportFile(string root, string name, string outputPath, Func<string, CliResult> run, string[]? expectedVersionKinds = null)
     {
         var result = run(outputPath);
         Assert.Equal(0, result.ExitCode);
@@ -121,6 +153,11 @@ public sealed class CliJsonContractTests
         Assert.True(File.Exists(outputPath), $"{name} did not write {outputPath}");
         var json = ParseObject(File.ReadAllText(outputPath));
         Assert.DoesNotContain(EnumerateSeverityValues(json), severity => severity == "breaking");
+        if (expectedVersionKinds is not null)
+        {
+            AssertVersionReport(json, expectedVersionKinds);
+        }
+
         _ = root;
     }
 

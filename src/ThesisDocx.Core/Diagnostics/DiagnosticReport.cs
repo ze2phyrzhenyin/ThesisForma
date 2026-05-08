@@ -1,5 +1,7 @@
 namespace ThesisDocx.Core.Diagnostics;
 
+using ThesisDocx.Core.Versioning;
+
 public sealed class DiagnosticReport
 {
     public string Status { get; set; } = "pass";
@@ -16,7 +18,10 @@ public sealed class DiagnosticReport
 
     public List<UnifiedDiagnostic> Diagnostics => Issues
         .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .Concat(VersionReport.Diagnostics)
         .ToList();
+
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     public List<DiagnosticIssueGroup> GroupedIssues { get; set; } = [];
 

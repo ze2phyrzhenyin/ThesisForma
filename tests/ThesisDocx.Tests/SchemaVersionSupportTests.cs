@@ -85,6 +85,28 @@ public sealed class SchemaVersionSupportTests
     }
 
     [Fact]
+    public void MissingVersion_ShouldReturnMissingDirectionDiagnostic()
+    {
+        var result = new SchemaVersionSupport().CheckThesisDocument(null);
+
+        Assert.False(result.IsSupported);
+        Assert.Equal("missing", result.Direction);
+        Assert.Equal("thesis.schemaVersion.unsupported", result.Diagnostic!.Code);
+        Assert.Equal("missing", result.Diagnostic.Details["direction"]);
+    }
+
+    [Fact]
+    public void MalformedVersion_ShouldReturnUnknownDirectionDiagnostic()
+    {
+        var result = new SchemaVersionSupport().CheckTemplatePackage("preview");
+
+        Assert.False(result.IsSupported);
+        Assert.Equal("unknown", result.Direction);
+        Assert.Equal("template.schemaVersion.unsupported", result.Diagnostic!.Code);
+        Assert.Equal("unknown", result.Diagnostic.Details["direction"]);
+    }
+
+    [Fact]
     public void NoOpMigrators_ShouldPreserveVersions()
     {
         var document = new ThesisDocument { SchemaVersion = "1.0.0" };

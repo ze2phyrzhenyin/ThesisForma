@@ -88,6 +88,7 @@ public sealed class TemplateAuthoringReportBuilder
             },
             BlockingIssues = diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)).ToList(),
             Warnings = diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)).ToList(),
+            VersionReport = gate.VersionReport,
             RecommendedNextActions = diagnostic.TopRecommendedActions,
             RelatedArtifacts = diagnostic.RelatedArtifacts
         };

@@ -48,6 +48,26 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void ValidateService_ShouldReturnVersionDiagnosticsForUnsupportedVersion()
+    {
+        var (document, format, baseDirectory) = LoadSimple();
+        document.SchemaVersion = "9.9.9";
+
+        var result = new ThesisValidateService().ValidateInput(new ValidateInputRequest
+        {
+            Document = document,
+            Format = format,
+            BaseDirectory = baseDirectory
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "thesisDocument"
+            && check.Direction == "future");
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "thesis.schemaVersion.unsupported");
+    }
+
+    [Fact]
     public void RenderService_ShouldReturnArtifactMetadataWithoutAbsolutePath()
     {
         var (document, format, baseDirectory) = LoadSimple();
@@ -66,6 +86,27 @@ public sealed class CoreServiceFacadeTests
         Assert.Equal("service-render.docx", result.Artifact!.Path);
         Assert.True(result.Artifact.ByteSize > 0);
         Assert.DoesNotContain(Path.GetTempPath(), JsonSerializer.Serialize(result, ThesisJson.Options));
+    }
+
+    [Fact]
+    public void RenderService_ShouldReturnDiagnosticsForInvalidInputWithoutArtifact()
+    {
+        var (document, format, baseDirectory) = LoadSimple();
+        document.SchemaVersion = "9.9.9";
+        var output = Path.Combine(NewTempDirectory(), "should-not-render.docx");
+
+        var result = new ThesisRenderService().Render(new RenderRequest
+        {
+            Document = document,
+            Format = format,
+            BaseDirectory = baseDirectory,
+            OutputPath = output
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Artifact);
+        Assert.False(File.Exists(output));
+        Assert.Contains(result.VersionReport.Diagnostics, diagnostic => diagnostic.Code == "thesis.schemaVersion.unsupported");
     }
 
     [Fact]
@@ -88,6 +129,18 @@ public sealed class CoreServiceFacadeTests
         Assert.NotNull(result.Resolution?.FormatSpec);
         Assert.Contains(result.VersionReport.Checks, check => check.Kind == "templatePackage");
         Assert.DoesNotContain(result.VersionReport.Checks, check => check.Direction == "unsupported");
+    }
+
+    [Fact]
+    public void TemplateResolveService_ShouldReturnDiagnosticForMissingPath()
+    {
+        var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = Path.Combine(NewTempDirectory(), "missing-template")
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.resolveFailed");
     }
 
     [Fact]
@@ -138,6 +191,9 @@ public sealed class CoreServiceFacadeTests
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
         Assert.Equal("example-university-engineering", result.Report!.TemplateId);
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "templatePackage");
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisFormatSpec");
     }
 
     [Fact]
@@ -157,6 +213,8 @@ public sealed class CoreServiceFacadeTests
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
         Assert.Equal("pass", result.Report!.Status);
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
+        Assert.DoesNotContain(result.Report.Diagnostics, diagnostic => diagnostic.Code == "thesis.schemaVersion.unsupported");
     }
 
     [Fact]
@@ -177,6 +235,7 @@ public sealed class CoreServiceFacadeTests
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
         Assert.Equal("ready", result.Report!.PublishReadiness);
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "templatePackage");
     }
 
     [Fact]
@@ -307,6 +366,7 @@ public sealed class CoreServiceFacadeTests
         Assert.NotNull(result.Report);
         Assert.Equal("pass", result.Report!.Status);
         Assert.Contains("gateReport", result.Report.Artifacts.Keys);
+        Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
     }
 
     [Fact]

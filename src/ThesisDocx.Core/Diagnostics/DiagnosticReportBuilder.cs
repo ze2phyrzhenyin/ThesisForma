@@ -22,6 +22,7 @@ public sealed class DiagnosticReportBuilder
         var report = new DiagnosticReport();
         if (gate is not null)
         {
+            report.VersionReport.MergeFrom(gate.VersionReport);
             foreach (var check in gate.Checks.Where(c => c.Status != TemplateGateCheckStatus.Pass))
             {
                 AddIssue(report, "TemplateGate", check.Code, check.Code, check.Status == TemplateGateCheckStatus.Fail ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, check.Name, check.Message, null, null, null, null);

@@ -7,6 +7,7 @@ using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Validation.FormatRuleCoverage;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Templates.Gate;
 
@@ -19,7 +20,9 @@ public sealed class TemplateGateService
         var report = new TemplateGateReport();
 
         var document = ReadJson<ThesisDocument>(options.DocumentPath);
+        report.VersionReport.MergeFrom(SchemaVersionReport.ForDocument(document.SchemaVersion));
         var templateValidation = new TemplateValidationService().Validate(options.TemplatePath, LocateSchema("template-package.schema.json"));
+        report.VersionReport.MergeFrom(templateValidation.VersionReport);
         AddCheck(report, "template.validate", "Template validation", templateValidation.IsValid, string.Join("; ", templateValidation.Errors.Select(e => e.ToString())));
 
         var resolution = new TemplateResolver().Resolve(options.TemplatePath, document);
@@ -31,9 +34,19 @@ public sealed class TemplateGateService
         report.Artifacts["resolvedFormatSpec"] = formatPath;
 
         var formatSchema = new ThesisSchemaValidator().ValidateFormatFile(formatPath, LocateSchema("thesis-format-spec.schema.json"));
+        report.VersionReport.MergeFrom(formatSchema.VersionReport);
         AddCheck(report, "format.schema", "Resolved format spec schema", formatSchema.IsValid, string.Join("; ", formatSchema.Errors.Select(e => e.ToString())));
 
         var input = new ThesisInputValidator().Validate(document, format, Path.GetDirectoryName(Path.GetFullPath(options.DocumentPath)));
+        report.VersionReport.MergeFrom(input.VersionReport);
+        AddCheck(
+            report,
+            "schema.version",
+            "Schema version support",
+            report.VersionReport.IsValid,
+            report.VersionReport.IsValid
+                ? "document, template, and format schema versions are supported"
+                : string.Join("; ", report.VersionReport.Diagnostics.Select(d => $"{d.Code}:{d.Path}")));
         AddCheck(report, "input.validate", "Document input validation", input.IsValid, string.Join("; ", input.Errors.Select(e => e.ToString())));
 
         ResolveRelativeImagePaths(document, Path.GetDirectoryName(Path.GetFullPath(options.DocumentPath))!);
