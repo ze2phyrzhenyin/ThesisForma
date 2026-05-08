@@ -253,7 +253,7 @@ public sealed class TemplateRegressionRunner
                     Id = $"regression.{regressionCase.Id}.{NormalizeCode(error)}",
                     Source = "TemplateRegression",
                     Category = Classify(error),
-                    Severity = "breaking",
+                    Severity = DiagnosticSeverity.Error,
                     Title = $"Regression case {regressionCase.Id} failed",
                     Message = error,
                     FixtureId = regressionCase.Id,

@@ -51,6 +51,26 @@ public static class DiagnosticCategory
 
 public static class UnifiedDiagnosticMapper
 {
+    public static bool IsError(string? severity)
+    {
+        return NormalizeSeverity(severity) == DiagnosticSeverity.Error;
+    }
+
+    public static bool IsWarning(string? severity)
+    {
+        return NormalizeSeverity(severity) == DiagnosticSeverity.Warning;
+    }
+
+    public static int SeveritySortRank(string? severity)
+    {
+        return NormalizeSeverity(severity) switch
+        {
+            DiagnosticSeverity.Error => 0,
+            DiagnosticSeverity.Warning => 1,
+            _ => 2
+        };
+    }
+
     public static UnifiedDiagnostic FromInputError(ThesisInputValidationError issue, string severity, string source)
     {
         return new UnifiedDiagnostic

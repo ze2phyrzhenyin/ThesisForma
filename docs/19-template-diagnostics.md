@@ -24,7 +24,7 @@ Machine-readable reports also expose a normalized `diagnostics` array for CLI, A
 - `source`
 - optional `relatedPaths`, `details`, and `documentationRef`
 
-Legacy issue fields remain in reports for compatibility, but new automated consumers should prefer `diagnostics`.
+Legacy issue fields remain in reports for compatibility, but new automated consumers should prefer `diagnostics`. The normalized severity vocabulary is only `error`, `warning`, and `info`. Older report field names such as `BreakingCount` or `blockingIssues` are compatibility labels; they now count or contain error-level diagnostics. If a report ever carries a `legacySeverity`, treat it as display-only and do not build new consumers on it.
 
 `FixHintEngine` suggests likely spec paths and review actions. A hint is guidance, not an automatic fix and not a mandate to change a template without review.
 
@@ -39,6 +39,6 @@ dotnet run --project src/ThesisDocx.Cli -- template diagnose \
   --out out/template-diagnostic-report.json
 ```
 
-The command runs gate, regression, baseline compare, requirement mapping, and fix hint generation. It returns non-zero when breaking issues remain.
+The command runs gate, regression, baseline compare, requirement mapping, and fix hint generation. It returns non-zero when error-level issues remain.
 
 Add `--markdown out/template-diagnostic-report.md` to generate a compact PR-review report. JSON remains the machine-readable contract; Markdown is for humans.

@@ -316,7 +316,7 @@ public sealed class CiQualityGateTests
         var report = new DiagnosticReportBuilder().Build(requirements: RequirementReportWithIssue());
         var markdown = new DiagnosticReportMarkdownRenderer().Render(report);
 
-        Assert.Contains("Blocking Issues", markdown);
+        Assert.Contains("Errors", markdown);
         Assert.Contains("Requirement mapping issue", markdown);
     }
 
@@ -343,7 +343,7 @@ public sealed class CiQualityGateTests
     {
         var markdown = new DiagnosticReportMarkdownRenderer().Render(new DiagnosticReport { Status = "pass" });
 
-        Assert.Contains("No blocking diagnostic issues", markdown);
+        Assert.Contains("No error-level diagnostic issues", markdown);
     }
 
     [Fact]
@@ -536,7 +536,7 @@ public sealed class CiQualityGateTests
             Id = id,
             Source = "Test",
             Category = category,
-            Severity = "breaking",
+            Severity = DiagnosticSeverity.Error,
             Title = id,
             Message = id,
             SpecPath = path

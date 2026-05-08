@@ -1,6 +1,6 @@
 {
   "actualCodes": ["BaselineSnapshotMismatch"],
-  "severity": "breaking",
+  "severity": "error",
   "category": "baseline",
   "message": "Snapshot is intentionally different from baseline.",
   "path": "snapshot"

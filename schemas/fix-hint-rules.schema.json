@@ -31,7 +31,7 @@
             "code": { "type": "string" },
             "category": { "type": "string" },
             "pathPattern": { "type": "string" },
-            "severity": { "enum": ["info", "warning", "breaking"] }
+            "severity": { "enum": ["info", "warning", "error"] }
           }
         },
         "title": { "type": "string", "minLength": 1 },

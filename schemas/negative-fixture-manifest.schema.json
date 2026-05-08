@@ -31,7 +31,7 @@
         "command": { "type": "string", "minLength": 1 },
         "expectedExitCode": { "type": "integer", "minimum": 0, "maximum": 255 },
         "expectedCodes": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "expectedSeverity": { "enum": ["info", "warning", "breaking"] },
+        "expectedSeverity": { "enum": ["info", "warning", "error"] },
         "expectedFixHintIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "notes": { "type": "string" }
       }

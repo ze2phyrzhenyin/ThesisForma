@@ -9,7 +9,7 @@
       "command": "requirements validate --requirements requirements/missing-evidence.json",
       "expectedExitCode": 2,
       "expectedCodes": ["RequirementMissingEvidence"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.requirementEvidence"],
       "notes": "Approved requirement lacks evidence."
     },
@@ -20,7 +20,7 @@
       "command": "requirements validate --requirements requirements/unmapped-approved-requirement.json",
       "expectedExitCode": 2,
       "expectedCodes": ["RequirementUnmappedApproved"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.requirementMapping"],
       "notes": "Approved requirement is unmapped."
     },
@@ -42,7 +42,7 @@
       "command": "template validate --template templates/missing-asset",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateMissingAsset"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.templateAsset"],
       "notes": "Required asset is missing."
     },
@@ -53,7 +53,7 @@
       "command": "template validate --template templates/missing-required-variable",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateMissingRequiredVariable"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.templateVariable"],
       "notes": "Required variable cannot be resolved."
     },
@@ -64,7 +64,7 @@
       "command": "template validate --template templates/invalid-inheritance",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateCircularInheritance"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.templateInheritance"],
       "notes": "Parent template cannot be resolved."
     },
@@ -75,7 +75,7 @@
       "command": "template validate --template templates/duplicate-variable",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateDuplicateVariable"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Template variables must not reuse the same name."
     },
@@ -86,7 +86,7 @@
       "command": "template validate --template templates/missing-variable-reference",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateVariableReferenceMissing"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Page template text references a missing variable."
     },
@@ -97,7 +97,7 @@
       "command": "template validate --template templates/page-template-missing-image-asset",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplatePageTemplateImageAssetMissing"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Page template image block references a missing asset id."
     },
@@ -108,7 +108,7 @@
       "command": "template validate --template templates/illegal-margin",
       "expectedExitCode": 2,
       "expectedCodes": ["TemplateIllegalMargin"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Page template pageSetupOverride contains an illegal margin."
     },
@@ -119,7 +119,7 @@
       "command": "template validate --template templates/unsupported-template-schema-version",
       "expectedExitCode": 2,
       "expectedCodes": ["SchemaInvalidVersion"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.schemaVersion"],
       "notes": "Template package declares an unsupported templateSchemaVersion."
     },
@@ -130,7 +130,7 @@
       "command": "validate-input --document documents/dangling-cross-reference.json",
       "expectedExitCode": 2,
       "expectedCodes": ["CrossReferenceTargetMissing"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.crossReference"],
       "notes": "Reference points to a missing bookmark."
     },
@@ -141,7 +141,7 @@
       "command": "validate-input --document documents/missing-bibliography-key.json",
       "expectedExitCode": 2,
       "expectedCodes": ["CitationBibliographyKeyMissing"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.citationKey"],
       "notes": "Citation points to a missing bibliography key."
     },
@@ -152,7 +152,7 @@
       "command": "validate-input --document documents/missing-schema-version.json",
       "expectedExitCode": 2,
       "expectedCodes": ["SchemaDocumentPropertyRequired"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "ThesisDocument is missing schemaVersion."
     },
@@ -163,7 +163,7 @@
       "command": "validate-input --document documents/missing-metadata.json",
       "expectedExitCode": 2,
       "expectedCodes": ["SchemaDocumentPropertyRequired"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "ThesisDocument is missing metadata."
     },
@@ -174,7 +174,7 @@
       "command": "validate-input --document documents/missing-sections.json",
       "expectedExitCode": 2,
       "expectedCodes": ["SchemaDocumentPropertyRequired"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "ThesisDocument is missing sections."
     },
@@ -185,7 +185,7 @@
       "command": "validate-input --document documents/table-gridspan-too-wide.json",
       "expectedExitCode": 2,
       "expectedCodes": ["TableGridSpanTooWide"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Advanced table gridSpan exceeds the supported safety range."
     },
@@ -196,7 +196,7 @@
       "command": "validate-input --document documents/table-vmerge-continue-without-restart.json",
       "expectedExitCode": 2,
       "expectedCodes": ["TableVerticalMergeInvalidChain"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "A vMerge continuation appears without a restart above it."
     },
@@ -207,7 +207,7 @@
       "command": "validate-input --document documents/table-grid-width-inconsistent.json",
       "expectedExitCode": 2,
       "expectedCodes": ["TableGridInconsistent"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Rows in an advanced table have inconsistent logical grid width."
     },
@@ -218,7 +218,7 @@
       "command": "validate-input --document documents/duplicate-bookmark-id.json",
       "expectedExitCode": 2,
       "expectedCodes": ["DuplicateBookmarkId"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Two blocks reuse the same bookmark id."
     },
@@ -229,7 +229,7 @@
       "command": "validate-input --document documents/footnote-inline-duplicate-empty.json",
       "expectedExitCode": 2,
       "expectedCodes": ["DuplicateNoteId", "NoteContentEmpty"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": [],
       "notes": "Inline footnotes contain a duplicate id and empty content."
     },
@@ -240,7 +240,7 @@
       "command": "docx layout-compare --threshold 0.99",
       "expectedExitCode": 2,
       "expectedCodes": ["LayoutSimilarityBelowThreshold"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.layoutSimilarity"],
       "notes": "Layout comparison intentionally fails."
     },
@@ -251,7 +251,7 @@
       "command": "baseline compare --suite negative",
       "expectedExitCode": 2,
       "expectedCodes": ["BaselineSnapshotMismatch"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.baselineSnapshot"],
       "notes": "Snapshot baseline intentionally mismatches."
     },
@@ -262,7 +262,7 @@
       "command": "docx diff --base negative-a.docx --target negative-b.docx",
       "expectedExitCode": 2,
       "expectedCodes": ["TableBorderMismatch", "FigureSizeMismatch"],
-      "expectedSeverity": "breaking",
+      "expectedSeverity": "error",
       "expectedFixHintIds": ["fix.tableBorders", "fix.figureSize"],
       "notes": "Structural diff intentionally includes table border and figure size changes."
     }

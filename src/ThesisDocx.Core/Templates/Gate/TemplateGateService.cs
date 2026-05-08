@@ -142,7 +142,7 @@ public sealed class TemplateGateService
                     Id = $"gate.{check.Code}",
                     Source = "TemplateGate",
                     Category = Classify(check.Code),
-                    Severity = check.Status == TemplateGateCheckStatus.Fail ? "breaking" : "warning",
+                    Severity = check.Status == TemplateGateCheckStatus.Fail ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
                     Title = check.Name,
                     Message = check.Message,
                     Evidence = [new DiagnosticEvidence { Kind = "check", Value = check.Code }]

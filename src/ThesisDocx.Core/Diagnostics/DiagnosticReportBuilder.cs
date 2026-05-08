@@ -24,7 +24,7 @@ public sealed class DiagnosticReportBuilder
         {
             foreach (var check in gate.Checks.Where(c => c.Status != TemplateGateCheckStatus.Pass))
             {
-                AddIssue(report, "TemplateGate", check.Code, check.Code, check.Status == TemplateGateCheckStatus.Fail ? "breaking" : "warning", check.Name, check.Message, null, null, null, null);
+                AddIssue(report, "TemplateGate", check.Code, check.Code, check.Status == TemplateGateCheckStatus.Fail ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, check.Name, check.Message, null, null, null, null);
             }
 
             foreach (var artifact in gate.Artifacts)
@@ -39,7 +39,7 @@ public sealed class DiagnosticReportBuilder
             {
                 foreach (var error in failure.Errors)
                 {
-                    AddIssue(report, "TemplateRegression", error, "baseline", "breaking", $"Regression case {failure.Id} failed", error, null, null, null, failure.Id);
+                    AddIssue(report, "TemplateRegression", error, "baseline", DiagnosticSeverity.Error, $"Regression case {failure.Id} failed", error, null, null, null, failure.Id);
                 }
             }
         }
@@ -50,7 +50,7 @@ public sealed class DiagnosticReportBuilder
             {
                 foreach (var diff in caseResult.Diffs.DefaultIfEmpty(new BaselineDiffSummary { Category = "baseline", Path = caseResult.CaseId }))
                 {
-                    AddIssue(report, "Baseline", $"baseline.{caseResult.CaseId}.{diff.Category}", diff.Category, diff.Severity.Equals("Breaking", StringComparison.OrdinalIgnoreCase) ? "breaking" : "warning", $"Baseline mismatch for {caseResult.CaseId}", string.Join("; ", caseResult.Errors), diff.Path, null, caseResult.FixtureId, caseResult.CaseId, diff.Expected, diff.Actual);
+                    AddIssue(report, "Baseline", $"baseline.{caseResult.CaseId}.{diff.Category}", diff.Category, diff.Severity.Equals("Breaking", StringComparison.OrdinalIgnoreCase) ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"Baseline mismatch for {caseResult.CaseId}", string.Join("; ", caseResult.Errors), diff.Path, null, caseResult.FixtureId, caseResult.CaseId, diff.Expected, diff.Actual);
                 }
             }
         }
@@ -59,7 +59,7 @@ public sealed class DiagnosticReportBuilder
         {
             foreach (var error in requirements.Errors)
             {
-                AddIssue(report, "RequirementMapping", error.Code, "requirements", "breaking", "Requirement mapping issue", error.Message, error.Path, null, null, null);
+                AddIssue(report, "RequirementMapping", error.Code, "requirements", DiagnosticSeverity.Error, "Requirement mapping issue", error.Message, error.Path, null, null, null);
             }
 
             foreach (var warning in requirements.Warnings)
@@ -69,7 +69,7 @@ public sealed class DiagnosticReportBuilder
 
             if (requirements.UnmappedRequirements > 0)
             {
-                AddIssue(report, "RequirementMapping", "requirements.unmapped", "requirements", "breaking", "Approved requirements remain unmapped", $"{requirements.UnmappedRequirements} requirements are unmapped.", "$.mappings", null, null, null);
+                AddIssue(report, "RequirementMapping", "requirements.unmapped", "requirements", DiagnosticSeverity.Error, "Approved requirements remain unmapped", $"{requirements.UnmappedRequirements} requirements are unmapped.", "$.mappings", null, null, null);
             }
         }
 
@@ -77,7 +77,7 @@ public sealed class DiagnosticReportBuilder
         {
             foreach (var error in validation.Errors)
             {
-                AddIssue(report, "FormatConformanceValidator", error.Code, Classify(error.Code), "breaking", error.Code, error.Message, error.Path, error.PartName, null, null, error.Expected, error.Actual);
+                AddIssue(report, "FormatConformanceValidator", error.Code, Classify(error.Code), DiagnosticSeverity.Error, error.Code, error.Message, error.Path, error.PartName, null, null, error.Expected, error.Actual);
             }
         }
 
@@ -96,7 +96,10 @@ public sealed class DiagnosticReportBuilder
             issue.RelatedFixtures = issue.FixHints.Select(h => h.ExampleFixtureRef).Where(d => !string.IsNullOrWhiteSpace(d)).Cast<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         }
 
-        report.Issues = report.Issues.OrderBy(i => i.Severity == "breaking" ? 0 : i.Severity == "warning" ? 1 : 2).ThenBy(i => i.Id, StringComparer.Ordinal).ToList();
+        report.Issues = report.Issues
+            .OrderBy(i => UnifiedDiagnosticMapper.SeveritySortRank(i.Severity))
+            .ThenBy(i => i.Id, StringComparer.Ordinal)
+            .ToList();
         report.GroupedIssues = new DiagnosticIssueGrouper().Group(report.Issues).ToList();
         report.TopRecommendedActions = report.Issues.SelectMany(i => i.FixHints.Select(h => h.SuggestedAction)).Distinct(StringComparer.Ordinal).Take(8).ToList();
         report.Status = report.BreakingCount > 0 ? "fail" : report.WarningCount > 0 ? "passWithWarnings" : "pass";
@@ -151,7 +154,7 @@ public sealed class DiagnosticReportBuilder
             Id = id,
             Source = source,
             Category = category,
-            Severity = severity,
+            Severity = UnifiedDiagnosticMapper.NormalizeSeverity(severity),
             Title = title,
             Message = message,
             Path = path,

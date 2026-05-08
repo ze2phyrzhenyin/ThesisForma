@@ -14,7 +14,7 @@ public sealed class NegativeFixtureCase
 
     public List<string> ExpectedCodes { get; set; } = [];
 
-    public string ExpectedSeverity { get; set; } = "breaking";
+    public string ExpectedSeverity { get; set; } = "error";
 
     public List<string> ExpectedFixHintIds { get; set; } = [];
 

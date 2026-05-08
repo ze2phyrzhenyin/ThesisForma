@@ -256,7 +256,7 @@
       "required": ["code", "severity", "message", "evidencePath"],
       "properties": {
         "code": { "type": "string" },
-        "severity": { "type": "string", "enum": ["info", "warning", "breaking"] },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] },
         "message": { "type": "string" },
         "evidencePath": { "type": "string" }
       }

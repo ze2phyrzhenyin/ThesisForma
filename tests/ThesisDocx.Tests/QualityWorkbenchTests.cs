@@ -562,7 +562,7 @@ public sealed class QualityWorkbenchTests
 
     private static DiagnosticIssue Issue(string category, string message)
     {
-        return new DiagnosticIssue { Id = message, Category = category, Message = message, Severity = "breaking" };
+        return new DiagnosticIssue { Id = message, Category = category, Message = message, Severity = DiagnosticSeverity.Error };
     }
 
     private static TemplateGateReport FailedGateReport()

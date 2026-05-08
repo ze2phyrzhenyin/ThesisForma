@@ -33,7 +33,7 @@
         "id": { "type": "string" },
         "source": { "type": "string" },
         "category": { "type": "string" },
-        "severity": { "enum": ["info", "warning", "breaking"] },
+        "severity": { "enum": ["info", "warning", "error"] },
         "title": { "type": "string" },
         "message": { "type": "string" },
         "fixHints": { "type": "array" }

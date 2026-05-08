@@ -58,8 +58,8 @@ public sealed class CiQualityReportBuilder
         WriteJson(Path.Combine(options.OutputDirectory, "template-authoring-report.json"), authoring);
         WriteJson(Path.Combine(options.OutputDirectory, "negative-fixtures-report.json"), negative);
 
-        report.BlockingIssues.AddRange(diagnostic.Issues.Where(issue => issue.Severity == "breaking"));
-        report.Warnings.AddRange(diagnostic.Issues.Where(issue => issue.Severity == "warning"));
+        report.BlockingIssues.AddRange(diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)));
+        report.Warnings.AddRange(diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)));
         if (!negative.Passed)
         {
             report.BlockingIssues.Add(new DiagnosticIssue
@@ -67,7 +67,7 @@ public sealed class CiQualityReportBuilder
                 Id = "ci.negativeFixtures.failed",
                 Source = "CI",
                 Category = "negativeFixtures",
-                Severity = "breaking",
+                Severity = DiagnosticSeverity.Error,
                 Title = "Negative fixtures failed",
                 Message = "At least one expected failure was not observed."
             });

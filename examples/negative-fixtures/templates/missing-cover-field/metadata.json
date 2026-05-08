@@ -1,6 +1,6 @@
 {
   "actualCodes": ["TemplateMissingRequiredVariable"],
-  "severity": "breaking",
+  "severity": "error",
   "category": "template",
   "message": "Required cover field variable is intentionally missing.",
   "path": "$.pageTemplates[0]"

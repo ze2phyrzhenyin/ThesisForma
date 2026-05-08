@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Utilities;
 
@@ -46,7 +47,7 @@ public sealed class ContentPreservationAuditor
                 result.MissingSegments.Add(new ContentSegmentIssue
                 {
                     Code = segment.NormalizedText.Length >= 80 ? "content.segment.longMissing" : "content.segment.missing",
-                    Severity = segment.NormalizedText.Length >= 80 ? "breaking" : "warning",
+                    Severity = segment.NormalizedText.Length >= 80 ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
                     EvidencePath = segment.EvidencePath,
                     TextPreview = TextNormalizer.Preview(segment.OriginalText),
                     Message = "Source text segment was not found in the rendered extraction."
@@ -78,11 +79,11 @@ public sealed class ContentPreservationAuditor
         AddCountWarnings(result, result.FieldComparison);
 
         result.BlockingIssues = result.MissingSegments
-            .Where(issue => issue.Severity == "breaking")
+            .Where(issue => UnifiedDiagnosticMapper.IsError(issue.Severity))
             .Select(issue => new ContentPreservationIssue
             {
                 Code = issue.Code,
-                Severity = "breaking",
+                Severity = DiagnosticSeverity.Error,
                 EvidencePath = issue.EvidencePath,
                 Message = issue.Message,
                 TextPreview = issue.TextPreview
@@ -92,10 +93,10 @@ public sealed class ContentPreservationAuditor
             .ToList();
 
         result.Warnings = result.Warnings
-            .Concat(result.MissingSegments.Where(issue => issue.Severity == "warning").Select(issue => new ContentPreservationIssue
+            .Concat(result.MissingSegments.Where(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)).Select(issue => new ContentPreservationIssue
             {
                 Code = issue.Code,
-                Severity = "warning",
+                Severity = DiagnosticSeverity.Warning,
                 EvidencePath = issue.EvidencePath,
                 Message = issue.Message,
                 TextPreview = issue.TextPreview

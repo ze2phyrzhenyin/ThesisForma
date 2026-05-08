@@ -8,9 +8,9 @@ public sealed class DiagnosticReport
 
     public int IssueCount => Issues.Count;
 
-    public int BreakingCount => Issues.Count(i => i.Severity == "breaking");
+    public int BreakingCount => Issues.Count(i => UnifiedDiagnosticMapper.IsError(i.Severity));
 
-    public int WarningCount => Issues.Count(i => i.Severity == "warning");
+    public int WarningCount => Issues.Count(i => UnifiedDiagnosticMapper.IsWarning(i.Severity));
 
     public List<DiagnosticIssue> Issues { get; set; } = [];
 

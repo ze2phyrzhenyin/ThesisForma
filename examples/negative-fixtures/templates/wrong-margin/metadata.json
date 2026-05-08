@@ -1,6 +1,6 @@
 {
   "actualCodes": ["PageMarginMismatch"],
-  "severity": "breaking",
+  "severity": "error",
   "category": "pageSetup",
   "message": "Margins intentionally differ from baseline.",
   "path": "$.pageSetup"

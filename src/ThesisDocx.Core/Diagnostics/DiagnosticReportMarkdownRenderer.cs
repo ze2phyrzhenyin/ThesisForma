@@ -10,7 +10,7 @@ public sealed class DiagnosticReportMarkdownRenderer
         builder.AppendLine("# Template Diagnostic Report");
         builder.AppendLine();
         builder.AppendLine($"Status: **{report.Status}**");
-        builder.AppendLine($"Issues: {report.IssueCount} total, {report.BreakingCount} breaking, {report.WarningCount} warnings");
+        builder.AppendLine($"Issues: {report.IssueCount} total, {report.BreakingCount} errors, {report.WarningCount} warnings");
         builder.AppendLine();
 
         if (report.TopRecommendedActions.Count > 0)
@@ -26,17 +26,17 @@ public sealed class DiagnosticReportMarkdownRenderer
 
         if (report.Issues.Count == 0)
         {
-            builder.AppendLine("No blocking diagnostic issues were found.");
+        builder.AppendLine("No error-level diagnostic issues were found.");
             return builder.ToString();
         }
 
-        builder.AppendLine("## Blocking Issues");
-        foreach (var issue in report.Issues.Where(issue => issue.Severity == "breaking").Take(12))
+        builder.AppendLine("## Errors");
+        foreach (var issue in report.Issues.Where(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)).Take(12))
         {
             RenderIssue(builder, issue);
         }
 
-        var warnings = report.Issues.Where(issue => issue.Severity == "warning").Take(8).ToList();
+        var warnings = report.Issues.Where(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)).Take(8).ToList();
         if (warnings.Count > 0)
         {
             builder.AppendLine("## Warnings");

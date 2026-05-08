@@ -1,6 +1,6 @@
 {
   "actualCodes": ["TableBorderMismatch", "FigureSizeMismatch"],
-  "severity": "breaking",
+  "severity": "error",
   "category": "diff",
   "message": "DOCX structure diff intentionally contains table and figure changes.",
   "path": "word/document.xml"

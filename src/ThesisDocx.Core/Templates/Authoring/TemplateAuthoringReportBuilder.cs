@@ -86,8 +86,8 @@ public sealed class TemplateAuthoringReportBuilder
                 ["breakingCount"] = diagnostic.BreakingCount,
                 ["warningCount"] = diagnostic.WarningCount
             },
-            BlockingIssues = diagnostic.Issues.Where(issue => issue.Severity == "breaking").ToList(),
-            Warnings = diagnostic.Issues.Where(issue => issue.Severity == "warning").ToList(),
+            BlockingIssues = diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)).ToList(),
+            Warnings = diagnostic.Issues.Where(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)).ToList(),
             RecommendedNextActions = diagnostic.TopRecommendedActions,
             RelatedArtifacts = diagnostic.RelatedArtifacts
         };

@@ -86,7 +86,8 @@ public sealed class CliJsonContractTests
         Assert.Equal(0, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), $"{name}: {result.StandardError}");
         Assert.True(File.Exists(outputPath), $"{name} did not write {outputPath}");
-        Assert.NotNull(ParseObject(File.ReadAllText(outputPath)));
+        var json = ParseObject(File.ReadAllText(outputPath));
+        Assert.DoesNotContain(EnumerateSeverityValues(json), severity => severity == "breaking");
         _ = root;
     }
 
@@ -114,6 +115,35 @@ public sealed class CliJsonContractTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["message"]!.GetValue<string>()));
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["fixHint"]!.GetValue<string>()));
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["source"]!.GetValue<string>()));
+    }
+
+    private static IEnumerable<string> EnumerateSeverityValues(JsonNode? node)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var pair in obj)
+            {
+                if (pair.Key.Equals("severity", StringComparison.OrdinalIgnoreCase) && pair.Value is JsonValue value && value.TryGetValue<string>(out var severity))
+                {
+                    yield return severity;
+                }
+
+                foreach (var nested in EnumerateSeverityValues(pair.Value))
+                {
+                    yield return nested;
+                }
+            }
+        }
+        else if (node is JsonArray array)
+        {
+            foreach (var item in array)
+            {
+                foreach (var nested in EnumerateSeverityValues(item))
+                {
+                    yield return nested;
+                }
+            }
+        }
     }
 
     private static string RepoRoot() => TestRenderHelper.LocateRepoRootForTests();

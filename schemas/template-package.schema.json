@@ -188,7 +188,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/id" },
         "description": { "type": "string" },
-        "severity": { "type": "string", "enum": ["info", "warning", "breaking"] }
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] }
       }
     },
     "pageSetupOverride": {

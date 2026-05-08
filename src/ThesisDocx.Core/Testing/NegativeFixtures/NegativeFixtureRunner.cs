@@ -35,7 +35,7 @@ public sealed class NegativeFixtureRunner
             Type = fixture.Type,
             ExpectedExitCode = fixture.ExpectedExitCode,
             ExpectedCodes = fixture.ExpectedCodes.Order(StringComparer.Ordinal).ToList(),
-            ExpectedSeverity = fixture.ExpectedSeverity,
+            ExpectedSeverity = UnifiedDiagnosticMapper.NormalizeSeverity(fixture.ExpectedSeverity),
             ExpectedFixHintIds = fixture.ExpectedFixHintIds.Order(StringComparer.Ordinal).ToList()
         };
 
@@ -52,13 +52,13 @@ public sealed class NegativeFixtureRunner
         }
         catch (Exception ex)
         {
-            result.Issues.Add(ToIssue("negativeFixture.execution", fixture.Type, "breaking", ex.Message));
+            result.Issues.Add(ToIssue("negativeFixture.execution", fixture.Type, DiagnosticSeverity.Error, ex.Message));
         }
 
         result.ActualCodes = result.Issues.Select(issue => issue.Id).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
-        result.ActualSeverities = result.Issues.Select(issue => issue.Severity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        result.ActualSeverities = result.Issues.Select(issue => UnifiedDiagnosticMapper.NormalizeSeverity(issue.Severity)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
         result.ActualFixHintIds = result.Issues.SelectMany(issue => issue.FixHints.Select(hint => hint.HintId)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
-        result.ActualExitCode = result.Issues.Any(issue => issue.Severity == "breaking") ? 2 : 0;
+        result.ActualExitCode = result.Issues.Any(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)) ? 2 : 0;
         if (result.ActualExitCode != result.ExpectedExitCode)
         {
             result.Errors.Add($"exitCode:{result.ActualExitCode}!={result.ExpectedExitCode}");
@@ -98,8 +98,8 @@ public sealed class NegativeFixtureRunner
     private List<DiagnosticIssue> RunRequirement(string path)
     {
         var validation = new RequirementCaptureValidator().Validate(JsonSerializer.Deserialize<RequirementCapture>(File.ReadAllText(path), ThesisJson.Options)!);
-        return validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "requirements", "breaking", error.Message, error.Path))
-            .Concat(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "requirements", "warning", warning.Message, warning.Path)))
+        return validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "requirements", DiagnosticSeverity.Error, error.Message, error.Path))
+            .Concat(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "requirements", DiagnosticSeverity.Warning, warning.Message, warning.Path)))
             .ToList();
     }
 
@@ -107,8 +107,8 @@ public sealed class NegativeFixtureRunner
     {
         var schema = LocateSchema("template-package.schema.json");
         var validation = new TemplateValidationService().Validate(path, schema);
-        return validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "template", "breaking", error.Message, error.Path))
-            .Concat(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "template", "warning", warning.Message, warning.Path)))
+        return validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "template", DiagnosticSeverity.Error, error.Message, error.Path))
+            .Concat(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "template", DiagnosticSeverity.Warning, warning.Message, warning.Path)))
             .ToList();
     }
 
@@ -116,14 +116,14 @@ public sealed class NegativeFixtureRunner
     {
         var issues = new List<DiagnosticIssue>();
         var schema = new ThesisSchemaValidator().ValidateDocumentFile(path, LocateSchema("thesis-document.schema.json"));
-        issues.AddRange(schema.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "schema", "breaking", error.Message, error.Path)));
-        issues.AddRange(schema.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "schema", "warning", warning.Message, warning.Path)));
+        issues.AddRange(schema.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "schema", DiagnosticSeverity.Error, error.Message, error.Path)));
+        issues.AddRange(schema.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "schema", DiagnosticSeverity.Warning, warning.Message, warning.Path)));
 
         var document = JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(path), ThesisJson.Options)!;
         var format = JsonSerializer.Deserialize<ThesisFormatSpec>(File.ReadAllText(Path.Combine(LocateRepoRoot(), "examples", "format-specs", "strict-cn-thesis.json")), ThesisJson.Options)!;
         var validation = new ThesisInputValidator().Validate(document, format, Path.GetDirectoryName(path));
-        issues.AddRange(validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), ClassifyDocument(error.Code), "breaking", error.Message, error.Path)));
-        issues.AddRange(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), ClassifyDocument(warning.Code), "warning", warning.Message, warning.Path)));
+        issues.AddRange(validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), ClassifyDocument(error.Code), DiagnosticSeverity.Error, error.Message, error.Path)));
+        issues.AddRange(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), ClassifyDocument(warning.Code), DiagnosticSeverity.Warning, warning.Message, warning.Path)));
         return issues;
     }
 
@@ -143,7 +143,7 @@ public sealed class NegativeFixtureRunner
             Id = code,
             Source = "NegativeFixture",
             Category = category,
-            Severity = severity,
+            Severity = UnifiedDiagnosticMapper.NormalizeSeverity(severity),
             Title = code,
             Message = message,
             Path = path
@@ -231,7 +231,7 @@ public sealed class NegativeFixtureRunner
     {
         public List<string> ActualCodes { get; set; } = [];
 
-        public string Severity { get; set; } = "breaking";
+        public string Severity { get; set; } = DiagnosticSeverity.Error;
 
         public string Category { get; set; } = "baseline";
 

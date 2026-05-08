@@ -13,12 +13,16 @@ public sealed class DiagnosticIssueGrouper
                 {
                     GroupKey = group.Key,
                     Category = first.Category,
-                    Severity = group.Any(issue => issue.Severity == "breaking") ? "breaking" : group.Any(issue => issue.Severity == "warning") ? "warning" : "info",
+                    Severity = group.Any(issue => UnifiedDiagnosticMapper.IsError(issue.Severity))
+                        ? DiagnosticSeverity.Error
+                        : group.Any(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity))
+                            ? DiagnosticSeverity.Warning
+                            : DiagnosticSeverity.Info,
                     Count = group.Count(),
                     Issues = group.OrderBy(issue => issue.Id, StringComparer.Ordinal).ToList()
                 };
             })
-            .OrderBy(group => group.Severity == "breaking" ? 0 : group.Severity == "warning" ? 1 : 2)
+            .OrderBy(group => UnifiedDiagnosticMapper.SeveritySortRank(group.Severity))
             .ThenBy(group => group.GroupKey, StringComparer.Ordinal)
             .ToList();
     }
@@ -26,6 +30,6 @@ public sealed class DiagnosticIssueGrouper
     private static string BuildKey(DiagnosticIssue issue)
     {
         var path = issue.SpecPath ?? issue.TemplatePath ?? issue.Path ?? issue.PartName ?? "unknown";
-        return $"{issue.Category}:{issue.Severity}:{path}";
+        return $"{issue.Category}:{UnifiedDiagnosticMapper.NormalizeSeverity(issue.Severity)}:{path}";
     }
 }
