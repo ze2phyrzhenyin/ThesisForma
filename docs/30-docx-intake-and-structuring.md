@@ -32,9 +32,10 @@ Privacy:
 
 Safety boundaries:
 
-- `extract docx` rejects missing inputs, non-`.docx` inputs, empty files, invalid ZIP/OpenXML packages, packages without `word/document.xml`, unsafe ZIP entry paths, excessive entry counts, excessive expanded size, and high compression ratios.
+- `extract docx` rejects missing inputs, non-`.docx` inputs, empty files, invalid ZIP/OpenXML packages, packages without `word/document.xml`, unsafe ZIP entry paths, unsafe relationship targets, excessive entry counts, excessive expanded size, and high compression ratios.
+- Internal relationship targets are normalized inside the package root. External relationship targets are limited to `http`, `https`, and `mailto`; local file and UNC-style targets fail intake.
 - Intake workspace outputs stay inside the configured private workspace.
-- Extraction and intake diagnostics use the normalized `diagnostics[]` contract with `category: "intake"` and severity `error`, `warning`, or `info`.
+- Extraction, structure-draft, and intake failure reports include `reportVersion: "1.0.0"` and use the normalized `diagnostics[]` contract with `category: "intake"` and severity `error`, `warning`, or `info`.
 - The draft document is a rule-assisted prototype artifact. It is not a formal DOCX import feature and must not be presented as AI inference or free-document parsing.
 
 Current limits:

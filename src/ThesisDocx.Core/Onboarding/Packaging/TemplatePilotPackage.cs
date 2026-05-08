@@ -139,6 +139,15 @@ public sealed class TemplatePilotPackageBuilder
                 ["breakingCount"] = privacy.BreakingCount,
                 ["warningCount"] = privacy.WarningCount,
                 ["suppressedWarningCount"] = privacy.SuppressedWarningCount
+            },
+            PrivacyPolicySummary = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["maxEvidenceExcerptLength"] = workspace.Manifest.Privacy.MaxEvidenceExcerptLength,
+                ["maxBase64Length"] = workspace.Manifest.Privacy.MaxBase64Length,
+                ["maxWarningCount"] = workspace.Manifest.Privacy.MaxWarningCount ?? -1,
+                ["suppressedWarningCodes"] = workspace.Manifest.Privacy.SuppressedWarningCodes.Order(StringComparer.Ordinal).ToList(),
+                ["suppressedWarningPathPrefixes"] = workspace.Manifest.Privacy.SuppressedWarningPathPrefixes.Order(StringComparer.Ordinal).ToList(),
+                ["nonSuppressibleWarningCodePrefixes"] = new[] { "privacy.personal." }
             }
         };
     }
@@ -347,4 +356,5 @@ public sealed class TemplatePilotPackageManifest
     public List<string> IncludedFiles { get; set; } = [];
     public Dictionary<string, string> Sha256 { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, object> PrivacyScanSummary { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, object> PrivacyPolicySummary { get; set; } = new(StringComparer.Ordinal);
 }

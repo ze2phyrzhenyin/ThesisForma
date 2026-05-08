@@ -275,6 +275,40 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void DocxExtraction_ShouldRejectUnsafeExternalRelationshipTarget()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateSyntheticDocx(directory);
+        ReplaceZipEntry(docx, "word/_rels/document.xml.rels", """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+          <Relationship Id="rIdUnsafe" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="file:///tmp/private-source.docx" TargetMode="External"/>
+        </Relationships>
+        """);
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = docx });
+
+        Assert.Equal("intake.docx.externalRelationshipUnsafe", ex.Code);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectRelationshipTargetEscapingPackageRoot()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateSyntheticDocx(directory);
+        ReplaceZipEntry(docx, "word/_rels/document.xml.rels", """
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+          <Relationship Id="rIdUnsafe" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../../private/image.png"/>
+        </Relationships>
+        """);
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = docx });
+
+        Assert.Equal("intake.docx.relationshipTargetInvalid", ex.Code);
+    }
+
+    [Fact]
     public void DocxExtraction_ShouldRejectOutputPathOutsideWorkspace()
     {
         var workspace = NewTempDirectory();
@@ -421,6 +455,28 @@ public sealed class DocxIntakeStructuringTests
         Assert.Contains("sections", File.ReadAllText(documentPath));
         Assert.True(JsonNode.Parse(File.ReadAllText(reportPath))!["ruleBasedMappedCount"]!.GetValue<int>() > 0);
         Assert.True(JsonNode.Parse(File.ReadAllText(unresolvedPath))!.AsArray().Count > 0);
+    }
+
+    [Fact]
+    public void Cli_StructureDraft_ShouldWriteFailureReportVersion()
+    {
+        var directory = NewTempDirectory();
+        var extractionPath = Path.Combine(directory, "bad-extraction.json");
+        var documentPath = Path.Combine(directory, "thesis-document.draft.json");
+        var reportPath = Path.Combine(directory, "mapping.json");
+        var unresolvedPath = Path.Combine(directory, "unresolved.json");
+        File.WriteAllText(extractionPath, "{ not-json");
+
+        var result = CliRunner.Run(RepoRoot(), "structure", "draft", "--extraction", extractionPath, "--out", documentPath, "--report", reportPath, "--unresolved", unresolvedPath);
+
+        Assert.Equal(2, result.ExitCode);
+        var json = JsonNode.Parse(File.ReadAllText(reportPath))!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.False(json["success"]!.GetValue<bool>());
+        var diagnostic = json["diagnostics"]!.AsArray()[0]!;
+        Assert.Equal("intake.structure.failed", diagnostic["code"]!.GetValue<string>());
+        Assert.Equal("error", diagnostic["severity"]!.GetValue<string>());
+        Assert.Equal("intake", diagnostic["category"]!.GetValue<string>());
     }
 
     [Fact]
@@ -725,6 +781,16 @@ public sealed class DocxIntakeStructuringTests
             new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }, new W.PageMargin { Top = 1440, Bottom = 1440, Left = 1440, Right = 1440 }));
         main.Document.Save();
         return path;
+    }
+
+    private static void ReplaceZipEntry(string packagePath, string entryName, string content)
+    {
+        using var archive = ZipFile.Open(packagePath, ZipArchiveMode.Update);
+        archive.GetEntry(entryName)?.Delete();
+        var entry = archive.CreateEntry(entryName);
+        using var stream = entry.Open();
+        using var writer = new StreamWriter(stream);
+        writer.Write(content);
     }
 
     private static void AddStyles(MainDocumentPart main)

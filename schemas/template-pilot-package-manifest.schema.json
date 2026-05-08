@@ -31,6 +31,27 @@
         "breakingCount": { "type": "integer", "minimum": 0 },
         "warningCount": { "type": "integer", "minimum": 0 }
       }
+    },
+    "privacyPolicySummary": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "maxEvidenceExcerptLength": { "type": "integer", "minimum": 40, "maximum": 1000 },
+        "maxBase64Length": { "type": "integer", "minimum": 1000, "maximum": 10000000 },
+        "maxWarningCount": { "type": "integer", "minimum": -1, "maximum": 10000 },
+        "suppressedWarningCodes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "suppressedWarningPathPrefixes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "nonSuppressibleWarningCodePrefixes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
     }
   },
   "definitions": {

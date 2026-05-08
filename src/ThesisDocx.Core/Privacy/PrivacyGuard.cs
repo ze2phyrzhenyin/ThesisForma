@@ -24,6 +24,11 @@ public sealed class PrivacyGuard
         ".pdf", ".docx", ".doc", ".wps", ".ttf", ".otf", ".ttc"
     };
 
+    private static readonly string[] NonSuppressibleWarningCodePrefixes =
+    [
+        "privacy.personal."
+    ];
+
     public PrivacyGuardResult Scan(PrivacyGuardOptions options)
     {
         var root = Path.GetFullPath(options.Path);
@@ -257,6 +262,11 @@ public sealed class PrivacyGuard
             return false;
         }
 
+        if (IsNonSuppressibleWarning(finding.Code))
+        {
+            return false;
+        }
+
         if (options.SuppressedWarningCodes.Contains(finding.Code))
         {
             return true;
@@ -268,6 +278,11 @@ public sealed class PrivacyGuard
             var normalized = prefix.Replace('\\', '/').Trim();
             return normalized.Length > 0 && path.StartsWith(normalized, StringComparison.Ordinal);
         });
+    }
+
+    private static bool IsNonSuppressibleWarning(string code)
+    {
+        return NonSuppressibleWarningCodePrefixes.Any(prefix => code.StartsWith(prefix, StringComparison.Ordinal));
     }
 
     private static bool IsUnderExamples(string path)

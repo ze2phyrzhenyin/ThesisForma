@@ -442,6 +442,24 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void PrivacyGuard_ShouldNotSuppressPersonalDataWarnings()
+    {
+        var workspace = CopyExampleWorkspace();
+        MutateFile(Path.Combine(workspace, "requirements", "requirements.json"), node => node["approval"]!["notes"] = "Reviewer should email reviewer@university.edu.");
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions
+        {
+            Path = workspace,
+            SuppressedWarningCodes = ["privacy.personal.email"],
+            SuppressedWarningPathPrefixes = ["requirements/"]
+        });
+
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.personal.email");
+        Assert.DoesNotContain(result.SuppressedFindings, finding => finding.Code == "privacy.personal.email");
+        Assert.Equal(0, result.SuppressedWarningCount);
+    }
+
+    [Fact]
     public void PrivacyGuard_ShouldFailWhenWarningThresholdExceeded()
     {
         var workspace = CopyExampleWorkspace();
@@ -719,6 +737,16 @@ public sealed class OnboardingWorkflowTests
 
         Assert.True(manifest["privacyScanSummary"]!["isValid"]!.GetValue<bool>());
         Assert.True(manifest["privacyScanSummary"]!["warningCount"]!.GetValue<int>() >= 0);
+    }
+
+    [Fact]
+    public void OnboardingPackage_ShouldRecordPrivacyPolicySummary()
+    {
+        var package = BuildPackage();
+        var manifest = JsonNode.Parse(ExtractPackageEntry(package, "manifest.json"))!;
+
+        Assert.Equal(240, manifest["privacyPolicySummary"]!["maxEvidenceExcerptLength"]!.GetValue<int>());
+        Assert.Contains(manifest["privacyPolicySummary"]!["nonSuppressibleWarningCodePrefixes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.personal.");
     }
 
     [Fact]

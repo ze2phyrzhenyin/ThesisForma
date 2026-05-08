@@ -2,6 +2,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.IO.Compression;
+using System.Xml;
+using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisDocx.Core.Utilities;
@@ -194,6 +196,11 @@ public sealed class DocxExtractionService
                 {
                     throw Error("intake.docx.compressionRatioTooHigh", "$.input", "DOCX package has an unsafe compression ratio.", "Reject the file or inspect it manually in an isolated workspace.");
                 }
+
+                if (IsRelationshipPart(name))
+                {
+                    ValidateRelationshipPart(entry, name);
+                }
             }
 
             if (!hasMainDocument)
@@ -201,6 +208,128 @@ public sealed class DocxExtractionService
                 throw Error("intake.docx.missingDocumentEntry", "$.input", "DOCX package is missing word/document.xml.", "Use a valid WordprocessingML .docx file.");
             }
         }
+    }
+
+    private static bool IsRelationshipPart(string name)
+    {
+        return name.EndsWith(".rels", StringComparison.OrdinalIgnoreCase)
+            && name.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("_rels", StringComparer.Ordinal);
+    }
+
+    private static void ValidateRelationshipPart(ZipArchiveEntry entry, string relationshipEntryName)
+    {
+        XDocument relationships;
+        try
+        {
+            using var stream = entry.Open();
+            relationships = XDocument.Load(stream, LoadOptions.None);
+        }
+        catch (XmlException ex)
+        {
+            throw Error("intake.docx.invalidRelationships", "$.input", "DOCX package contains an invalid relationship part.", "Regenerate the DOCX from a trusted editor before intake.", ex);
+        }
+
+        foreach (var relationship in relationships.Descendants().Where(element => element.Name.LocalName == "Relationship"))
+        {
+            var target = relationship.Attribute("Target")?.Value;
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                continue;
+            }
+
+            var targetMode = relationship.Attribute("TargetMode")?.Value;
+            if (string.Equals(targetMode, "External", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!IsAllowedExternalRelationshipTarget(target))
+                {
+                    throw Error("intake.docx.externalRelationshipUnsafe", "$.input", "DOCX package contains an unsafe external relationship target.", "Remove file, UNC, or local external relationship targets before intake.");
+                }
+
+                continue;
+            }
+
+            if (!TryResolvePackageRelationshipTarget(relationshipEntryName, target, out _))
+            {
+                throw Error("intake.docx.relationshipTargetInvalid", "$.input", "DOCX package contains a relationship target that escapes the package root.", "Regenerate the DOCX from a trusted editor and remove path traversal relationship targets.");
+            }
+        }
+    }
+
+    private static bool IsAllowedExternalRelationshipTarget(string target)
+    {
+        if (!Uri.TryCreate(target, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme is "http" or "https" or "mailto";
+    }
+
+    private static bool TryResolvePackageRelationshipTarget(string relationshipEntryName, string target, out string packagePath)
+    {
+        packagePath = string.Empty;
+        var normalizedTarget = target.Replace('\\', '/').Trim();
+        if (normalizedTarget.Length == 0
+            || normalizedTarget.StartsWith("//", StringComparison.Ordinal)
+            || normalizedTarget.Contains(':', StringComparison.Ordinal)
+            || (!normalizedTarget.StartsWith("/", StringComparison.Ordinal) && Uri.TryCreate(normalizedTarget, UriKind.Absolute, out _)))
+        {
+            return false;
+        }
+
+        var combined = normalizedTarget.StartsWith("/", StringComparison.Ordinal)
+            ? normalizedTarget.TrimStart('/')
+            : CombinePackagePath(SourceDirectoryForRelationshipPart(relationshipEntryName), normalizedTarget);
+
+        var segments = new List<string>();
+        foreach (var segment in combined.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment == ".")
+            {
+                continue;
+            }
+
+            if (segment == "..")
+            {
+                if (segments.Count == 0)
+                {
+                    return false;
+                }
+
+                segments.RemoveAt(segments.Count - 1);
+                continue;
+            }
+
+            segments.Add(segment);
+        }
+
+        packagePath = string.Join('/', segments);
+        return packagePath.Length > 0;
+    }
+
+    private static string SourceDirectoryForRelationshipPart(string relationshipEntryName)
+    {
+        var name = relationshipEntryName.Replace('\\', '/');
+        if (name.Equals("_rels/.rels", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        var marker = "/_rels/";
+        var markerIndex = name.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return string.Empty;
+        }
+
+        var sourcePart = name[..markerIndex] + "/" + name[(markerIndex + marker.Length)..^".rels".Length];
+        var slash = sourcePart.LastIndexOf('/');
+        return slash < 0 ? string.Empty : sourcePart[..slash];
+    }
+
+    private static string CombinePackagePath(string baseDirectory, string target)
+    {
+        return string.IsNullOrWhiteSpace(baseDirectory) ? target : $"{baseDirectory}/{target}";
     }
 
     private static void ValidateOutputPath(string? workspaceRoot, string? path, string optionPath)

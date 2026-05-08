@@ -861,11 +861,28 @@ internal static class ThesisDocxCli
     private static int StructureDraft(Dictionary<string, string> options)
     {
         var extractionPath = Required(options, "extraction");
-        var extraction = ReadJson<DocxExtractionResult>(extractionPath);
-        var result = new ThesisStructureMapper().Map(extraction, extractionPath);
-        new ThesisStructureMapper().WriteOutputs(result, Required(options, "out"), Required(options, "report"), Required(options, "unresolved"), options.GetValueOrDefault("evidence"));
-        Console.WriteLine($"Structured draft with {result.Report.RuleBasedMappedCount} mapped items and {result.UnresolvedItems.Count} unresolved items");
-        return 0;
+        var reportPath = Required(options, "report");
+        try
+        {
+            var extraction = ReadJson<DocxExtractionResult>(extractionPath);
+            var result = new ThesisStructureMapper().Map(extraction, extractionPath);
+            new ThesisStructureMapper().WriteOutputs(result, Required(options, "out"), reportPath, Required(options, "unresolved"), options.GetValueOrDefault("evidence"));
+            Console.WriteLine($"Structured draft with {result.Report.RuleBasedMappedCount} mapped items and {result.UnresolvedItems.Count} unresolved items");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            var diagnostic = IntakeFailureDiagnostic(
+                "intake.structure.failed",
+                "$.extraction",
+                "Structure draft failed before producing a draft document.",
+                "Validate extraction JSON and rerun structure draft inside the private intake workspace.",
+                "StructureDraft",
+                ex);
+            WriteJsonOutput(reportPath, new { reportVersion = "1.0.0", success = false, diagnostics = new[] { diagnostic } });
+            Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            return 2;
+        }
     }
 
     private static int StructurePrompt(Dictionary<string, string> options)
@@ -936,6 +953,7 @@ internal static class ThesisDocxCli
                 Category = DiagnosticCategory.Intake,
                 Source = "IntakeDocx"
             };
+            report.ExtractionStatus = "fail";
             report.Diagnostics.Add(diagnostic);
             report.BlockingIssues.Add($"{diagnostic.Code}: {diagnostic.Message}");
             report.RecommendedNextActions = ["Copy the uploaded Word file into the workspace input directory and rerun intake."];
@@ -1005,12 +1023,31 @@ internal static class ThesisDocxCli
         catch (DocxExtractionException ex)
         {
             var diagnostic = ExtractionDiagnostic(ex, "IntakeDocx");
+            report.ExtractionStatus = "fail";
             report.Diagnostics.Add(diagnostic);
             report.BlockingIssues.Add($"{diagnostic.Code}: {diagnostic.Message}");
         }
         catch (Exception ex)
         {
-            report.BlockingIssues.Add(ex.Message);
+            var diagnostic = IntakeFailureDiagnostic(
+                "intake.docx.failed",
+                "$",
+                "DOCX intake failed before producing all expected artifacts.",
+                "Review intake-report.json, fix the referenced workspace input or template issue, and rerun intake.",
+                "IntakeDocx",
+                ex);
+            if (report.ExtractionStatus == "notRun")
+            {
+                report.ExtractionStatus = "fail";
+            }
+
+            if (report.ExtractionStatus == "pass" && report.StructuringStatus == "notRun")
+            {
+                report.StructuringStatus = "fail";
+            }
+
+            report.Diagnostics.Add(diagnostic);
+            report.BlockingIssues.Add($"{diagnostic.Code}: {diagnostic.Message}");
         }
 
         report.RecommendedNextActions = report.BlockingIssues.Count == 0
@@ -1052,6 +1089,24 @@ internal static class ThesisDocxCli
             FixHint = ex.FixHint,
             Category = DiagnosticCategory.Intake,
             Source = source
+        };
+    }
+
+    private static UnifiedDiagnostic IntakeFailureDiagnostic(string code, string path, string message, string fixHint, string source, Exception ex)
+    {
+        return new UnifiedDiagnostic
+        {
+            Code = code,
+            Severity = DiagnosticSeverity.Error,
+            Path = path,
+            Message = message,
+            FixHint = fixHint,
+            Category = DiagnosticCategory.Intake,
+            Source = source,
+            Details = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["exceptionType"] = ex.GetType().Name
+            }
         };
     }
 
