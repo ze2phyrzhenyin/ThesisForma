@@ -5,6 +5,12 @@ import { inlinesToPlainText } from '../inlines';
 import type { HeadingBlock, SectionKind } from '@/types';
 import styles from './SectionNav.module.css';
 
+interface SectionHeading {
+  level: number;
+  text: string;
+  blockIndex: number;
+}
+
 export function SectionNav() {
   const view = useEditorStore((s) => s.view);
   const sections = useEditorStore((s) => s.envelope.document.sections);
@@ -13,6 +19,7 @@ export function SectionNav() {
   const [renameTarget, setRenameTarget] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const addRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,22 +39,6 @@ export function SectionNav() {
   }, [addOpen]);
 
   const activeSectionIndex = view.kind === 'section' ? view.sectionIndex : -1;
-  const activeSection = activeSectionIndex >= 0 ? sections[activeSectionIndex] : null;
-
-  const headings: { level: number; text: string; sectionIndex: number; blockIndex: number }[] = [];
-  if (activeSection) {
-    activeSection.blocks.forEach((b, bIdx) => {
-      if (b.type === 'heading') {
-        const h = b as HeadingBlock;
-        headings.push({
-          level: h.level,
-          text: inlinesToPlainText(h.inlines).trim() || '（无标题）',
-          sectionIndex: activeSectionIndex,
-          blockIndex: bIdx
-        });
-      }
-    });
-  }
 
   const startRename = (idx: number) => {
     const s = sections[idx];
@@ -77,11 +68,19 @@ export function SectionNav() {
   };
 
   const handleAdd = (kind: SectionKind) => {
-    const insertAt =
-      activeSectionIndex >= 0 ? activeSectionIndex + 1 : sections.length;
+    const insertAt = activeSectionIndex >= 0 ? activeSectionIndex + 1 : sections.length;
     const newIdx = actions.addSection(kind, insertAt);
     actions.setView({ kind: 'section', sectionIndex: newIdx });
     setAddOpen(false);
+  };
+
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   return (
@@ -115,99 +114,153 @@ export function SectionNav() {
       </div>
 
       <div className={styles.group}>
-        <div className={styles.groupTitle}>章节</div>
+        <div className={styles.groupTitle}>文档结构</div>
         {sections.length === 0 && (
           <div className={styles.emptyHint}>还没有章节，点下方「添加章节」开始。</div>
         )}
+
         {sections.map((section, idx) => {
           const meta = SECTION_META[section.kind];
           const isActive = activeSectionIndex === idx;
           const isRenaming = renameTarget === idx;
           const displayName = section.title ?? meta.label;
+          const sectionKey = section.id ?? `${section.kind}-${idx}`;
+
+          const headings: SectionHeading[] = [];
+          section.blocks.forEach((b, bIdx) => {
+            if (b.type === 'heading') {
+              const h = b as HeadingBlock;
+              headings.push({
+                level: h.level,
+                text: inlinesToPlainText(h.inlines).trim() || '（无标题）',
+                blockIndex: bIdx
+              });
+            }
+          });
+          const hasHeadings = headings.length > 0;
+          const isCollapsed = collapsed.has(sectionKey);
 
           return (
-            <div
-              key={section.id ?? `${section.kind}-${idx}`}
-              className={`${styles.row} ${isActive ? styles.rowActive : ''}`}
-              data-renaming={isRenaming}
-            >
-              {isRenaming ? (
-                <input
-                  className={styles.renameInput}
-                  autoFocus
-                  value={renameDraft}
-                  onChange={(e) => setRenameDraft(e.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitRename();
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancelRename();
-                    }
-                  }}
-                />
-              ) : (
+            <div key={sectionKey} className={styles.treeNode}>
+              <div
+                className={`${styles.row} ${isActive ? styles.rowActive : ''}`}
+                data-renaming={isRenaming}
+              >
                 <button
                   type="button"
-                  className={styles.rowMain}
-                  onClick={() => actions.setView({ kind: 'section', sectionIndex: idx })}
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    startRename(idx);
-                  }}
-                  title={`${meta.label}（双击重命名）`}
+                  className={styles.disclosure}
+                  onClick={() => hasHeadings && toggleCollapsed(sectionKey)}
+                  data-empty={!hasHeadings}
+                  aria-label={isCollapsed ? '展开' : '折叠'}
+                  tabIndex={hasHeadings ? 0 : -1}
                 >
-                  <span className={styles.itemDot} aria-hidden />
-                  <span className={styles.itemLabel}>{displayName}</span>
-                  {section.title && section.title !== meta.label && (
-                    <span className={styles.kindHint}>{meta.label}</span>
-                  )}
+                  {hasHeadings ? (isCollapsed ? '▸' : '▾') : '·'}
                 </button>
-              )}
 
-              {!isRenaming && (
-                <div className={styles.rowActions}>
+                {isRenaming ? (
+                  <input
+                    className={styles.renameInput}
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitRename();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelRename();
+                      }
+                    }}
+                  />
+                ) : (
                   <button
                     type="button"
-                    className={styles.iconBtn}
-                    onClick={() => actions.moveSection(idx, idx - 1)}
-                    disabled={idx === 0}
-                    title="上移"
-                    aria-label="上移"
+                    className={styles.rowMain}
+                    onClick={() => actions.setView({ kind: 'section', sectionIndex: idx })}
+                    onDoubleClick={(e) => {
+                      e.preventDefault();
+                      startRename(idx);
+                    }}
+                    title={`${meta.label}（双击重命名）`}
                   >
-                    ↑
+                    <span className={styles.itemLabel}>{displayName}</span>
+                    {section.title && section.title !== meta.label && (
+                      <span className={styles.kindHint}>{meta.label}</span>
+                    )}
                   </button>
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => actions.moveSection(idx, idx + 1)}
-                    disabled={idx === sections.length - 1}
-                    title="下移"
-                    aria-label="下移"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => startRename(idx)}
-                    title="重命名"
-                    aria-label="重命名"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconBtn}
-                    onClick={() => handleDelete(idx)}
-                    title="删除"
-                    aria-label="删除"
-                    data-danger
-                  >
-                    ✕
-                  </button>
+                )}
+
+                {!isRenaming && (
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => actions.moveSection(idx, idx - 1)}
+                      disabled={idx === 0}
+                      title="上移"
+                      aria-label="上移"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => actions.moveSection(idx, idx + 1)}
+                      disabled={idx === sections.length - 1}
+                      title="下移"
+                      aria-label="下移"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => startRename(idx)}
+                      title="重命名"
+                      aria-label="重命名"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => handleDelete(idx)}
+                      title="删除"
+                      aria-label="删除"
+                      data-danger
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {hasHeadings && !isCollapsed && (
+                <div className={styles.children}>
+                  {headings.map((h, i) => (
+                    <button
+                      key={`${idx}-${h.blockIndex}-${i}`}
+                      type="button"
+                      className={styles.outlineItem}
+                      data-level={h.level}
+                      data-active={isActive}
+                      onClick={() => {
+                        actions.setView({ kind: 'section', sectionIndex: idx });
+                        actions.selectBlock(idx, h.blockIndex);
+                        queueMicrotask(() => {
+                          const el = document.querySelector<HTMLElement>(
+                            `[data-block-index="${idx}-${h.blockIndex}"]`
+                          );
+                          el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        });
+                      }}
+                      title={h.text}
+                    >
+                      {h.text}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -248,33 +301,6 @@ export function SectionNav() {
           )}
         </div>
       </div>
-
-      {headings.length > 0 && (
-        <div className={styles.group}>
-          <div className={styles.groupTitle}>大纲</div>
-          {headings.map((h, i) => (
-            <button
-              key={`${h.sectionIndex}-${h.blockIndex}-${i}`}
-              type="button"
-              className={styles.outlineItem}
-              data-level={h.level}
-              onClick={() => {
-                actions.setView({ kind: 'section', sectionIndex: h.sectionIndex });
-                actions.selectBlock(h.sectionIndex, h.blockIndex);
-                queueMicrotask(() => {
-                  const el = document.querySelector<HTMLElement>(
-                    `[data-block-index="${h.sectionIndex}-${h.blockIndex}"]`
-                  );
-                  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                });
-              }}
-              title={h.text}
-            >
-              {h.text}
-            </button>
-          ))}
-        </div>
-      )}
     </nav>
   );
 }

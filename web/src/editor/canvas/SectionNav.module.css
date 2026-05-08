@@ -74,6 +74,45 @@
   white-space: nowrap;
 }
 
+/* ── Tree node (section + its headings) ───────────────────────── */
+
+.treeNode {
+  display: flex;
+  flex-direction: column;
+}
+
+.children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 4px;
+}
+
+.disclosure {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-2xs);
+  color: var(--color-text-faint);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+.disclosure:hover:not([data-empty='true']) {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.disclosure[data-empty='true'] {
+  cursor: default;
+  color: var(--color-text-faint);
+  opacity: 0.4;
+}
+
 /* ── Section row (with hover actions) ─────────────────────────── */
 
 .row {
@@ -248,14 +287,13 @@
   color: var(--color-text-mute);
 }
 
-/* ── Outline ──────────────────────────────────────────────────── */
+/* ── Heading items inside a section ───────────────────────────── */
 
 .outlineItem {
   font-size: var(--fs-xs);
   color: var(--color-text-mute);
-  padding: 4px var(--sp-2);
+  padding: 3px var(--sp-2);
   text-align: left;
-  width: 100%;
   border-radius: var(--r-sm);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -267,6 +305,28 @@
 .outlineItem:hover {
   color: var(--color-text);
   background: var(--color-surface-soft);
+}
+
+.outlineItem[data-active='true'] {
+  color: var(--color-text-soft);
+}
+
+.outlineItem[data-level='1'] {
+  margin-left: var(--sp-5);
+}
+
+.outlineItem[data-level='2'] {
+  margin-left: var(--sp-6);
+}
+
+.outlineItem[data-level='3'] {
+  margin-left: var(--sp-8);
+}
+
+.outlineItem[data-level='4'],
+.outlineItem[data-level='5'],
+.outlineItem[data-level='6'] {
+  margin-left: var(--sp-10);
 }
 
 .outlineItem[data-level='1'] {

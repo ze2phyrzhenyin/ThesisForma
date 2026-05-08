@@ -1,0 +1,335 @@
+.notice {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+
+.notice code {
+  font-size: var(--fs-xs);
+  background: var(--color-surface);
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.sectionDesc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-mute);
+}
+
+.fullRow {
+  grid-column: 1 / -1;
+}
+
+/* ── Bucket card ──────────────────────────────────────────────── */
+
+.bucket {
+  padding: var(--sp-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+details.bucket {
+  display: block;
+  padding: 0;
+}
+
+details.bucket > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+details.bucket > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.bucket > summary::before {
+  content: '▸';
+  color: var(--color-text-faint);
+  font-size: var(--fs-xs);
+  transition: transform var(--t-fast) var(--ease);
+  flex-shrink: 0;
+}
+
+details.bucket[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.bucketBody {
+  padding: 0 var(--sp-4) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.bucketTitle {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.subTitle {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--color-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tag {
+  font-size: var(--fs-2xs);
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: 400;
+}
+
+.idTag {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--color-text-faint);
+  font-weight: 400;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 30%;
+}
+
+.checkboxRow {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.placeholder {
+  padding: var(--sp-4);
+  background: var(--color-surface-soft);
+  border-radius: var(--r-md);
+  color: var(--color-text-mute);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+/* ── TOC section picker ───────────────────────────────────────── */
+
+.tocPicker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.tocPickerAll {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--color-surface-soft);
+  border: 0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.tocPickerAll[data-active='true'] {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+}
+
+.tocPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--sp-1);
+}
+
+.tocPickerItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--fs-sm);
+  color: var(--color-text-soft);
+  text-align: left;
+}
+
+.tocPickerItem:hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.tocPickerItem[data-active='true'] {
+  color: var(--color-text);
+}
+
+.tocPickerCheck {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-xs);
+  color: var(--color-brand);
+  flex-shrink: 0;
+}
+
+.tocPickerAll[data-active='true'] .tocPickerCheck {
+  background: var(--color-brand);
+  color: var(--color-surface);
+  border-color: var(--color-brand);
+}
+
+.tocPickerItem[data-active='true'] .tocPickerCheck {
+  background: var(--color-brand);
+  color: var(--color-surface);
+  border-color: var(--color-brand);
+}
+
+.tocPickerLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tri-state checkbox ───────────────────────────────────────── */
+
+.triCheckbox {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  text-align: left;
+}
+
+.triCheckbox:hover {
+  border-color: var(--color-brand);
+}
+
+.triCheckbox[data-state='inherit'] {
+  color: var(--color-text-mute);
+}
+
+.triCheckbox[data-state='on'] {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand);
+  color: var(--color-brand-strong);
+}
+
+.triCheckbox[data-state='off'] {
+  background: var(--color-error-soft);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.triCheckboxBox {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--color-surface-soft);
+  font-size: var(--fs-xs);
+  flex-shrink: 0;
+}
+
+.triCheckbox[data-state='on'] .triCheckboxBox {
+  background: var(--color-brand);
+  color: var(--color-surface);
+}
+
+.triCheckbox[data-state='off'] .triCheckboxBox {
+  background: var(--color-error);
+  color: var(--color-surface);
+}
+
+.triCheckboxLabel {
+  flex: 1;
+}
+
+.triCheckboxState {
+  font-size: var(--fs-xs);
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* ── Footer reset ─────────────────────────────────────────────── */
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.resetBtn {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font-size: var(--fs-sm);
+  transition: all var(--t-fast) var(--ease);
+}
+
+.resetBtn:hover:not(:disabled) {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.resetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
