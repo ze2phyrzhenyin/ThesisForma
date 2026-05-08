@@ -30,6 +30,13 @@ Privacy:
 - Keep these files in ignored onboarding workspaces.
 - Do not copy user content into `examples` or docs.
 
+Safety boundaries:
+
+- `extract docx` rejects missing inputs, non-`.docx` inputs, empty files, invalid ZIP/OpenXML packages, packages without `word/document.xml`, unsafe ZIP entry paths, excessive entry counts, excessive expanded size, and high compression ratios.
+- Intake workspace outputs stay inside the configured private workspace.
+- Extraction and intake diagnostics use the normalized `diagnostics[]` contract with `category: "intake"` and severity `error`, `warning`, or `info`.
+- The draft document is a rule-assisted prototype artifact. It is not a formal DOCX import feature and must not be presented as AI inference or free-document parsing.
+
 Current limits:
 
 - no OCR by default;

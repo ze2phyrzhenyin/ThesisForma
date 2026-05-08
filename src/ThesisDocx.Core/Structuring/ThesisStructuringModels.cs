@@ -1,4 +1,5 @@
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Diagnostics;
 
 namespace ThesisDocx.Core.Structuring;
 
@@ -65,6 +66,7 @@ public sealed class IntakeDocxReport
     public int UnresolvedCount { get; set; }
     public List<string> Warnings { get; set; } = [];
     public List<string> BlockingIssues { get; set; } = [];
+    public List<UnifiedDiagnostic> Diagnostics { get; set; } = [];
     public List<string> RecommendedNextActions { get; set; } = [];
     public List<string> Artifacts { get; set; } = [];
 }

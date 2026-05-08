@@ -440,7 +440,7 @@ internal static class ThesisDocxCli
             WriteTextOutput(markdownPath, new DiagnosticReportMarkdownRenderer().Render(report));
         }
 
-        Console.WriteLine($"Diagnostic status: {report.Status}; issues: {report.IssueCount}; breaking: {report.BreakingCount}; warnings: {report.WarningCount}");
+        Console.WriteLine($"Diagnostic status: {report.Status}; issues: {report.IssueCount}; errors: {report.BreakingCount}; warnings: {report.WarningCount}");
         return report.BreakingCount > 0 ? 2 : 0;
     }
 
@@ -672,16 +672,26 @@ internal static class ThesisDocxCli
     {
         var input = options.GetValueOrDefault("input") ?? Required(options, "docx");
         var output = Required(options, "out");
-        var result = new DocxExtractionService().Extract(new DocxExtractionOptions
+        try
         {
-            InputPath = input,
-            OutputJsonPath = output,
-            PlainTextPath = options.GetValueOrDefault("text"),
-            MarkdownPath = options.GetValueOrDefault("markdown"),
-            ArtifactsDirectory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output)) ?? Directory.GetCurrentDirectory(), "..", "artifacts")
-        });
-        Console.WriteLine($"Extracted {result.Paragraphs.Count} paragraphs, {result.Tables.Count} tables, {result.Figures.Count} figures");
-        return 0;
+            var result = new DocxExtractionService().Extract(new DocxExtractionOptions
+            {
+                InputPath = input,
+                OutputJsonPath = output,
+                PlainTextPath = options.GetValueOrDefault("text"),
+                MarkdownPath = options.GetValueOrDefault("markdown"),
+                ArtifactsDirectory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output)) ?? Directory.GetCurrentDirectory(), "artifacts")
+            });
+            Console.WriteLine($"Extracted {result.Paragraphs.Count} paragraphs, {result.Tables.Count} tables, {result.Figures.Count} figures");
+            return 0;
+        }
+        catch (DocxExtractionException ex)
+        {
+            var diagnostic = ExtractionDiagnostic(ex, "DocxExtractionService");
+            WriteJsonOutput(output, new { success = false, diagnostics = new[] { diagnostic } });
+            Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            return 2;
+        }
     }
 
     private static int Content(string[] args)
@@ -717,7 +727,7 @@ internal static class ThesisDocxCli
             {
                 InputPath = renderedDocx,
                 OutputJsonPath = renderedPath,
-                ArtifactsDirectory = Path.Combine(outDirectory, "..", "artifacts")
+                ArtifactsDirectory = Path.Combine(outDirectory, "artifacts")
             });
         }
 
@@ -803,7 +813,7 @@ internal static class ThesisDocxCli
             """);
         }
 
-        var report = new IntakeDocxReport { InputDocx = input };
+        var report = new IntakeDocxReport { InputDocx = Path.GetFileName(input) };
         var extractionPath = Path.Combine(workspace, "extraction", "extraction.json");
         var plainTextPath = Path.Combine(workspace, "extraction", "plain-text.txt");
         var markdownPath = Path.Combine(workspace, "extraction", "extracted.md");
@@ -817,7 +827,18 @@ internal static class ThesisDocxCli
 
         if (!File.Exists(input))
         {
-            report.BlockingIssues.Add($"Input DOCX not found. Place the file at {Path.Combine(workspace, "input", "input.docx")}.");
+            var diagnostic = new UnifiedDiagnostic
+            {
+                Code = "intake.input.notFound",
+                Severity = DiagnosticSeverity.Error,
+                Path = "$.input",
+                Message = "Input DOCX file does not exist.",
+                FixHint = "Copy the uploaded Word file into the workspace input directory and rerun intake.",
+                Category = DiagnosticCategory.Intake,
+                Source = "IntakeDocx"
+            };
+            report.Diagnostics.Add(diagnostic);
+            report.BlockingIssues.Add($"{diagnostic.Code}: {diagnostic.Message}");
             report.RecommendedNextActions = ["Copy the uploaded Word file into the workspace input directory and rerun intake."];
             WriteJsonOutput(reportPath, report);
             WriteTextOutput(reportMarkdownPath, IntakeReportMarkdown(report));
@@ -832,7 +853,8 @@ internal static class ThesisDocxCli
                 OutputJsonPath = extractionPath,
                 PlainTextPath = plainTextPath,
                 MarkdownPath = markdownPath,
-                ArtifactsDirectory = Path.Combine(workspace, "artifacts")
+                ArtifactsDirectory = Path.Combine(workspace, "artifacts"),
+                WorkspaceRoot = workspace
             });
             report.ExtractionStatus = "pass";
             report.Artifacts.AddRange([extractionPath, plainTextPath, markdownPath]);
@@ -840,8 +862,8 @@ internal static class ThesisDocxCli
             var privacy = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
             WriteJsonOutput(privacyReportPath, privacy);
             report.Artifacts.Add(privacyReportPath);
-            report.Warnings.AddRange(privacy.Findings.Where(f => f.Severity != "breaking").Select(f => $"{f.Code}: {f.Message}"));
-            report.BlockingIssues.AddRange(privacy.Findings.Where(f => f.Severity == "breaking").Select(f => $"{f.Code}: {f.Message}"));
+            report.Warnings.AddRange(privacy.Findings.Where(f => !UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => $"{f.Code}: {f.Message}"));
+            report.BlockingIssues.AddRange(privacy.Findings.Where(f => UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => $"{f.Code}: {f.Message}"));
 
             var structured = new ThesisStructureMapper().Map(extraction, extractionPath);
             new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
@@ -881,6 +903,12 @@ internal static class ThesisDocxCli
                 }
             }
         }
+        catch (DocxExtractionException ex)
+        {
+            var diagnostic = ExtractionDiagnostic(ex, "IntakeDocx");
+            report.Diagnostics.Add(diagnostic);
+            report.BlockingIssues.Add($"{diagnostic.Code}: {diagnostic.Message}");
+        }
         catch (Exception ex)
         {
             report.BlockingIssues.Add(ex.Message);
@@ -914,6 +942,20 @@ internal static class ThesisDocxCli
         """;
     }
 
+    private static UnifiedDiagnostic ExtractionDiagnostic(DocxExtractionException ex, string source)
+    {
+        return new UnifiedDiagnostic
+        {
+            Code = ex.Code,
+            Severity = UnifiedDiagnosticMapper.NormalizeSeverity(ex.Severity),
+            Path = ex.Path,
+            Message = ex.Message,
+            FixHint = ex.FixHint,
+            Category = DiagnosticCategory.Intake,
+            Source = source
+        };
+    }
+
     private static int Privacy(string[] args)
     {
         if (args.Length == 0)
@@ -934,7 +976,7 @@ internal static class ThesisDocxCli
     {
         var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = Required(options, "path") });
         WriteJsonOutput(options.GetValueOrDefault("out"), result);
-        Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} breaking, {result.WarningCount} warnings)");
+        Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings)");
         return result.IsValid ? 0 : 2;
     }
 

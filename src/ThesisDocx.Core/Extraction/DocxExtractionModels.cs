@@ -7,6 +7,30 @@ public sealed class DocxExtractionOptions
     public string? PlainTextPath { get; set; }
     public string? MarkdownPath { get; set; }
     public string? ArtifactsDirectory { get; set; }
+    public string? WorkspaceRoot { get; set; }
+    public long MaxInputBytes { get; set; } = 100 * 1024 * 1024;
+    public int MaxZipEntryCount { get; set; } = 8_000;
+    public long MaxUncompressedBytes { get; set; } = 400 * 1024 * 1024;
+    public double MaxCompressionRatio { get; set; } = 200;
+}
+
+public sealed class DocxExtractionException : Exception
+{
+    public DocxExtractionException(string code, string path, string message, string fixHint, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        Code = code;
+        Path = path;
+        FixHint = fixHint;
+    }
+
+    public string Code { get; }
+
+    public string Severity { get; } = "error";
+
+    public string Path { get; }
+
+    public string FixHint { get; }
 }
 
 public sealed class DocxExtractionResult

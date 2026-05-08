@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml.Packaging;
@@ -205,6 +206,90 @@ public sealed class DocxIntakeStructuringTests
         var result = new ThesisSchemaValidator().ValidateDocxExtractionFile(extractionPath, SchemaPath("docx-extraction.schema.json"));
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectMissingInputWithDiagnostic()
+    {
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = Path.Combine(NewTempDirectory(), "missing.docx") });
+
+        Assert.Equal("intake.input.notFound", ex.Code);
+        Assert.Equal("error", ex.Severity);
+        Assert.Equal("$.input", ex.Path);
+        Assert.False(string.IsNullOrWhiteSpace(ex.FixHint));
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectNonDocxInput()
+    {
+        var directory = NewTempDirectory();
+        var path = Path.Combine(directory, "source.txt");
+        File.WriteAllText(path, "not a docx");
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = path });
+
+        Assert.Equal("intake.input.notDocx", ex.Code);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectInvalidZip()
+    {
+        var directory = NewTempDirectory();
+        var path = Path.Combine(directory, "invalid.docx");
+        File.WriteAllText(path, "not a zip package");
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = path });
+
+        Assert.Equal("intake.docx.invalidZip", ex.Code);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectPackageMissingMainDocument()
+    {
+        var directory = NewTempDirectory();
+        var path = Path.Combine(directory, "missing-main.docx");
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("[Content_Types].xml");
+        }
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = path });
+
+        Assert.Equal("intake.docx.missingDocumentEntry", ex.Code);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectZipEntryPathTraversal()
+    {
+        var directory = NewTempDirectory();
+        var path = Path.Combine(directory, "traversal.docx");
+        using (var archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("../evil.txt");
+            archive.CreateEntry("word/document.xml");
+        }
+
+        var ex = AssertExtractionError(new DocxExtractionOptions { InputPath = path });
+
+        Assert.Equal("intake.docx.pathTraversal", ex.Code);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRejectOutputPathOutsideWorkspace()
+    {
+        var workspace = NewTempDirectory();
+        var docx = CreateSyntheticDocx(workspace);
+        var outside = Path.Combine(Path.GetDirectoryName(workspace)!, "escape.json");
+
+        var ex = AssertExtractionError(new DocxExtractionOptions
+        {
+            InputPath = docx,
+            OutputJsonPath = outside,
+            WorkspaceRoot = workspace
+        });
+
+        Assert.Equal("intake.output.pathTraversal", ex.Code);
+        Assert.Equal("$.out", ex.Path);
     }
 
     [Fact]
@@ -456,6 +541,23 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void Cli_ExtractDocx_ShouldWriteStructuredDiagnosticForBadInput()
+    {
+        var directory = NewTempDirectory();
+        var output = Path.Combine(directory, "extract-error.json");
+
+        var result = CliRunner.Run(RepoRoot(), "extract", "docx", "--input", Path.Combine(directory, "missing.docx"), "--out", output);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(File.Exists(output));
+        var diagnostic = JsonNode.Parse(File.ReadAllText(output))!["diagnostics"]!.AsArray()[0]!;
+        Assert.Equal("intake.input.notFound", diagnostic["code"]!.GetValue<string>());
+        Assert.Equal("error", diagnostic["severity"]!.GetValue<string>());
+        Assert.Equal("intake", diagnostic["category"]!.GetValue<string>());
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic["fixHint"]!.GetValue<string>()));
+    }
+
+    [Fact]
     public void IntakeDocx_ShouldRunExtractionAndDraft()
     {
         var workspace = NewTempDirectory();
@@ -541,6 +643,20 @@ public sealed class DocxIntakeStructuringTests
         Assert.True(File.Exists(Path.Combine(workspace, "reports", "privacy-scan.json")));
     }
 
+    [Fact]
+    public void IntakeDocx_ShouldReportStructuredDiagnosticForMissingInput()
+    {
+        var workspace = NewTempDirectory();
+        var result = RunIntake(workspace, Path.Combine(workspace, "input", "missing.docx"));
+
+        Assert.Equal(2, result.ExitCode);
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        var diagnostic = report["diagnostics"]!.AsArray()[0]!;
+        Assert.Equal("intake.input.notFound", diagnostic["code"]!.GetValue<string>());
+        Assert.Equal("error", diagnostic["severity"]!.GetValue<string>());
+        Assert.Equal("$.input", diagnostic["path"]!.GetValue<string>());
+    }
+
     private static CliResult RunIntake(string workspace, string input)
     {
         return CliRunner.Run(RepoRoot(), "intake", "docx", "--input", input, "--workspace", workspace, "--template", TemplatePath());
@@ -556,6 +672,11 @@ public sealed class DocxIntakeStructuringTests
         var directory = NewTempDirectory();
         var docx = CreateSyntheticDocx(directory);
         return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+    }
+
+    private static DocxExtractionException AssertExtractionError(DocxExtractionOptions options)
+    {
+        return Assert.Throws<DocxExtractionException>(() => new DocxExtractionService().Extract(options));
     }
 
     private static string ExtractSyntheticToFile(string directory)

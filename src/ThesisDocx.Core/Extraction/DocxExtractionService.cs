@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.IO.Compression;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisDocx.Core.Utilities;
@@ -12,9 +13,10 @@ public sealed class DocxExtractionService
 {
     public DocxExtractionResult Extract(DocxExtractionOptions options)
     {
-        using var document = WordprocessingDocument.Open(options.InputPath, false);
-        var main = document.MainDocumentPart ?? throw new InvalidDataException("DOCX has no main document part.");
-        var body = main.Document.Body ?? throw new InvalidDataException("DOCX has no document body.");
+        ValidateOptions(options);
+        using var document = OpenDocument(options.InputPath);
+        var main = document.MainDocumentPart ?? throw Error("intake.docx.missingMainDocumentPart", "$.input", "DOCX package has no main document part.", "Use a valid WordprocessingML .docx file.");
+        var body = main.Document.Body ?? throw Error("intake.docx.missingBody", "$.input", "DOCX main document has no body.", "Use a valid WordprocessingML .docx file with document body content.");
         var styleNames = LoadStyleNames(main);
         var artifactImageDirectory = ResolveImageDirectory(options);
         var result = new DocxExtractionResult
@@ -95,6 +97,131 @@ public sealed class DocxExtractionService
 
         WriteOutputs(options, result);
         return result;
+    }
+
+    private static WordprocessingDocument OpenDocument(string inputPath)
+    {
+        try
+        {
+            return WordprocessingDocument.Open(inputPath, false);
+        }
+        catch (OpenXmlPackageException ex)
+        {
+            throw Error("intake.docx.invalidPackage", "$.input", "Input is not a valid OpenXML Wordprocessing package.", "Export or save the source as a valid .docx file.", ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw Error("intake.docx.invalidPackage", "$.input", "Input is not a valid .docx ZIP package.", "Use a valid .docx file instead of a renamed or corrupted file.", ex);
+        }
+    }
+
+    private static void ValidateOptions(DocxExtractionOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.InputPath))
+        {
+            throw Error("intake.input.missing", "$.input", "Input DOCX path is required.", "Pass --input or --docx with a valid .docx file.");
+        }
+
+        if (!File.Exists(options.InputPath))
+        {
+            throw Error("intake.input.notFound", "$.input", "Input DOCX file does not exist.", "Check the input path and rerun extraction.");
+        }
+
+        if (!Path.GetExtension(options.InputPath).Equals(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            throw Error("intake.input.notDocx", "$.input", "Input file must have a .docx extension.", "Use a .docx file exported by Word or a compatible editor.");
+        }
+
+        var fileInfo = new FileInfo(options.InputPath);
+        if (fileInfo.Length == 0)
+        {
+            throw Error("intake.input.empty", "$.input", "Input DOCX file is empty.", "Provide a non-empty .docx file.");
+        }
+
+        if (fileInfo.Length > options.MaxInputBytes)
+        {
+            throw Error("intake.input.tooLarge", "$.input", "Input DOCX file exceeds the configured extraction size limit.", "Reduce embedded media or raise the extraction limit in a controlled workspace.");
+        }
+
+        ValidateOutputPath(options.WorkspaceRoot, options.OutputJsonPath, "$.out");
+        ValidateOutputPath(options.WorkspaceRoot, options.PlainTextPath, "$.text");
+        ValidateOutputPath(options.WorkspaceRoot, options.MarkdownPath, "$.markdown");
+        ValidateOutputPath(options.WorkspaceRoot, options.ArtifactsDirectory, "$.artifacts");
+        ValidateZipPackage(options);
+    }
+
+    private static void ValidateZipPackage(DocxExtractionOptions options)
+    {
+        ZipArchive archive;
+        try
+        {
+            archive = ZipFile.OpenRead(options.InputPath);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw Error("intake.docx.invalidZip", "$.input", "Input is not a valid ZIP-based .docx package.", "Use a valid .docx file instead of a renamed or corrupted file.", ex);
+        }
+
+        using (archive)
+        {
+            if (archive.Entries.Count > options.MaxZipEntryCount)
+            {
+                throw Error("intake.docx.tooManyEntries", "$.input", "DOCX package contains too many ZIP entries.", "Remove excessive embedded content or split the document.");
+            }
+
+            long uncompressedBytes = 0;
+            var hasMainDocument = false;
+            foreach (var entry in archive.Entries)
+            {
+                var name = entry.FullName.Replace('\\', '/');
+                if (Path.IsPathRooted(name) || name.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
+                {
+                    throw Error("intake.docx.pathTraversal", "$.input", "DOCX package contains a ZIP entry that escapes the package root.", "Reject the package and regenerate it from a trusted .docx source.");
+                }
+
+                if (name.Equals("word/document.xml", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasMainDocument = true;
+                }
+
+                uncompressedBytes += entry.Length;
+                if (uncompressedBytes > options.MaxUncompressedBytes)
+                {
+                    throw Error("intake.docx.uncompressedTooLarge", "$.input", "DOCX package expands beyond the configured extraction limit.", "Reduce embedded content or inspect the file in a private workspace.");
+                }
+
+                if (entry.CompressedLength > 0 && entry.Length / (double)entry.CompressedLength > options.MaxCompressionRatio)
+                {
+                    throw Error("intake.docx.compressionRatioTooHigh", "$.input", "DOCX package has an unsafe compression ratio.", "Reject the file or inspect it manually in an isolated workspace.");
+                }
+            }
+
+            if (!hasMainDocument)
+            {
+                throw Error("intake.docx.missingDocumentEntry", "$.input", "DOCX package is missing word/document.xml.", "Use a valid WordprocessingML .docx file.");
+            }
+        }
+    }
+
+    private static void ValidateOutputPath(string? workspaceRoot, string? path, string optionPath)
+    {
+        if (string.IsNullOrWhiteSpace(workspaceRoot) || string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var root = Path.GetFullPath(workspaceRoot);
+        var fullPath = Path.GetFullPath(path);
+        var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        if (!fullPath.Equals(root, StringComparison.Ordinal) && !fullPath.StartsWith(rootWithSeparator, StringComparison.Ordinal))
+        {
+            throw Error("intake.output.pathTraversal", optionPath, "Extraction output path escapes the configured workspace.", "Keep extraction outputs inside the private intake workspace.");
+        }
+    }
+
+    private static DocxExtractionException Error(string code, string path, string message, string fixHint, Exception? innerException = null)
+    {
+        return new DocxExtractionException(code, path, message, fixHint, innerException);
     }
 
     private static ExtractedParagraph ExtractParagraph(Paragraph paragraph, int index, Dictionary<string, string> styleNames)
