@@ -190,8 +190,9 @@ public sealed class OnboardingWorkflowTests
     public void Cli_OnboardingRunGate_ShouldWriteReport()
     {
         var output = Path.Combine(NewTempDirectory(), "gate.json");
+        var workspace = CopyExampleWorkspace();
 
-        var result = CliRunner.Run(RepoRoot(), "onboarding", "run-gate", "--workspace", OnboardingWorkspacePath(), "--out", output);
+        var result = CliRunner.Run(RepoRoot(), "onboarding", "run-gate", "--workspace", workspace, "--out", output);
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
@@ -204,8 +205,9 @@ public sealed class OnboardingWorkflowTests
         var dir = NewTempDirectory();
         var jsonPath = Path.Combine(dir, "diagnostic.json");
         var markdownPath = Path.Combine(dir, "diagnostic.md");
+        var workspace = CopyExampleWorkspace();
 
-        var result = CliRunner.Run(RepoRoot(), "onboarding", "diagnose", "--workspace", OnboardingWorkspacePath(), "--out", jsonPath, "--markdown", markdownPath);
+        var result = CliRunner.Run(RepoRoot(), "onboarding", "diagnose", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("pass", JsonNode.Parse(File.ReadAllText(jsonPath))!["status"]!.GetValue<string>());
@@ -218,8 +220,9 @@ public sealed class OnboardingWorkflowTests
         var dir = NewTempDirectory();
         var jsonPath = Path.Combine(dir, "authoring.json");
         var markdownPath = Path.Combine(dir, "authoring.md");
+        var workspace = CopyExampleWorkspace();
 
-        var result = CliRunner.Run(RepoRoot(), "onboarding", "authoring-report", "--workspace", OnboardingWorkspacePath(), "--out", jsonPath, "--markdown", markdownPath);
+        var result = CliRunner.Run(RepoRoot(), "onboarding", "authoring-report", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("ready", JsonNode.Parse(File.ReadAllText(jsonPath))!["publishReadiness"]!.GetValue<string>());
@@ -232,8 +235,9 @@ public sealed class OnboardingWorkflowTests
         var dir = NewTempDirectory();
         var jsonPath = Path.Combine(dir, "summary.json");
         var markdownPath = Path.Combine(dir, "summary.md");
+        var workspace = CopyExampleWorkspace();
 
-        var result = CliRunner.Run(RepoRoot(), "onboarding", "summary", "--workspace", OnboardingWorkspacePath(), "--out", jsonPath, "--markdown", markdownPath);
+        var result = CliRunner.Run(RepoRoot(), "onboarding", "summary", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("readyForTemplateLibrary", JsonNode.Parse(File.ReadAllText(jsonPath))!["releaseReadiness"]!.GetValue<string>());
@@ -244,8 +248,9 @@ public sealed class OnboardingWorkflowTests
     public void Cli_OnboardingPackage_ShouldCreateZip()
     {
         var output = Path.Combine(NewTempDirectory(), "pilot.template-pilot.zip");
+        var workspace = CopyExampleWorkspace();
 
-        var result = CliRunner.Run(RepoRoot(), "onboarding", "package", "--workspace", OnboardingWorkspacePath(), "--out", output);
+        var result = CliRunner.Run(RepoRoot(), "onboarding", "package", "--workspace", workspace, "--out", output);
 
         Assert.Equal(0, result.ExitCode);
         using var archive = ZipFile.OpenRead(output);
@@ -515,7 +520,7 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void OnboardingReportBuilder_ShouldBuildReportForExampleWorkspace()
     {
-        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = OnboardingWorkspacePath() });
+        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
 
         Assert.Equal("example-engineering-pilot", report.WorkspaceId);
         Assert.Equal("pass", report.PrivacyStatus);
@@ -525,7 +530,7 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void OnboardingReportBuilder_ShouldMarkReadyWhenQualityPasses()
     {
-        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = OnboardingWorkspacePath() });
+        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
 
         Assert.Equal("readyForTemplateLibrary", report.ReleaseReadiness);
     }
@@ -545,7 +550,7 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void OnboardingMarkdownRenderer_ShouldRenderChecklist()
     {
-        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = OnboardingWorkspacePath() });
+        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
 
         var markdown = new OnboardingMarkdownRenderer().Render(report);
 
@@ -556,7 +561,7 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void OnboardingMarkdownRenderer_ShouldRenderNextActions()
     {
-        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = OnboardingWorkspacePath() });
+        var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
 
         var markdown = new OnboardingMarkdownRenderer().Render(report);
 
@@ -567,8 +572,9 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void TemplatePilotPackageBuilder_ShouldCreateDeterministicZip()
     {
-        var first = BuildPackage();
-        var second = BuildPackage();
+        var workspace = CopyExampleWorkspace();
+        var first = BuildPackage(workspace);
+        var second = BuildPackage(workspace);
 
         Assert.Equal(File.ReadAllBytes(first), File.ReadAllBytes(second));
     }
@@ -736,10 +742,10 @@ public sealed class OnboardingWorkflowTests
         Assert.DoesNotContain(new string('x', 120), redacted);
     }
 
-    private static string BuildPackage()
+    private static string BuildPackage(string? workspace = null)
     {
         var output = Path.Combine(NewTempDirectory(), "pilot.template-pilot.zip");
-        var result = new TemplatePilotPackageBuilder().Build(OnboardingWorkspacePath(), output);
+        var result = new TemplatePilotPackageBuilder().Build(workspace ?? CopyExampleWorkspace(), output);
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
         return output;
     }

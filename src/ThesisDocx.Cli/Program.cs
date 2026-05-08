@@ -553,35 +553,56 @@ internal static class ThesisDocxCli
     {
         var requirementsPath = Required(options, "requirements");
         var schemaPath = Path.Combine(LocateRepoRoot(), "schemas", "requirement-capture.schema.json");
-        var schema = new ThesisSchemaValidator().ValidateRequirementCaptureFile(requirementsPath, schemaPath);
-        var semantic = new RequirementCaptureValidator().Validate(new RequirementCaptureLoader().Load(requirementsPath));
-        var result = new RequirementCaptureValidationResult();
-        result.Errors.AddRange(schema.Errors.Select(error => new RequirementCaptureValidationIssue { Code = error.Code, Path = error.Path, Message = error.Message }));
-        result.Errors.AddRange(semantic.Errors);
-        result.Warnings.AddRange(semantic.Warnings);
+        var serviceResult = new RequirementsWorkflowService().Validate(new RequirementsValidateRequest
+        {
+            RequirementsPath = requirementsPath,
+            SchemaPath = schemaPath
+        });
+        var result = serviceResult.Validation;
         if (options.ContainsKey("json"))
         {
-            WriteJsonOutput(options.GetValueOrDefault("out"), result);
+            if (result is not null)
+            {
+                WriteJsonOutput(options.GetValueOrDefault("out"), result);
+            }
+            else
+            {
+                WriteJsonOutput(options.GetValueOrDefault("out"), serviceResult);
+            }
         }
-        else if (result.IsValid)
+        else if (serviceResult.Success)
         {
             Console.WriteLine("Requirements valid");
         }
-        else
+        else if (result is not null)
         {
             foreach (var error in result.Errors)
             {
                 Console.Error.WriteLine(error.ToString());
             }
         }
+        else
+        {
+            WriteDiagnostics(serviceResult.Diagnostics);
+        }
 
-        return result.IsValid ? 0 : 2;
+        return serviceResult.Success ? 0 : 2;
     }
 
     private static int RequirementsReport(Dictionary<string, string> options)
     {
-        var capture = new RequirementCaptureLoader().Load(Required(options, "requirements"));
-        var report = new RequirementMappingReporter().Build(capture, options.GetValueOrDefault("template"));
+        var result = new RequirementsWorkflowService().Report(new RequirementsReportRequest
+        {
+            RequirementsPath = Required(options, "requirements"),
+            TemplatePath = options.GetValueOrDefault("template")
+        });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(Required(options, "out"), result);
+            return 2;
+        }
+
         WriteJsonOutput(Required(options, "out"), report);
         return report.IsValid ? 0 : 2;
     }
@@ -664,10 +685,20 @@ internal static class ThesisDocxCli
 
     private static int NegativeFixturesRun(Dictionary<string, string> options)
     {
-        var result = new NegativeFixtureRunner().Run(Required(options, "manifest"));
+        var serviceResult = new NegativeFixturesWorkflowService().Run(new NegativeFixturesRunRequest
+        {
+            ManifestPath = Required(options, "manifest")
+        });
+        var result = serviceResult.Result;
+        if (result is null)
+        {
+            WriteJsonOutput(Required(options, "out"), serviceResult);
+            return 2;
+        }
+
         WriteJsonOutput(Required(options, "out"), result);
         Console.WriteLine($"Negative fixtures: {(result.Passed ? "pass" : "fail")} ({result.Cases.Count} cases)");
-        return result.Passed ? 0 : 2;
+        return serviceResult.Success ? 0 : 2;
     }
 
     private static int Ci(string[] args)
@@ -1061,10 +1092,17 @@ internal static class ThesisDocxCli
         guardOptions.SuppressedWarningCodes = SplitOptionList(options, "suppress-warning-code").ToHashSet(StringComparer.Ordinal);
         guardOptions.SuppressedWarningPathPrefixes = SplitOptionList(options, "suppress-warning-path").ToHashSet(StringComparer.Ordinal);
 
-        var result = new PrivacyGuard().Scan(guardOptions);
+        var serviceResult = new PrivacyWorkflowService().Scan(new PrivacyScanRequest { Options = guardOptions });
+        var result = serviceResult.Scan;
+        if (result is null)
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), serviceResult);
+            return 2;
+        }
+
         WriteJsonOutput(options.GetValueOrDefault("out"), result);
         Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings, {result.SuppressedWarningCount} suppressed)");
-        return result.IsValid ? 0 : 2;
+        return serviceResult.Success ? 0 : 2;
     }
 
     private static int Onboarding(string[] args)
@@ -1252,9 +1290,19 @@ internal static class ThesisDocxCli
 
     private static int OnboardingPackageValidate(Dictionary<string, string> options)
     {
-        var result = new TemplatePilotPackageValidator().Validate(Required(options, "package"));
+        var serviceResult = new OnboardingPackageWorkflowService().Validate(new OnboardingPackageValidateRequest
+        {
+            PackagePath = Required(options, "package")
+        });
+        var result = serviceResult.Validation;
+        if (result is null)
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), serviceResult);
+            return 2;
+        }
+
         WriteJsonOutput(options.GetValueOrDefault("out"), result);
-        return result.IsValid ? 0 : 2;
+        return serviceResult.Success ? 0 : 2;
     }
 
     private static int Docx(string[] args)

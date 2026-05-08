@@ -3,6 +3,8 @@ using ThesisDocx.Core.Ci;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Requirements;
 using ThesisDocx.Core.Models.Templates;
+using ThesisDocx.Core.Onboarding.Packaging;
+using ThesisDocx.Core.Privacy;
 using ThesisDocx.Core.Requirements;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
@@ -10,6 +12,7 @@ using ThesisDocx.Core.Templates.Authoring;
 using ThesisDocx.Core.Templates.Baselines;
 using ThesisDocx.Core.Templates.Gate;
 using ThesisDocx.Core.Templates.Regression;
+using ThesisDocx.Core.Testing.NegativeFixtures;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Validation.FormatRuleCoverage;
@@ -437,6 +440,181 @@ public sealed class CiQualityReportService
     }
 }
 
+public sealed class RequirementsWorkflowService
+{
+    public RequirementsValidateServiceResult Validate(RequirementsValidateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RequirementsPath))
+        {
+            return RequirementsValidateServiceResult.Failure("service.requirements.missing", "RequirementCapture path is required.");
+        }
+
+        try
+        {
+            var result = new RequirementCaptureValidationResult();
+            if (!string.IsNullOrWhiteSpace(request.SchemaPath))
+            {
+                var schema = new ThesisSchemaValidator().ValidateRequirementCaptureFile(request.RequirementsPath, request.SchemaPath);
+                result.Errors.AddRange(schema.Errors.Select(error => new RequirementCaptureValidationIssue
+                {
+                    Code = error.Code,
+                    Path = error.Path,
+                    Message = error.Message
+                }));
+                result.Warnings.AddRange(schema.Warnings.Select(warning => new RequirementCaptureValidationIssue
+                {
+                    Code = warning.Code,
+                    Path = warning.Path,
+                    Message = warning.Message
+                }));
+            }
+
+            var semantic = new RequirementCaptureValidator().Validate(new RequirementCaptureLoader().Load(request.RequirementsPath));
+            result.Errors.AddRange(semantic.Errors);
+            result.Warnings.AddRange(semantic.Warnings);
+            return new RequirementsValidateServiceResult
+            {
+                Success = result.IsValid,
+                IsValid = result.IsValid,
+                Validation = result,
+                ErrorCount = result.Errors.Count,
+                WarningCount = result.Warnings.Count,
+                Diagnostics = result.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return RequirementsValidateServiceResult.Failure("service.requirements.validateFailed", "RequirementCapture validation failed.", ex.Message);
+        }
+    }
+
+    public RequirementsReportServiceResult Report(RequirementsReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RequirementsPath))
+        {
+            return RequirementsReportServiceResult.Failure("service.requirements.missing", "RequirementCapture path is required.");
+        }
+
+        try
+        {
+            var report = new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(request.RequirementsPath), request.TemplatePath);
+            return new RequirementsReportServiceResult
+            {
+                Success = report.IsValid,
+                IsValid = report.IsValid,
+                Report = report,
+                ErrorCount = report.Errors.Count,
+                WarningCount = report.Warnings.Count,
+                Diagnostics = report.Errors.Select(error => UnifiedDiagnosticMapper.FromRequirementIssue(error, DiagnosticSeverity.Error, "RequirementMappingReporter"))
+                    .Concat(report.Warnings.Select(warning => UnifiedDiagnosticMapper.FromRequirementIssue(warning, DiagnosticSeverity.Warning, "RequirementMappingReporter")))
+                    .ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            return RequirementsReportServiceResult.Failure("service.requirements.reportFailed", "Requirement mapping report failed.", ex.Message);
+        }
+    }
+}
+
+public sealed class NegativeFixturesWorkflowService
+{
+    public NegativeFixturesRunServiceResult Run(NegativeFixturesRunRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ManifestPath))
+        {
+            return NegativeFixturesRunServiceResult.Failure("service.negativeFixtures.manifestMissing", "Negative fixture manifest path is required.");
+        }
+
+        try
+        {
+            var result = new NegativeFixtureRunner().Run(request.ManifestPath);
+            return new NegativeFixturesRunServiceResult
+            {
+                Success = result.Passed,
+                Passed = result.Passed,
+                Result = result,
+                ErrorCount = result.Cases.Count(c => !c.Passed),
+                Diagnostics = result.Cases
+                    .Where(c => !c.Passed)
+                    .Select(c => new UnifiedDiagnostic
+                    {
+                        Code = "negativeFixture.case.failed",
+                        Severity = DiagnosticSeverity.Error,
+                        Path = c.Id,
+                        Message = string.Join("; ", c.Errors),
+                        FixHint = "Update the fixture or expected diagnostic contract so the negative case observes the intended failure.",
+                        Category = DiagnosticCategory.Regression,
+                        Source = "NegativeFixturesWorkflowService"
+                    })
+                    .ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            return NegativeFixturesRunServiceResult.Failure("service.negativeFixtures.runFailed", "Negative fixtures run failed.", ex.Message);
+        }
+    }
+}
+
+public sealed class PrivacyWorkflowService
+{
+    public PrivacyScanServiceResult Scan(PrivacyScanRequest request)
+    {
+        if (request.Options is null || string.IsNullOrWhiteSpace(request.Options.Path))
+        {
+            return PrivacyScanServiceResult.Failure("service.privacy.pathMissing", "Privacy scan path is required.");
+        }
+
+        try
+        {
+            var scan = new PrivacyGuard().Scan(request.Options);
+            return new PrivacyScanServiceResult
+            {
+                Success = scan.IsValid,
+                IsValid = scan.IsValid,
+                Scan = scan,
+                ErrorCount = scan.BreakingCount,
+                WarningCount = scan.WarningCount,
+                Diagnostics = scan.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return PrivacyScanServiceResult.Failure("service.privacy.scanFailed", "Privacy scan failed.", ex.Message);
+        }
+    }
+}
+
+public sealed class OnboardingPackageWorkflowService
+{
+    public OnboardingPackageValidateServiceResult Validate(OnboardingPackageValidateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.PackagePath))
+        {
+            return OnboardingPackageValidateServiceResult.Failure("service.onboarding.packageMissing", "Pilot package path is required.");
+        }
+
+        try
+        {
+            var validation = new TemplatePilotPackageValidator().Validate(request.PackagePath);
+            return new OnboardingPackageValidateServiceResult
+            {
+                Success = validation.IsValid,
+                IsValid = validation.IsValid,
+                Validation = validation,
+                ErrorCount = validation.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsError(diagnostic.Severity)),
+                WarningCount = validation.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity)),
+                Diagnostics = validation.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return OnboardingPackageValidateServiceResult.Failure("service.onboarding.packageValidateFailed", "Pilot package validation failed.", ex.Message);
+        }
+    }
+}
+
 public sealed class ValidateInputRequest
 {
     public ThesisDocument? Document { get; set; }
@@ -663,6 +841,113 @@ public sealed class CiQualityReportServiceResult : ServiceResult
             Success = false,
             ErrorCount = 1,
             Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Regression, "CiQualityReportService")]
+        };
+    }
+}
+
+public sealed class RequirementsValidateRequest
+{
+    public string RequirementsPath { get; set; } = string.Empty;
+    public string? SchemaPath { get; set; }
+}
+
+public sealed class RequirementsValidateServiceResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public RequirementCaptureValidationResult? Validation { get; set; }
+
+    public static RequirementsValidateServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new RequirementsValidateServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Requirement, "RequirementsWorkflowService")]
+        };
+    }
+}
+
+public sealed class RequirementsReportRequest
+{
+    public string RequirementsPath { get; set; } = string.Empty;
+    public string? TemplatePath { get; set; }
+}
+
+public sealed class RequirementsReportServiceResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public RequirementMappingReport? Report { get; set; }
+
+    public static RequirementsReportServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new RequirementsReportServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Requirement, "RequirementsWorkflowService")]
+        };
+    }
+}
+
+public sealed class NegativeFixturesRunRequest
+{
+    public string ManifestPath { get; set; } = string.Empty;
+}
+
+public sealed class NegativeFixturesRunServiceResult : ServiceResult
+{
+    public bool Passed { get; set; }
+    public NegativeFixtureRunResult? Result { get; set; }
+
+    public static NegativeFixturesRunServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new NegativeFixturesRunServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Regression, "NegativeFixturesWorkflowService")]
+        };
+    }
+}
+
+public sealed class PrivacyScanRequest
+{
+    public PrivacyGuardOptions? Options { get; set; }
+}
+
+public sealed class PrivacyScanServiceResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public PrivacyGuardResult? Scan { get; set; }
+
+    public static PrivacyScanServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new PrivacyScanServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Privacy, "PrivacyWorkflowService")]
+        };
+    }
+}
+
+public sealed class OnboardingPackageValidateRequest
+{
+    public string PackagePath { get; set; } = string.Empty;
+}
+
+public sealed class OnboardingPackageValidateServiceResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public TemplatePilotPackageValidationResult? Validation { get; set; }
+
+    public static OnboardingPackageValidateServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new OnboardingPackageValidateServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Privacy, "OnboardingPackageWorkflowService")]
         };
     }
 }

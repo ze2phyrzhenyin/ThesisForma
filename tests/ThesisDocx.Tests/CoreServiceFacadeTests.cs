@@ -1,5 +1,7 @@
 using System.Text.Json;
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Onboarding.Packaging;
+using ThesisDocx.Core.Privacy;
 using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Tests.Fixtures;
@@ -242,6 +244,103 @@ public sealed class CoreServiceFacadeTests
         Assert.Contains("gateReport", result.Report.Artifacts.Keys);
     }
 
+    [Fact]
+    public void RequirementsWorkflowService_ShouldValidateAndReport()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var requirementsPath = Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json");
+        var service = new RequirementsWorkflowService();
+
+        var validation = service.Validate(new RequirementsValidateRequest
+        {
+            RequirementsPath = requirementsPath,
+            SchemaPath = Path.Combine(root, "schemas", "requirement-capture.schema.json")
+        });
+        var report = service.Report(new RequirementsReportRequest
+        {
+            RequirementsPath = requirementsPath,
+            TemplatePath = TemplatePath()
+        });
+
+        Assert.True(validation.Success, string.Join(Environment.NewLine, validation.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(validation.Validation);
+        Assert.True(report.Success, string.Join(Environment.NewLine, report.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(report.Report);
+        Assert.True(report.Report!.TotalRequirements > 0);
+    }
+
+    [Fact]
+    public void NegativeFixturesWorkflowService_ShouldRunManifest()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new NegativeFixturesWorkflowService().Run(new NegativeFixturesRunRequest
+        {
+            ManifestPath = Path.Combine(root, "examples", "negative-fixtures", "negative-fixture-manifest.json")
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Result);
+        Assert.True(result.Result!.Cases.Count > 0);
+    }
+
+    [Fact]
+    public void PrivacyWorkflowService_ShouldScanExamples()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new PrivacyWorkflowService().Scan(new PrivacyScanRequest
+        {
+            Options = new PrivacyGuardOptions
+            {
+                Path = Path.Combine(root, "examples"),
+                SuppressedWarningCodes = ["privacy.generatedArtifact.forbidden"]
+            }
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Scan);
+        Assert.True(result.Scan!.SuppressedWarningCount >= 0);
+    }
+
+    [Fact]
+    public void OnboardingPackageWorkflowService_ShouldValidatePackage()
+    {
+        var packagePath = Path.Combine(NewTempDirectory(), "example.template-pilot.zip");
+        var build = new TemplatePilotPackageBuilder().Build(OnboardingWorkspacePath(), packagePath);
+
+        var result = new OnboardingPackageWorkflowService().Validate(new OnboardingPackageValidateRequest
+        {
+            PackagePath = packagePath
+        });
+
+        Assert.True(build.IsValid, string.Join(Environment.NewLine, build.Errors));
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Validation);
+        Assert.True(result.Validation!.IsValid);
+    }
+
+    [Theory]
+    [InlineData("requirements")]
+    [InlineData("negative-fixtures")]
+    [InlineData("privacy")]
+    [InlineData("package-validate")]
+    public void WorkflowServices_ShouldReturnRequestDiagnostics(string service)
+    {
+        ServiceResult result = service switch
+        {
+            "requirements" => new RequirementsWorkflowService().Validate(new RequirementsValidateRequest()),
+            "negative-fixtures" => new NegativeFixturesWorkflowService().Run(new NegativeFixturesRunRequest()),
+            "privacy" => new PrivacyWorkflowService().Scan(new PrivacyScanRequest()),
+            "package-validate" => new OnboardingPackageWorkflowService().Validate(new OnboardingPackageValidateRequest()),
+            _ => throw new ArgumentOutOfRangeException(nameof(service))
+        };
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.Diagnostics);
+        Assert.All(result.Diagnostics, diagnostic => Assert.Equal("error", diagnostic.Severity));
+    }
+
     private static (ThesisDocument Document, ThesisFormatSpec Format, string BaseDirectory) LoadSimple()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
@@ -256,6 +355,11 @@ public sealed class CoreServiceFacadeTests
     private static string TemplatePath()
     {
         return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "templates", "example-university-engineering");
+    }
+
+    private static string OnboardingWorkspacePath()
+    {
+        return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "onboarding", "example-engineering-pilot");
     }
 
     private static string NewTempDirectory()
