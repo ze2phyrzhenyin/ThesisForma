@@ -415,6 +415,44 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void PrivacyGuard_ShouldSuppressConfiguredWarningCode()
+    {
+        var workspace = CopyExampleWorkspace();
+        Directory.CreateDirectory(Path.Combine(workspace, "reports"));
+        File.WriteAllText(Path.Combine(workspace, "reports", "rendered-draft.docx"), "not a real docx");
+        var baseline = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+        var generatedArtifactWarnings = baseline.Findings.Count(finding => finding.Code == "privacy.generatedArtifact.forbidden");
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions
+        {
+            Path = workspace,
+            SuppressedWarningCodes = ["privacy.generatedArtifact.forbidden"]
+        });
+
+        Assert.True(result.IsValid);
+        Assert.Equal(baseline.WarningCount - generatedArtifactWarnings, result.WarningCount);
+        Assert.Equal(generatedArtifactWarnings, result.SuppressedWarningCount);
+        Assert.DoesNotContain(result.Findings, finding => finding.Code == "privacy.generatedArtifact.forbidden");
+        Assert.Contains(result.SuppressedFindings, finding => finding.Code == "privacy.generatedArtifact.forbidden");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldFailWhenWarningThresholdExceeded()
+    {
+        var workspace = CopyExampleWorkspace();
+        MutateFile(Path.Combine(workspace, "onboarding.json"), node => node["paths"]!["requirementsPath"] = "/tmp/requirements.json");
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions
+        {
+            Path = workspace,
+            MaxWarningCount = 0
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.warningThreshold.exceeded" && finding.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public void PrivacyGuard_ShouldDetectOversizedBase64Blob()
     {
         var workspace = CopyExampleWorkspace();
@@ -443,6 +481,35 @@ public sealed class OnboardingWorkflowTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.True(json["isValid"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Cli_PrivacyScan_ShouldApplyWarningSuppressionOptions()
+    {
+        var workspace = CopyExampleWorkspace();
+        Directory.CreateDirectory(Path.Combine(workspace, "reports"));
+        File.WriteAllText(Path.Combine(workspace, "reports", "rendered-draft.docx"), "not a real docx");
+        var expectedSuppressed = new PrivacyGuard()
+            .Scan(new PrivacyGuardOptions { Path = workspace })
+            .Findings
+            .Count(finding => finding.Code == "privacy.generatedArtifact.forbidden");
+        var output = Path.Combine(NewTempDirectory(), "privacy.json");
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "privacy",
+            "scan",
+            "--path",
+            workspace,
+            "--suppress-warning-code",
+            "privacy.generatedArtifact.forbidden",
+            "--out",
+            output);
+        var json = JsonNode.Parse(File.ReadAllText(output))!;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(expectedSuppressed, json["suppressedWarningCount"]!.GetValue<int>());
+        Assert.DoesNotContain(json["findings"]!.AsArray(), finding => finding?["code"]?.GetValue<string>() == "privacy.generatedArtifact.forbidden");
     }
 
     [Fact]

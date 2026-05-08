@@ -22,6 +22,7 @@ public sealed class CliJsonContractTests
         var diagnostic = RequiredDiagnostic(json, "table.gridSpan.outOfRange");
         AssertDiagnosticContract(diagnostic, expectedSeverity: "error", expectedCategory: "semantic");
         Assert.Equal("$.sections[0].blocks[0].rows[0].cells[0].gridSpan", diagnostic["path"]!.GetValue<string>());
+        AssertVersionReport(json, expectedKinds: ["thesisDocument", "thesisFormatSpec"]);
     }
 
     [Fact]
@@ -40,6 +41,7 @@ public sealed class CliJsonContractTests
         var diagnostic = RequiredDiagnostic(json, "template.variable.missing");
         AssertDiagnosticContract(diagnostic, expectedSeverity: "error", expectedCategory: "template");
         Assert.Equal("Define the referenced variable or remove the reference.", diagnostic["fixHint"]!.GetValue<string>());
+        AssertVersionReport(json, expectedKinds: ["templatePackage", "thesisFormatSpec"]);
     }
 
     [Fact]
@@ -115,6 +117,21 @@ public sealed class CliJsonContractTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["message"]!.GetValue<string>()));
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["fixHint"]!.GetValue<string>()));
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["source"]!.GetValue<string>()));
+    }
+
+    private static void AssertVersionReport(JsonObject json, string[] expectedKinds)
+    {
+        var versionReport = json["versionReport"]?.AsObject()
+            ?? throw new Xunit.Sdk.XunitException("Missing versionReport.");
+        Assert.Equal("1.0.0", versionReport["reportVersion"]!.GetValue<string>());
+        var kinds = versionReport["checks"]!.AsArray()
+            .OfType<JsonObject>()
+            .Select(check => check["kind"]!.GetValue<string>())
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var kind in expectedKinds)
+        {
+            Assert.Contains(kind, kinds);
+        }
     }
 
     private static IEnumerable<string> EnumerateSeverityValues(JsonNode? node)

@@ -31,7 +31,7 @@ public sealed class PrivacyGuard
         if (!Directory.Exists(root) && !File.Exists(root))
         {
             Add(result, "privacy.path.missing", DiagnosticSeverity.Error, root, "Path does not exist.", "Check the workspace or package path.");
-            return Finish(result);
+            return Finish(result, options);
         }
 
         if (Directory.Exists(root))
@@ -43,7 +43,7 @@ public sealed class PrivacyGuard
             ScanFile(root, root, options, result);
         }
 
-        return Finish(result);
+        return Finish(result, options);
     }
 
     private static void ScanDirectory(string root, PrivacyGuardOptions options, PrivacyGuardResult result)
@@ -214,8 +214,32 @@ public sealed class PrivacyGuard
         });
     }
 
-    private static PrivacyGuardResult Finish(PrivacyGuardResult result)
+    private static PrivacyGuardResult Finish(PrivacyGuardResult result, PrivacyGuardOptions options)
     {
+        var suppressed = result.Findings
+            .Where(finding => ShouldSuppress(finding, options))
+            .OrderBy(f => f.Code, StringComparer.Ordinal)
+            .ThenBy(f => f.Path, StringComparer.Ordinal)
+            .ToList();
+
+        result.SuppressedFindings = suppressed;
+        result.SuppressedWarningCount = suppressed.Count;
+        result.Findings = result.Findings
+            .Where(finding => !suppressed.Contains(finding))
+            .ToList();
+
+        var warningCount = result.Findings.Count(f => UnifiedDiagnosticMapper.IsWarning(f.Severity));
+        if (options.MaxWarningCount is { } maxWarningCount && warningCount > maxWarningCount)
+        {
+            Add(
+                result,
+                "privacy.warningThreshold.exceeded",
+                DiagnosticSeverity.Error,
+                "$",
+                $"Privacy scan found {warningCount} warnings, exceeding the configured maximum of {maxWarningCount}.",
+                "Resolve warnings or add a narrow suppression for known generated example artifacts.");
+        }
+
         result.Findings = result.Findings
             .OrderBy(f => f.Code, StringComparer.Ordinal)
             .ThenBy(f => f.Path, StringComparer.Ordinal)
@@ -224,6 +248,26 @@ public sealed class PrivacyGuard
         result.BreakingCount = result.Findings.Count(f => UnifiedDiagnosticMapper.IsError(f.Severity));
         result.WarningCount = result.Findings.Count(f => UnifiedDiagnosticMapper.IsWarning(f.Severity));
         return result;
+    }
+
+    private static bool ShouldSuppress(PrivacyFinding finding, PrivacyGuardOptions options)
+    {
+        if (UnifiedDiagnosticMapper.IsError(finding.Severity))
+        {
+            return false;
+        }
+
+        if (options.SuppressedWarningCodes.Contains(finding.Code))
+        {
+            return true;
+        }
+
+        var path = finding.Path.Replace('\\', '/');
+        return options.SuppressedWarningPathPrefixes.Any(prefix =>
+        {
+            var normalized = prefix.Replace('\\', '/').Trim();
+            return normalized.Length > 0 && path.StartsWith(normalized, StringComparison.Ordinal);
+        });
     }
 
     private static bool IsUnderExamples(string path)
@@ -249,7 +293,24 @@ public sealed class PrivacyGuardOptions
     public string Path { get; set; } = string.Empty;
     public int MaxEvidenceExcerptLength { get; set; } = 240;
     public int MaxBase64Length { get; set; } = 200_000;
+    public int? MaxWarningCount { get; set; }
     public bool PackageMode { get; set; }
+    public HashSet<string> SuppressedWarningCodes { get; set; } = new(StringComparer.Ordinal);
+    public HashSet<string> SuppressedWarningPathPrefixes { get; set; } = new(StringComparer.Ordinal);
+
+    public static PrivacyGuardOptions FromPolicy(string path, OnboardingPrivacyPolicy policy, bool packageMode = false)
+    {
+        return new PrivacyGuardOptions
+        {
+            Path = path,
+            MaxEvidenceExcerptLength = policy.MaxEvidenceExcerptLength,
+            MaxBase64Length = policy.MaxBase64Length,
+            MaxWarningCount = policy.MaxWarningCount,
+            PackageMode = packageMode,
+            SuppressedWarningCodes = policy.SuppressedWarningCodes.ToHashSet(StringComparer.Ordinal),
+            SuppressedWarningPathPrefixes = policy.SuppressedWarningPathPrefixes.ToHashSet(StringComparer.Ordinal)
+        };
+    }
 }
 
 public sealed class PrivacyGuardResult
@@ -258,7 +319,9 @@ public sealed class PrivacyGuardResult
     public bool IsValid { get; set; }
     public int BreakingCount { get; set; }
     public int WarningCount { get; set; }
+    public int SuppressedWarningCount { get; set; }
     public List<PrivacyFinding> Findings { get; set; } = [];
+    public List<PrivacyFinding> SuppressedFindings { get; set; } = [];
     public List<UnifiedDiagnostic> Diagnostics => Findings
         .Select(finding => UnifiedDiagnosticMapper.FromPrivacyFinding(finding, "PrivacyGuard"))
         .ToList();

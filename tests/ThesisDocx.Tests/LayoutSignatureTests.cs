@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.VariantTypes;
 using ThesisDocx.Core.Diff.Layout;
 using ThesisDocx.Tests.Fixtures;
 using W = DocumentFormat.OpenXml.Wordprocessing;
@@ -115,6 +116,60 @@ public sealed class LayoutSignatureTests
         Assert.True(result.SimilarityScore < 1.0);
     }
 
+    [Fact]
+    public void LayoutSignatureComparer_ShouldDetectNoteChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderNotesDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            document.MainDocumentPart!.FootnotesPart!.Footnotes!.Elements<W.Footnote>().First(note => note.Id?.Value > 0).Remove();
+            document.MainDocumentPart.FootnotesPart.Footnotes.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.BreakingDifferences, diff => diff.Category == "notes");
+    }
+
+    [Fact]
+    public void LayoutSignatureComparer_ShouldDetectCustomPropertyChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderCustomPropertiesDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            var property = document.CustomFilePropertiesPart!.Properties!.Elements<DocumentFormat.OpenXml.CustomProperties.CustomDocumentProperty>()
+                .First(property => property.Name?.Value == "ThesisDocx.TemplateId");
+            property.RemoveAllChildren();
+            property.AppendChild(new VTLPWSTR("changed-template"));
+            document.CustomFilePropertiesPart.Properties.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.Differences, diff => diff.Category == "customProperties");
+    }
+
+    [Fact]
+    public void LayoutSignatureComparer_ShouldDetectAdvancedTableChanges()
+    {
+        var source = StructuralDocxFixtureFactory.RenderAdvancedTableDocx();
+        var baseSignature = new DocxLayoutSignatureExtractor().Extract(source);
+        var changed = Mutate(source, document =>
+        {
+            document.MainDocumentPart!.Document.Descendants<W.GridSpan>().First().Remove();
+            document.MainDocumentPart.Document.Save();
+        });
+        var targetSignature = new DocxLayoutSignatureExtractor().Extract(changed);
+
+        var result = new LayoutSignatureComparer().Compare(baseSignature, targetSignature, 1.0);
+
+        Assert.Contains(result.BreakingDifferences, diff => diff.Category == "table");
+    }
+
     private static DocxLayoutSignature ExtractFull()
     {
         return new DocxLayoutSignatureExtractor().Extract(TestRenderHelper.RenderFullThesis().DocxPath);
@@ -123,6 +178,11 @@ public sealed class LayoutSignatureTests
     private static string MutateFull(Action<WordprocessingDocument> mutate)
     {
         var source = TestRenderHelper.RenderFullThesis().DocxPath;
+        return Mutate(source, mutate);
+    }
+
+    private static string Mutate(string source, Action<WordprocessingDocument> mutate)
+    {
         var copy = Path.Combine(Path.GetTempPath(), "ThesisDocx.Tests", $"{Guid.NewGuid():N}.docx");
         Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
         File.Copy(source, copy);

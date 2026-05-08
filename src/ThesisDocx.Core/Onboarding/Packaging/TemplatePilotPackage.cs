@@ -25,11 +25,7 @@ public sealed class TemplatePilotPackageBuilder
         var workspace = OnboardingWorkspaceInspector.Load(workspacePath);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputZipPath)) ?? Directory.GetCurrentDirectory());
 
-        var privacy = new PrivacyGuard().Scan(new PrivacyGuardOptions
-        {
-            Path = workspacePath,
-            MaxEvidenceExcerptLength = workspace.Manifest.Privacy.MaxEvidenceExcerptLength
-        });
+        var privacy = new PrivacyGuard().Scan(PrivacyGuardOptions.FromPolicy(workspacePath, workspace.Manifest.Privacy));
         if (!privacy.IsValid)
         {
             return new TemplatePilotPackageBuildResult
@@ -141,7 +137,8 @@ public sealed class TemplatePilotPackageBuilder
             {
                 ["isValid"] = privacy.IsValid,
                 ["breakingCount"] = privacy.BreakingCount,
-                ["warningCount"] = privacy.WarningCount
+                ["warningCount"] = privacy.WarningCount,
+                ["suppressedWarningCount"] = privacy.SuppressedWarningCount
             }
         };
     }

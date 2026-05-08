@@ -4,6 +4,7 @@ using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Templates;
 
@@ -34,6 +35,7 @@ public sealed class TemplateValidationService
         ValidateTemplatePackage(template, result);
 
         var resolution = new TemplateResolver().Resolve(templatePath);
+        result.VersionReport = SchemaVersionReport.ForTemplate(template.TemplateSchemaVersion, resolution.FormatSpec?.SchemaVersion);
         foreach (var error in resolution.Errors)
         {
             result.Add(error.Code, error.Path, error.Message);

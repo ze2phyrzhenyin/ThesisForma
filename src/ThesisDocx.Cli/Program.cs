@@ -14,6 +14,7 @@ using ThesisDocx.Core.Onboarding.Reports;
 using ThesisDocx.Core.Privacy;
 using ThesisDocx.Core.Requirements;
 using ThesisDocx.Core.Rendering;
+using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Structuring;
 using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Templates.Authoring;
@@ -83,7 +84,6 @@ internal static class ThesisDocxCli
         var document = ReadJson<ThesisDocument>(documentPath);
         ThesisFormatSpec format;
         DocxRenderContext? renderContext = null;
-        string? formatPath = null;
         if (hasTemplate)
         {
             var resolution = new TemplateResolver().Resolve(Required(options, "template"), document, ParseCliVariables(options));
@@ -94,35 +94,27 @@ internal static class ThesisDocxCli
             }
 
             format = resolution.FormatSpec ?? new ThesisFormatSpec();
-            formatPath = WriteTempFormatSpec(format);
             renderContext = CreateRenderContext(resolution);
         }
         else
         {
-            formatPath = Required(options, "format");
-            format = ReadJson<ThesisFormatSpec>(formatPath);
-        }
-
-        if (!options.ContainsKey("skip-input-validation"))
-        {
-            var inputValidation = ValidateInputFiles(documentPath, formatPath, document, format);
-            if (!inputValidation.IsValid)
-            {
-                WriteInputErrors(inputValidation);
-                return 2;
-            }
+            format = ReadJson<ThesisFormatSpec>(Required(options, "format"));
         }
 
         ResolveRelativeImagePaths(document, Path.GetDirectoryName(Path.GetFullPath(documentPath))!);
-        new DocxRenderer().Render(document, format, outputPath, renderContext);
-        var validation = new OpenXmlPackageValidator().Validate(outputPath);
-        if (!validation.IsValid)
+        var render = new ThesisRenderService().Render(new RenderRequest
         {
-            foreach (var error in validation.Errors)
-            {
-                Console.Error.WriteLine(error.ToString());
-            }
+            Document = document,
+            Format = format,
+            OutputPath = outputPath,
+            BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(documentPath)),
+            ValidateInput = !options.ContainsKey("skip-input-validation"),
+            RenderContext = renderContext
+        });
 
+        if (!render.Success)
+        {
+            WriteDiagnostics(render.Diagnostics);
             return 2;
         }
 
@@ -140,9 +132,12 @@ internal static class ThesisDocxCli
             return Fail("Pass exactly one of '--format' or '--template'.");
         }
 
-        var result = hasTemplate
-            ? new FormatConformanceValidator().Validate(docxPath, Required(options, "template"))
-            : new FormatConformanceValidator().Validate(docxPath, ReadJson<ThesisFormatSpec>(Required(options, "format")));
+        var result = new ThesisValidateService().ValidateDocx(new ValidateDocxRequest
+        {
+            DocxPath = docxPath,
+            TemplatePath = hasTemplate ? Required(options, "template") : null,
+            Format = hasFormat ? ReadJson<ThesisFormatSpec>(Required(options, "format")) : null
+        });
 
         if (options.ContainsKey("json"))
         {
@@ -156,11 +151,8 @@ internal static class ThesisDocxCli
             return 0;
         }
 
-        Console.Error.WriteLine($"Invalid ({result.Errors.Count} errors, {result.Warnings.Count} warnings)");
-        foreach (var error in result.Errors)
-        {
-            Console.Error.WriteLine(error.ToString());
-        }
+        Console.Error.WriteLine($"Invalid ({result.ErrorCount} errors, {result.WarningCount} warnings)");
+        WriteDiagnostics(result.Diagnostics);
 
         return 2;
     }
@@ -176,7 +168,6 @@ internal static class ThesisDocxCli
             return Fail("Pass exactly one of '--format' or '--template'.");
         }
 
-        string formatPath;
         ThesisFormatSpec format;
         if (hasTemplate)
         {
@@ -188,15 +179,18 @@ internal static class ThesisDocxCli
             }
 
             format = resolution.FormatSpec ?? new ThesisFormatSpec();
-            formatPath = WriteTempFormatSpec(format);
         }
         else
         {
-            formatPath = Required(options, "format");
-            format = ReadJson<ThesisFormatSpec>(formatPath);
+            format = ReadJson<ThesisFormatSpec>(Required(options, "format"));
         }
 
-        var result = ValidateInputFiles(documentPath, formatPath, document, format);
+        var result = new ThesisValidateService().ValidateInput(new ValidateInputRequest
+        {
+            Document = document,
+            Format = format,
+            BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(documentPath))
+        });
 
         if (options.ContainsKey("json"))
         {
@@ -210,7 +204,7 @@ internal static class ThesisDocxCli
             return 0;
         }
 
-        WriteInputErrors(result);
+        WriteDiagnostics(result.Diagnostics);
         return 2;
     }
 
@@ -343,14 +337,23 @@ internal static class ThesisDocxCli
 
     private static int TemplateResolve(Dictionary<string, string> options)
     {
-        var resolution = new TemplateResolver().Resolve(Required(options, "template"));
-        if (!resolution.IsValid)
+        var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
         {
-            WriteTemplateErrors(resolution.Errors);
+            TemplatePath = Required(options, "template")
+        });
+        if (!result.Success)
+        {
+            WriteDiagnostics(result.Diagnostics);
             return 2;
         }
 
-        WriteJsonOutput(options.GetValueOrDefault("out"), resolution.FormatSpec);
+        if (options.ContainsKey("json"))
+        {
+            WriteJsonOutput(options.GetValueOrDefault("out"), result);
+            return 0;
+        }
+
+        WriteJsonOutput(options.GetValueOrDefault("out"), result.Resolution?.FormatSpec);
         return 0;
     }
 
@@ -688,7 +691,7 @@ internal static class ThesisDocxCli
         catch (DocxExtractionException ex)
         {
             var diagnostic = ExtractionDiagnostic(ex, "DocxExtractionService");
-            WriteJsonOutput(output, new { success = false, diagnostics = new[] { diagnostic } });
+            WriteJsonOutput(output, new { reportVersion = "1.0.0", success = false, diagnostics = new[] { diagnostic } });
             Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 2;
         }
@@ -974,9 +977,28 @@ internal static class ThesisDocxCli
 
     private static int PrivacyScan(Dictionary<string, string> options)
     {
-        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = Required(options, "path") });
+        var guardOptions = new PrivacyGuardOptions { Path = Required(options, "path") };
+        if (options.TryGetValue("max-evidence-excerpt-length", out var maxEvidenceExcerptLength))
+        {
+            guardOptions.MaxEvidenceExcerptLength = int.Parse(maxEvidenceExcerptLength, CultureInfo.InvariantCulture);
+        }
+
+        if (options.TryGetValue("max-base64-length", out var maxBase64Length))
+        {
+            guardOptions.MaxBase64Length = int.Parse(maxBase64Length, CultureInfo.InvariantCulture);
+        }
+
+        if (options.TryGetValue("max-warnings", out var maxWarnings))
+        {
+            guardOptions.MaxWarningCount = int.Parse(maxWarnings, CultureInfo.InvariantCulture);
+        }
+
+        guardOptions.SuppressedWarningCodes = SplitOptionList(options, "suppress-warning-code").ToHashSet(StringComparer.Ordinal);
+        guardOptions.SuppressedWarningPathPrefixes = SplitOptionList(options, "suppress-warning-path").ToHashSet(StringComparer.Ordinal);
+
+        var result = new PrivacyGuard().Scan(guardOptions);
         WriteJsonOutput(options.GetValueOrDefault("out"), result);
-        Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings)");
+        Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings, {result.SuppressedWarningCount} suppressed)");
         return result.IsValid ? 0 : 2;
     }
 
@@ -1362,6 +1384,15 @@ internal static class ThesisDocxCli
         }
     }
 
+    private static void WriteDiagnostics(IEnumerable<UnifiedDiagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            var path = string.IsNullOrWhiteSpace(diagnostic.Path) ? "$" : diagnostic.Path;
+            Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message} [{path}]");
+        }
+    }
+
     private static string LocateRepoRoot()
     {
         var current = new DirectoryInfo(Directory.GetCurrentDirectory());
@@ -1442,6 +1473,13 @@ internal static class ThesisDocxCli
         return options.TryGetValue(key, out var value)
             ? value.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             : [];
+    }
+
+    private static IEnumerable<string> SplitOptionList(Dictionary<string, string> options, string key)
+    {
+        return GetOptionValues(options, key)
+            .SelectMany(value => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Where(value => !string.IsNullOrWhiteSpace(value));
     }
 
     private static string Required(Dictionary<string, string> options, string key)

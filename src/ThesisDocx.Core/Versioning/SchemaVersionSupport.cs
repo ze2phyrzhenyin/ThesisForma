@@ -45,7 +45,7 @@ public sealed class SchemaVersionSupport
             Version = normalized,
             IsSupported = isSupported,
             SupportedVersions = supported.ToList(),
-            Direction = ClassifyDirection(normalized, supported)
+            Direction = isSupported ? ClassifySupportedDirection(normalized, supported) : ClassifyDirection(normalized, supported)
         };
 
         if (!isSupported)
@@ -95,6 +95,61 @@ public sealed class SchemaVersionSupport
         }
 
         return "unsupported";
+    }
+
+    private static string ClassifySupportedDirection(string version, IReadOnlyList<string> supported)
+    {
+        return string.Equals(version, supported.LastOrDefault(), StringComparison.Ordinal)
+            ? "current"
+            : "supported";
+    }
+}
+
+public sealed class SchemaVersionReport
+{
+    public string ReportVersion { get; set; } = "1.0.0";
+
+    public bool IsValid => Checks.All(check => check.IsSupported);
+
+    public List<SchemaVersionCheckResult> Checks { get; set; } = [];
+
+    public List<UnifiedDiagnostic> Diagnostics => Checks
+        .Select(check => check.Diagnostic)
+        .Where(diagnostic => diagnostic is not null)
+        .Cast<UnifiedDiagnostic>()
+        .ToList();
+
+    public static SchemaVersionReport Empty()
+    {
+        return new SchemaVersionReport();
+    }
+
+    public static SchemaVersionReport ForDocumentAndFormat(string? documentVersion, string? formatVersion)
+    {
+        var support = new SchemaVersionSupport();
+        return new SchemaVersionReport
+        {
+            Checks =
+            [
+                support.CheckThesisDocument(documentVersion),
+                support.CheckThesisFormatSpec(formatVersion)
+            ]
+        };
+    }
+
+    public static SchemaVersionReport ForTemplate(string? templateVersion, string? formatVersion = null)
+    {
+        var support = new SchemaVersionSupport();
+        var checks = new List<SchemaVersionCheckResult>
+        {
+            support.CheckTemplatePackage(templateVersion)
+        };
+        if (!string.IsNullOrWhiteSpace(formatVersion))
+        {
+            checks.Add(support.CheckThesisFormatSpec(formatVersion));
+        }
+
+        return new SchemaVersionReport { Checks = checks };
     }
 }
 

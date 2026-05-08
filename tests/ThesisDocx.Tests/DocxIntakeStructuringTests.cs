@@ -550,7 +550,9 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal(2, result.ExitCode);
         Assert.True(File.Exists(output));
-        var diagnostic = JsonNode.Parse(File.ReadAllText(output))!["diagnostics"]!.AsArray()[0]!;
+        var json = JsonNode.Parse(File.ReadAllText(output))!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        var diagnostic = json["diagnostics"]!.AsArray()[0]!;
         Assert.Equal("intake.input.notFound", diagnostic["code"]!.GetValue<string>());
         Assert.Equal("error", diagnostic["severity"]!.GetValue<string>());
         Assert.Equal("intake", diagnostic["category"]!.GetValue<string>());
@@ -651,6 +653,7 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal(2, result.ExitCode);
         var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        Assert.Equal("1.0.0", report["reportVersion"]!.GetValue<string>());
         var diagnostic = report["diagnostics"]!.AsArray()[0]!;
         Assert.Equal("intake.input.notFound", diagnostic["code"]!.GetValue<string>());
         Assert.Equal("error", diagnostic["severity"]!.GetValue<string>());

@@ -586,6 +586,20 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void Cli_TemplateResolve_ShouldSupportJsonReport()
+    {
+        var result = CliRunner.Run(RepoRoot(), "template", "resolve", "--template", TemplatePath("example-university-engineering-variant"), "--json");
+        var json = JsonNode.Parse(result.StandardOutput)!;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json["success"]!.GetValue<bool>());
+        Assert.Equal("example-university-engineering-variant", json["templateId"]!.GetValue<string>());
+        Assert.Equal("1.0.0", json["versionReport"]!["reportVersion"]!.GetValue<string>());
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "templatePackage");
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "thesisFormatSpec");
+    }
+
+    [Fact]
     public void Cli_TemplateDiff_ShouldReportChangedRules()
     {
         var result = CliRunner.Run(RepoRoot(), "template", "diff", "--base", TemplatePath("example-university-engineering"), "--target", TemplatePath("example-university-engineering-variant"));

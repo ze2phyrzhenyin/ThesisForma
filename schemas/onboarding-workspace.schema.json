@@ -45,7 +45,19 @@
         "allowSourceDocumentsInWorkspace": { "type": "boolean" },
         "prohibitSourceDocumentsInRelease": { "type": "boolean" },
         "prohibitPersonalDataInExamples": { "type": "boolean" },
-        "maxEvidenceExcerptLength": { "type": "integer", "minimum": 40, "maximum": 1000 }
+        "maxEvidenceExcerptLength": { "type": "integer", "minimum": 40, "maximum": 1000 },
+        "maxBase64Length": { "type": "integer", "minimum": 1000, "maximum": 10000000 },
+        "maxWarningCount": { "type": ["integer", "null"], "minimum": 0, "maximum": 10000 },
+        "suppressedWarningCodes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "suppressedWarningPathPrefixes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/relativePath" },
+          "uniqueItems": true
+        }
       }
     },
     "quality": {

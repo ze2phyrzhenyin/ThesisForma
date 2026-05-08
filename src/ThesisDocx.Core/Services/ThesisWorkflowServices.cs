@@ -4,6 +4,7 @@ using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Validation;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Services;
 
@@ -23,8 +24,57 @@ public sealed class ThesisValidateService
             IsValid = validation.IsValid,
             Diagnostics = validation.Diagnostics,
             ErrorCount = validation.Errors.Count,
-            WarningCount = validation.Warnings.Count
+            WarningCount = validation.Warnings.Count,
+            VersionReport = validation.VersionReport
         };
+    }
+
+    public ValidateDocxResult ValidateDocx(ValidateDocxRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.DocxPath))
+        {
+            return ValidateDocxResult.Failure("service.docx.missing", "DOCX path is required for validation.");
+        }
+
+        try
+        {
+            OpenXmlValidationResult validation;
+            SchemaVersionReport versionReport;
+            if (!string.IsNullOrWhiteSpace(request.TemplatePath))
+            {
+                var resolution = new TemplateResolver().Resolve(request.TemplatePath);
+                validation = new FormatConformanceValidator().Validate(request.DocxPath, request.TemplatePath);
+                versionReport = SchemaVersionReport.ForTemplate(resolution.Template?.TemplateSchemaVersion, resolution.FormatSpec?.SchemaVersion);
+            }
+            else if (request.Format is not null)
+            {
+                validation = new FormatConformanceValidator().Validate(request.DocxPath, request.Format);
+                versionReport = new SchemaVersionReport
+                {
+                    Checks = [new SchemaVersionSupport().CheckThesisFormatSpec(request.Format.SchemaVersion)]
+                };
+            }
+            else
+            {
+                return ValidateDocxResult.Failure("service.format.missing", "Format spec or template path is required for DOCX validation.");
+            }
+
+            return new ValidateDocxResult
+            {
+                Success = validation.IsValid,
+                IsValid = validation.IsValid,
+                Diagnostics = validation.Diagnostics,
+                ErrorCount = validation.Errors.Count,
+                WarningCount = validation.Warnings.Count,
+                CheckedRules = validation.CheckedRules.ToList(),
+                Validation = validation,
+                VersionReport = versionReport
+            };
+        }
+        catch (Exception ex)
+        {
+            return ValidateDocxResult.Failure("service.validate.failed", "DOCX validation failed.", ex.Message);
+        }
     }
 }
 
@@ -59,7 +109,8 @@ public sealed class ThesisRenderService
                     Success = false,
                     Diagnostics = validation.Diagnostics,
                     ErrorCount = validation.ErrorCount,
-                    WarningCount = validation.WarningCount
+                    WarningCount = validation.WarningCount,
+                    VersionReport = validation.VersionReport
                 };
             }
         }
@@ -75,7 +126,8 @@ public sealed class ThesisRenderService
                 Diagnostics = openXml.Diagnostics,
                 ErrorCount = openXml.Errors.Count,
                 WarningCount = openXml.Warnings.Count,
-                Artifact = ArtifactMetadata.FromFile("docx", request.OutputPath)
+                Artifact = ArtifactMetadata.FromFile("docx", request.OutputPath),
+                VersionReport = SchemaVersionReport.ForDocumentAndFormat(request.Document.SchemaVersion, request.Format.SchemaVersion)
             };
         }
         catch (Exception ex)
@@ -109,6 +161,7 @@ public sealed class TemplateResolveService
                 Resolution = resolution,
                 ErrorCount = resolution.Errors.Count,
                 WarningCount = resolution.Warnings.Count,
+                VersionReport = SchemaVersionReport.ForTemplate(resolution.Template?.TemplateSchemaVersion, resolution.FormatSpec?.SchemaVersion),
                 Diagnostics = resolution.Errors.Select(error => ToDiagnostic(error, DiagnosticSeverity.Error))
                     .Concat(resolution.Warnings.Select(warning => ToDiagnostic(warning, DiagnosticSeverity.Warning)))
                     .ToList()
@@ -149,6 +202,25 @@ public sealed class ValidateInputResult : ServiceResult
     public static ValidateInputResult Failure(string code, string message, string? detail = null)
     {
         return new ValidateInputResult { Success = false, ErrorCount = 1, Diagnostics = [Diagnostic(code, message, detail)] };
+    }
+}
+
+public sealed class ValidateDocxRequest
+{
+    public string DocxPath { get; set; } = string.Empty;
+    public ThesisFormatSpec? Format { get; set; }
+    public string? TemplatePath { get; set; }
+}
+
+public sealed class ValidateDocxResult : ServiceResult
+{
+    public bool IsValid { get; set; }
+    public List<string> CheckedRules { get; set; } = [];
+    public OpenXmlValidationResult? Validation { get; set; }
+
+    public static ValidateDocxResult Failure(string code, string message, string? detail = null)
+    {
+        return new ValidateDocxResult { Success = false, ErrorCount = 1, Diagnostics = [Diagnostic(code, message, detail)] };
     }
 }
 
@@ -201,6 +273,7 @@ public abstract class ServiceResult
     public int ErrorCount { get; set; }
     public int WarningCount { get; set; }
     public List<UnifiedDiagnostic> Diagnostics { get; set; } = [];
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     protected static UnifiedDiagnostic Diagnostic(string code, string message, string? detail = null)
     {

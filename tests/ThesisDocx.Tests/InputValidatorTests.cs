@@ -346,7 +346,7 @@ public sealed class InputValidatorTests
         var result = CliRunner.Run(root, "render", "--document", invalidDocument, "--format", Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json"), "--out", Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.docx"));
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("dangling.citation", result.StandardError);
+        Assert.Contains("citation.targetMissing", result.StandardError);
     }
 
     [Fact]

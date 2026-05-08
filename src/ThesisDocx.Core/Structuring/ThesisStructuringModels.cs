@@ -57,6 +57,7 @@ public sealed class ThesisDocumentDraftValidationResult
 
 public sealed class IntakeDocxReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public string InputDocx { get; set; } = string.Empty;
     public string ExtractionStatus { get; set; } = "notRun";
     public string StructuringStatus { get; set; } = "notRun";

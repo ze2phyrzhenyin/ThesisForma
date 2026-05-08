@@ -1,5 +1,6 @@
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Rendering;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Validation;
 
@@ -95,6 +96,7 @@ public sealed class ThesisInputValidator
 
     private static void ValidateSchemaVersions(ThesisDocument document, ThesisFormatSpec format, ThesisInputValidationResult result)
     {
+        result.VersionReport = SchemaVersionReport.ForDocumentAndFormat(document.SchemaVersion, format.SchemaVersion);
         if (!ThesisSchemaValidator.IsSupportedVersion(document.SchemaVersion))
         {
             result.Add("unsupported.documentSchemaVersion", "$.schemaVersion", $"Unsupported document schemaVersion '{document.SchemaVersion}'.");

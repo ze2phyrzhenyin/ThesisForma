@@ -1,6 +1,7 @@
 namespace ThesisDocx.Core.Validation;
 
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Versioning;
 
 public sealed class ThesisInputValidationResult
 {
@@ -11,6 +12,8 @@ public sealed class ThesisInputValidationResult
     public List<ThesisInputValidationError> Errors { get; set; } = [];
 
     public List<ThesisInputValidationError> Warnings { get; set; } = [];
+
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 
     public List<UnifiedDiagnostic> Diagnostics => Errors
         .Select(error => UnifiedDiagnosticMapper.FromInputError(error, DiagnosticSeverity.Error, Source))

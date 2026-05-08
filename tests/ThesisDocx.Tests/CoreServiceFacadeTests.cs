@@ -23,6 +23,9 @@ public sealed class CoreServiceFacadeTests
         Assert.True(result.Success);
         Assert.True(result.IsValid);
         Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Severity == "error");
+        Assert.Contains(result.VersionReport.Checks, check => check.Kind == "thesisDocument");
+        Assert.Contains(result.VersionReport.Checks, check => check.Kind == "thesisFormatSpec");
+        Assert.DoesNotContain(result.VersionReport.Checks, check => check.Direction == "unsupported");
     }
 
     [Fact]
@@ -81,6 +84,8 @@ public sealed class CoreServiceFacadeTests
         Assert.Equal("example-university-engineering", result.TemplateId);
         Assert.True(result.PageTemplateCount > 0);
         Assert.NotNull(result.Resolution?.FormatSpec);
+        Assert.Contains(result.VersionReport.Checks, check => check.Kind == "templatePackage");
+        Assert.DoesNotContain(result.VersionReport.Checks, check => check.Direction == "unsupported");
     }
 
     private static (ThesisDocument Document, ThesisFormatSpec Format, string BaseDirectory) LoadSimple()

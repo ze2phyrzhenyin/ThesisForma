@@ -75,6 +75,14 @@ public sealed class OnboardingPrivacyPolicy
     public bool ProhibitPersonalDataInExamples { get; set; } = true;
 
     public int MaxEvidenceExcerptLength { get; set; } = 240;
+
+    public int MaxBase64Length { get; set; } = 200_000;
+
+    public int? MaxWarningCount { get; set; }
+
+    public List<string> SuppressedWarningCodes { get; set; } = [];
+
+    public List<string> SuppressedWarningPathPrefixes { get; set; } = [];
 }
 
 public sealed class OnboardingQualityPolicy

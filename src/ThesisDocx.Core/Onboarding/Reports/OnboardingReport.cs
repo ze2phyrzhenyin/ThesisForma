@@ -51,11 +51,7 @@ public sealed class OnboardingReportBuilder
         Directory.CreateDirectory(workspace.ArtifactsDirectory);
 
         var validation = new OnboardingWorkspaceValidator().Validate(options.WorkspacePath);
-        var privacy = new PrivacyGuard().Scan(new PrivacyGuardOptions
-        {
-            Path = options.WorkspacePath,
-            MaxEvidenceExcerptLength = workspace.Manifest.Privacy.MaxEvidenceExcerptLength
-        });
+        var privacy = new PrivacyGuard().Scan(PrivacyGuardOptions.FromPolicy(options.WorkspacePath, workspace.Manifest.Privacy));
         var templatePath = workspace.TemplateDirectory;
         var documentPath = workspace.DocumentPath;
         var requirementsPath = workspace.RequirementsFile;
@@ -140,7 +136,7 @@ public sealed class OnboardingReportBuilder
         return
         [
             Item("workspace.valid", "workspace manifest and required paths valid", validation.IsValid),
-            Item("privacy.clean", "privacy scan has no error findings", privacy.IsValid, $"{privacy.BreakingCount} errors; {privacy.WarningCount} warnings"),
+            Item("privacy.clean", "privacy scan has no error findings", privacy.IsValid, $"{privacy.BreakingCount} errors; {privacy.WarningCount} warnings; {privacy.SuppressedWarningCount} suppressed warnings"),
             Item("requirements.present", "RequirementCapture present and valid", report.RequirementStatus == "pass"),
             Item("template.present", "TemplatePackage scaffold present", report.TemplateStatus == "present"),
             Item("fixtures.present", "fixture document present", report.FixtureStatus == "present"),
