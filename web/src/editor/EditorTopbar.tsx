@@ -2,9 +2,15 @@ import { useState } from 'react';
 import { Brand } from '@/components/Brand';
 import { useEditorActions, useEditorStore } from './EditorContext';
 import { useSaveDocument, useValidateDocument } from '@/api/queries';
-import { exportDocumentJsonUrl, ThesisApiError } from '@/api/client';
+import { isApiBacked, ThesisApiError } from '@/api/client';
 import { ExportModal } from './ExportModal';
 import type { ApiIssue } from '@/types';
+import {
+  cleanThesisDocument,
+  downloadJson,
+  exportFileNameForDocument,
+  validateThesisDocument
+} from './documentContract';
 import styles from './EditorTopbar.module.css';
 
 interface Props {
@@ -72,15 +78,40 @@ export function EditorTopbar({
 
   const onExportJson = async () => {
     try {
+      const cleaned = cleanThesisDocument(envelope.document);
+      const issues = validateThesisDocument(cleaned);
+      const errors = issues.filter((item) => item.severity === 'error');
+      const warnings = issues.filter((item) => item.severity === 'warning');
+      if (errors.length) {
+        onValidationResult({
+          isValid: false,
+          issues,
+          checkedAt: new Date().toLocaleTimeString()
+        });
+        onOpenValidationDrawer();
+        return;
+      }
+      if (warnings.length) {
+        const proceed = window.confirm(`导出前发现 ${warnings.length} 个警告。仍然导出 ThesisDocument JSON？`);
+        if (!proceed) {
+          onValidationResult({
+            isValid: false,
+            issues,
+            checkedAt: new Date().toLocaleTimeString()
+          });
+          onOpenValidationDrawer();
+          return;
+        }
+      }
       if (dirty) {
         const saved = await save.mutateAsync({
           id: envelope.id,
-          document: envelope.document,
+          document: cleaned,
           templateId: envelope.templateId ?? null
         });
         actions.markSaved(saved.updatedAt);
       }
-      window.location.href = exportDocumentJsonUrl(envelope.id);
+      downloadJson(exportFileNameForDocument(cleaned), cleaned);
     } finally {
       setExportMenuOpen(false);
     }
@@ -163,9 +194,9 @@ export function EditorTopbar({
               role="menu"
               onMouseLeave={() => setExportMenuOpen(false)}
             >
-              <button type="button" role="menuitem" onClick={onExportDocx}>
+              <button type="button" role="menuitem" onClick={onExportDocx} disabled={!isApiBacked}>
                 <strong>DOCX</strong>
-                <span>渲染并下载 .docx</span>
+                <span>{isApiBacked ? '渲染并下载 .docx' : '静态前端暂不渲染 DOCX'}</span>
               </button>
               <button type="button" role="menuitem" onClick={onExportJson}>
                 <strong>JSON</strong>

@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Brand } from '@/components/Brand';
 import { useCreateDocument, useImportDocument, useTemplates } from '@/api/queries';
 import { ThesisApiError } from '@/api/client';
-import type { ThesisDocument } from '@/types';
+import { deleteLocalDraft, duplicateLocalDraft, listLocalDrafts } from '@/editor/localDrafts';
+import { parseThesisDocumentJson } from '@/editor/documentContract';
 import styles from './HomePage.module.css';
 
 export function HomePage() {
@@ -12,11 +13,14 @@ export function HomePage() {
   const createDoc = useCreateDocument();
   const importDoc = useImportDocument();
   const [error, setError] = useState<string | null>(null);
+  const [draftTick, setDraftTick] = useState(0);
+  const drafts = useMemo(() => listLocalDrafts(), [draftTick]);
 
   const handleNewBlank = async () => {
     setError(null);
     try {
       const env = await createDoc.mutateAsync({ title: '未命名论文' });
+      setDraftTick((v) => v + 1);
       navigate(`/d/${env.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : '创建失败');
@@ -27,8 +31,19 @@ export function HomePage() {
     setError(null);
     try {
       const text = await file.text();
-      const document = JSON.parse(text) as ThesisDocument;
-      const env = await importDoc.mutateAsync({ document });
+      const parsed = parseThesisDocumentJson(text);
+      if (!parsed.ok || !parsed.document) {
+        const first = parsed.issues.find((issue) => issue.severity === 'error') ?? parsed.issues[0];
+        setError(first ? `${first.message}${first.path ? `（${first.path}）` : ''}` : '导入失败');
+        return;
+      }
+      const warningCount = parsed.issues.filter((issue) => issue.severity === 'warning').length;
+      if (warningCount > 0) {
+        const proceed = window.confirm(`导入前发现 ${warningCount} 个警告。继续导入并清理为 ThesisDocument JSON？`);
+        if (!proceed) return;
+      }
+      const env = await importDoc.mutateAsync({ document: parsed.document });
+      setDraftTick((v) => v + 1);
       navigate(`/d/${env.id}`);
     } catch (e) {
       if (e instanceof ThesisApiError && e.payload?.issues?.length) {
@@ -54,6 +69,7 @@ export function HomePage() {
         <Brand />
         <nav className={styles.nav}>
           <a href="/templates">模板库</a>
+          <a href="/templates/editor">模板编辑器</a>
         </nav>
       </header>
 
@@ -145,6 +161,56 @@ export function HomePage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className={styles.templatesPanel}>
+          <header className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>最近本地草稿</h2>
+            <span className={styles.more}>浏览器本地保存</span>
+          </header>
+
+          {drafts.length === 0 ? (
+            <p className={styles.muted}>暂无本地草稿。新建或导入 JSON 后会自动保存。</p>
+          ) : (
+            <ul className={styles.draftList}>
+              {drafts.slice(0, 8).map((draft) => (
+                <li key={draft.id} className={styles.draftItem}>
+                  <button
+                    type="button"
+                    className={styles.draftOpen}
+                    onClick={() => navigate(`/d/${draft.id}`)}
+                  >
+                    <strong>{draft.title}</strong>
+                    <span>
+                      {draft.author || '未填写作者'} · {new Date(draft.updatedAt).toLocaleString()}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.draftAction}
+                    onClick={() => {
+                      const copy = duplicateLocalDraft(draft.id);
+                      setDraftTick((v) => v + 1);
+                      navigate(`/d/${copy.id}`);
+                    }}
+                  >
+                    复制
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.draftAction}
+                    onClick={() => {
+                      if (!window.confirm(`删除本地草稿「${draft.title}」？此操作不可撤销。`)) return;
+                      deleteLocalDraft(draft.id);
+                      setDraftTick((v) => v + 1);
+                    }}
+                  >
+                    删除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>

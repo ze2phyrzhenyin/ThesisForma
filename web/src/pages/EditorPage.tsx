@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useBlocker, useParams } from 'react-router-dom';
 import { useDocument, useSaveDocument, useValidateDocument } from '@/api/queries';
 import { Brand } from '@/components/Brand';
 import { EditorProvider, useEditorActions, useEditorStore } from '@/editor/EditorContext';
@@ -11,6 +11,12 @@ import { ThesisApiError } from '@/api/client';
 import { useAutoSave } from '@/editor/useAutoSave';
 import { useShortcuts } from '@/editor/useShortcuts';
 import type { ApiIssue } from '@/types';
+import {
+  cleanThesisDocument,
+  downloadJson,
+  exportFileNameForDocument,
+  validateThesisDocument
+} from '@/editor/documentContract';
 import styles from './EditorPage.module.css';
 
 interface ValidationState {
@@ -33,9 +39,59 @@ function EditorInner() {
     issues: [],
     checkedAt: null
   });
+  const blocker = useBlocker(dirty);
 
   useAutoSave();
-  useShortcuts({ onToggleFocus: () => setFocusMode((v) => !v) });
+  const saveCurrent = async () => {
+    const cleaned = cleanThesisDocument(envelope.document);
+    const saved = await save.mutateAsync({
+      id: envelope.id,
+      document: cleaned,
+      templateId: envelope.templateId ?? null
+    });
+    actions.markSaved(saved.updatedAt);
+  };
+
+  const exportJson = () => {
+    const cleaned = cleanThesisDocument(envelope.document);
+    const issues = validateThesisDocument(cleaned);
+    const errors = issues.filter((issue) => issue.severity === 'error');
+    if (errors.length > 0) {
+      setValidation({
+        isValid: false,
+        issues,
+        checkedAt: new Date().toLocaleTimeString()
+      });
+      setDrawer('validation');
+      return;
+    }
+    downloadJson(exportFileNameForDocument(cleaned), cleaned);
+  };
+
+  useShortcuts({
+    onToggleFocus: () => setFocusMode((v) => !v),
+    onSave: () => void saveCurrent(),
+    onExportJson: exportJson
+  });
+
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (window.confirm('当前文档还有未保存改动，确定要离开吗？')) {
+      blocker.proceed();
+    } else {
+      blocker.reset();
+    }
+  }, [blocker]);
 
   const runValidate = async () => {
     try {

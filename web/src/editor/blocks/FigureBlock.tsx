@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useEditorActions } from '../EditorContext';
 import { BlockShell } from './BlockShell';
-import { uploadImage, ThesisApiError, assetUrl } from '@/api/client';
+import { uploadImage, ThesisApiError, assetUrl, isApiBacked } from '@/api/client';
 import type { FigureBlock as FigureBlockData, ImageContentType } from '@/types';
 import styles from './blocks.module.css';
 import figureStyles from './FigureBlock.module.css';
@@ -25,6 +25,16 @@ export function FigureBlock({ block, sectionIndex, blockIndex, selected, totalBl
     setError(null);
     setUploading(true);
     try {
+      if (!isApiBacked) {
+        const imageDataBase64 = await fileToBase64(file);
+        actions.updateBlock(sectionIndex, blockIndex, (b) => {
+          if (b.type !== 'figure') return;
+          b.imageDataBase64 = imageDataBase64;
+          delete b.imagePath;
+          b.imageContentType = file.type as ImageContentType;
+        });
+        return;
+      }
       const res = await uploadImage(file);
       actions.updateBlock(sectionIndex, blockIndex, (b) => {
         if (b.type !== 'figure') return;
@@ -52,7 +62,11 @@ export function FigureBlock({ block, sectionIndex, blockIndex, selected, totalBl
     else setError('请使用 PNG / JPEG / GIF / BMP 图片');
   };
 
-  const previewSrc = block.imagePath ? deriveAssetPreview(block.imagePath) : null;
+  const previewSrc = block.imageDataBase64
+    ? `data:${block.imageContentType};base64,${block.imageDataBase64}`
+    : block.imagePath
+      ? deriveAssetPreview(block.imagePath)
+      : null;
 
   return (
     <BlockShell
@@ -121,7 +135,7 @@ export function FigureBlock({ block, sectionIndex, blockIndex, selected, totalBl
             <button
               type="button"
               className={figureStyles.replaceBtn}
-              onClick={() => document.getElementById(`fig-up-${block.id}`)?.click()}
+              onClick={() => document.getElementById(`fig-up-${block.id}-replace`)?.click()}
             >
               替换图片
             </button>
@@ -181,4 +195,17 @@ function deriveAssetPreview(imagePath: string): string | null {
   const match = imagePath.match(/(asset-[a-z0-9_-]+)/i);
   if (match) return assetUrl(match[1]);
   return null;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result ?? '');
+      const comma = value.indexOf(',');
+      resolve(comma >= 0 ? value.slice(comma + 1) : value);
+    };
+    reader.onerror = () => reject(new Error('图片读取失败'));
+    reader.readAsDataURL(file);
+  });
 }

@@ -47,7 +47,7 @@ export function ValidationPanel({ issues, isValid, isRunning, lastCheckedAt, onR
 
       <div className={styles.statusBar} data-status={statusOf(isValid)}>
         {isValid === null && '尚未校验'}
-        {isValid === true && '通过 · 无问题'}
+        {isValid === true && (issues.length ? `通过 · ${issues.length} 个警告/提示` : '通过 · 无问题')}
         {isValid === false && `共 ${issues.length} 个问题`}
         {lastCheckedAt && <span className={styles.checkedAt}>· {lastCheckedAt}</span>}
       </div>

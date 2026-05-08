@@ -15,7 +15,7 @@ function stripNulls<T>(value: T): T {
   return value;
 }
 
-describe('stripNulls (parity with api/client implementation)', () => {
+describe('stripNulls behavior used by contract cleaning helpers', () => {
   it('drops null and undefined values', () => {
     expect(stripNulls({ a: 1, b: null, c: undefined, d: 'x' })).toEqual({ a: 1, d: 'x' });
   });

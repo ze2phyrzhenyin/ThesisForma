@@ -5,9 +5,11 @@ import { useEditorStoreInstance } from './EditorContext';
  * Global keyboard shortcuts:
  *  - Cmd/Ctrl+Z   undo
  *  - Cmd/Ctrl+Shift+Z   redo
+ *  - Cmd/Ctrl+S   save
+ *  - Cmd/Ctrl+E   export JSON
  *  - Cmd/Ctrl+.   toggle focus mode
  */
-export function useShortcuts(opts: { onToggleFocus(): void }) {
+export function useShortcuts(opts: { onToggleFocus(): void; onSave?(): void; onExportJson?(): void }) {
   const store = useEditorStoreInstance();
 
   useEffect(() => {
@@ -20,18 +22,26 @@ export function useShortcuts(opts: { onToggleFocus(): void }) {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
       const isContentEditable = target?.isContentEditable;
-      if (tag === 'input' || tag === 'textarea' || isContentEditable) return;
+      const key = e.key.toLowerCase();
+      const isTextEditing = tag === 'input' || tag === 'textarea' || isContentEditable;
+      if (isTextEditing && key !== 's' && key !== 'e') return;
 
-      if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
         const t = (store as unknown as { temporal: { getState: () => { undo: () => void } } })
           .temporal;
         t.getState().undo();
-      } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
         e.preventDefault();
         const t = (store as unknown as { temporal: { getState: () => { redo: () => void } } })
           .temporal;
         t.getState().redo();
+      } else if (key === 's') {
+        e.preventDefault();
+        opts.onSave?.();
+      } else if (key === 'e') {
+        e.preventDefault();
+        opts.onExportJson?.();
       } else if (e.key === '.') {
         e.preventDefault();
         opts.onToggleFocus();

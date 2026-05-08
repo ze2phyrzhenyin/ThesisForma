@@ -27,15 +27,15 @@ export function useAutoSave() {
         const current = store.getState();
         if (!current.dirty) return;
         inflight.current = true;
+        const savedSnapshot = JSON.stringify(current.envelope.document);
         try {
           const env = await saveRef.current.mutateAsync({
             id: current.envelope.id,
             document: current.envelope.document,
             templateId: current.envelope.templateId ?? null
           });
-          // If user kept editing during save, leave dirty true; just bump the timestamp.
           const after = store.getState();
-          const stillDirty = after.envelope !== current.envelope;
+          const stillDirty = JSON.stringify(after.envelope.document) !== savedSnapshot;
           store.setState({ lastSavedAt: env.updatedAt, dirty: stillDirty });
         } catch {
           // Leave dirty=true so the next debounce attempt retries.
