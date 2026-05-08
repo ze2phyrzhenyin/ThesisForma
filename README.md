@@ -12,7 +12,7 @@ The fourth-round engine also accepts reusable template packages:
 
 `ThesisDocument + TemplatePackage -> resolved ThesisFormatSpec + page templates + valid DOCX`
 
-This stage does not infer structure with AI or rewrite thesis content. The repository now includes a DOCX intake prototype and a structured web editor MVP, but the supported contract remains structured content plus template data feeding the deterministic renderer.
+This stage does not infer structure with AI or rewrite thesis content. The repository includes a DOCX intake prototype, but the supported contract remains structured content plus template data feeding the deterministic renderer.
 
 ## Why This Shape
 
@@ -82,70 +82,6 @@ dotnet run --project src/ThesisDocx.Cli -- validate \
   --docx out/template-full.docx \
   --template examples/templates/example-university-engineering
 ```
-
-## Structured Web Editor MVP
-
-The web editor is a structure-first thesis writing interface. It is not a Word clone and does not let users manually set fonts, line spacing, margins, page numbers, or table borders. Users edit thesis content and structure; templates decide the final DOCX format.
-
-The current UI uses a professional three-column document-tool layout:
-
-- left outline for section and heading navigation
-- center structured document canvas for metadata and blocks
-- right tabs for properties, validation, references, and template guidance
-
-The insert menu groups common content, academic elements, and structural blocks. Table and figure insertion use small focused dialogs so users do not have to guess the expected structure.
-
-Run the API:
-
-```bash
-dotnet run --project src/ThesisDocx.Api
-```
-
-Run the frontend:
-
-```bash
-cd web
-npm ci
-npm run dev
-```
-
-Build and test the web editor:
-
-```bash
-cd web
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
-
-The API stores MVP runtime data under `runtime/`:
-
-- `runtime/documents`
-- `runtime/assets`
-- `runtime/runs`
-
-It never writes uploaded user content into `examples/`. See `docs/31-web-structured-editor.md` through `docs/35-web-editor-limitations.md`.
-
-### Vercel Frontend MVP
-
-Vercel should build only the frontend directory:
-
-- Root Directory: `web`
-- Install Command: `npm ci`
-- Build Command: `npm run build`
-- Output Directory: `dist`
-
-Environment variables for frontend-only deployment:
-
-```text
-VITE_APP_MODE=frontend-only
-VITE_ENABLE_DOCX_RENDER=false
-VITE_ENABLE_LOCAL_EXPORT=true
-VITE_API_BASE_URL=
-```
-
-This mode supports structure editing, local draft storage, JSON import, and JSON export. Online DOCX generation requires a separately deployed API and `VITE_API_BASE_URL`. See `docs/36-vercel-frontend-deployment.md`.
 
 Template utilities:
 

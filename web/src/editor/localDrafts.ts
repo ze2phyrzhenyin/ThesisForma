@@ -171,12 +171,15 @@ export function createBlankThesisDocument(req: CreateDocumentRequest = {}): Thes
       language: 'zh-CN'
     },
     sections: [
+      { id: 'cover', kind: 'cover', title: '封面', blocks: [] },
       {
-        id: 'cover',
-        kind: 'cover',
-        title: '封面',
+        id: 'originalityStatement',
+        kind: 'originalityStatement',
+        title: '原创声明',
         blocks: []
       },
+      { id: 'abstract', kind: 'abstract', title: '摘要', blocks: [] },
+      { id: 'toc', kind: 'toc', title: '目录', blocks: [] },
       {
         id: 'body',
         kind: 'body',
@@ -196,6 +199,7 @@ export function createBlankThesisDocument(req: CreateDocumentRequest = {}): Thes
           }
         ]
       },
+      { id: 'acknowledgements', kind: 'acknowledgements', title: '致谢', blocks: [] },
       {
         id: 'bibliography',
         kind: 'bibliography',
@@ -207,7 +211,8 @@ export function createBlankThesisDocument(req: CreateDocumentRequest = {}): Thes
             entries: [{ id: 'ref-1', text: '作者. 文献题名. 出版地: 出版社, 年.' }]
           }
         ]
-      }
+      },
+      { id: 'appendix', kind: 'appendix', title: '附录', blocks: [] }
     ]
   };
 }

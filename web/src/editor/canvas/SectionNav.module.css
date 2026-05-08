@@ -19,6 +19,14 @@
   padding: 0 var(--sp-2) var(--sp-1);
 }
 
+.emptyHint {
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+  padding: var(--sp-2);
+}
+
+/* ── Top-level info items (元数据/变量/覆盖) ────────────────────── */
+
 .item {
   display: flex;
   align-items: center;
@@ -30,16 +38,13 @@
   text-align: left;
   width: 100%;
   position: relative;
+  background: transparent;
+  border: 0;
 }
 
 .item:hover {
   background: var(--color-surface-soft);
   color: var(--color-text);
-}
-
-.item:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .itemActive {
@@ -53,27 +58,197 @@
   color: var(--color-brand-strong);
 }
 
-.itemMuted {
-  color: var(--color-text-mute);
-}
-
 .itemDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
   opacity: 0.4;
+  flex-shrink: 0;
 }
 
-.itemAdd {
-  margin-left: auto;
-  font-size: var(--fs-xs);
+.itemLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Section row (with hover actions) ─────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--r-sm);
+  position: relative;
+  min-height: 30px;
+}
+
+.row:hover {
+  background: var(--color-surface-soft);
+}
+
+.rowActive {
+  background: var(--color-brand-soft);
+}
+
+.rowActive:hover {
+  background: var(--color-brand-soft);
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  color: var(--color-text-soft);
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+}
+
+.rowActive .rowMain {
+  color: var(--color-brand-strong);
+  font-weight: 500;
+}
+
+.kindHint {
+  font-size: var(--fs-2xs);
   color: var(--color-text-faint);
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
-.item:hover .itemAdd {
-  color: var(--color-brand);
+.rowActions {
+  display: none;
+  align-items: center;
+  gap: 1px;
+  padding-right: 2px;
 }
+
+.row:hover .rowActions,
+.row:focus-within .rowActions {
+  display: flex;
+}
+
+.iconBtn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+  background: transparent;
+  border: 0;
+  line-height: 1;
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.iconBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.iconBtn[data-danger]:hover:not(:disabled) {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.renameInput {
+  flex: 1;
+  padding: 5px var(--sp-2);
+  margin: 0 2px;
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-brand);
+  border-radius: var(--r-sm);
+  outline: none;
+}
+
+/* ── Add-section trigger and menu ─────────────────────────────── */
+
+.addWrap {
+  position: relative;
+  margin-top: var(--sp-2);
+}
+
+.addTrigger {
+  width: 100%;
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-mute);
+  font-size: var(--fs-sm);
+  text-align: left;
+  transition: all var(--t-fast) var(--ease);
+}
+
+.addTrigger:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  background: var(--color-brand-soft);
+}
+
+.addMenu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: var(--z-modal);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-3);
+  padding: var(--sp-1);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.addItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.addItem:hover {
+  background: var(--color-surface-soft);
+}
+
+.addItemLabel {
+  font-size: var(--fs-sm);
+  color: var(--color-text);
+}
+
+.addItemDesc {
+  font-size: var(--fs-xs);
+  color: var(--color-text-mute);
+}
+
+/* ── Outline ──────────────────────────────────────────────────── */
 
 .outlineItem {
   font-size: var(--fs-xs);
@@ -85,6 +260,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: transparent;
+  border: 0;
 }
 
 .outlineItem:hover {

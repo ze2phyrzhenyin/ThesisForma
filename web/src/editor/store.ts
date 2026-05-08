@@ -37,7 +37,10 @@ export interface EditorState {
   updateDocument(updater: (doc: ThesisDocument) => void): void;
 
   ensureSection(kind: SectionKind): number;
-  removeSection(kind: SectionKind): void;
+  addSection(kind: SectionKind, atIndex?: number): number;
+  removeSection(sectionIndex: number): void;
+  moveSection(from: number, to: number): void;
+  renameSection(sectionIndex: number, title: string): void;
   updateSection(sectionIndex: number, updater: (section: Section) => void): void;
 
   insertBlock(sectionIndex: number, blockIndex: number, block: Block): void;
@@ -120,13 +123,83 @@ export const createEditorStore = (envelope: DocumentEnvelope) =>
         return resultIndex;
       },
 
-      removeSection: (kind) =>
+      addSection: (kind, atIndex) => {
+        let resultIndex = -1;
         set((s) => {
-          const idx = s.envelope.document.sections.findIndex((sec) => sec.kind === kind);
-          if (idx >= 0) {
-            s.envelope.document.sections.splice(idx, 1);
-            s.dirty = true;
+          const sections = s.envelope.document.sections;
+          const insertAt =
+            atIndex === undefined
+              ? sections.length
+              : Math.max(0, Math.min(sections.length, atIndex));
+          const newSection: Section = {
+            id: uniqueSectionId(sections, kind),
+            kind,
+            title: SECTION_META[kind].label,
+            blocks: []
+          };
+          sections.splice(insertAt, 0, newSection);
+          if (s.view.kind === 'section' && s.view.sectionIndex >= insertAt) {
+            s.view = { kind: 'section', sectionIndex: s.view.sectionIndex + 1 };
           }
+          resultIndex = insertAt;
+          s.dirty = true;
+        });
+        return resultIndex;
+      },
+
+      removeSection: (sectionIndex) =>
+        set((s) => {
+          const sections = s.envelope.document.sections;
+          if (sectionIndex < 0 || sectionIndex >= sections.length) return;
+          sections.splice(sectionIndex, 1);
+          s.dirty = true;
+
+          if (s.view.kind === 'section') {
+            if (s.view.sectionIndex === sectionIndex) {
+              if (sections.length === 0) {
+                s.view = { kind: 'metadata' };
+              } else {
+                const next = Math.min(sectionIndex, sections.length - 1);
+                s.view = { kind: 'section', sectionIndex: next };
+              }
+              s.selectedBlock = null;
+            } else if (s.view.sectionIndex > sectionIndex) {
+              s.view = { kind: 'section', sectionIndex: s.view.sectionIndex - 1 };
+            }
+          }
+        }),
+
+      moveSection: (from, to) =>
+        set((s) => {
+          const sections = s.envelope.document.sections;
+          if (from < 0 || from >= sections.length) return;
+          if (to < 0 || to >= sections.length) return;
+          if (from === to) return;
+          const [moved] = sections.splice(from, 1);
+          sections.splice(to, 0, moved);
+          s.dirty = true;
+
+          if (s.view.kind === 'section') {
+            const v = s.view.sectionIndex;
+            let next = v;
+            if (v === from) next = to;
+            else if (from < to && v > from && v <= to) next = v - 1;
+            else if (from > to && v >= to && v < from) next = v + 1;
+            if (next !== v) s.view = { kind: 'section', sectionIndex: next };
+          }
+        }),
+
+      renameSection: (sectionIndex, title) =>
+        set((s) => {
+          const section = s.envelope.document.sections[sectionIndex];
+          if (!section) return;
+          const trimmed = title.trim();
+          if (trimmed.length === 0) {
+            delete section.title;
+          } else {
+            section.title = trimmed;
+          }
+          s.dirty = true;
         }),
 
       updateSection: (sectionIndex, updater) =>
@@ -224,6 +297,16 @@ export const createEditorStore = (envelope: DocumentEnvelope) =>
   );
 
 export type EditorStore = ReturnType<typeof createEditorStore>;
+
+function uniqueSectionId(sections: Section[], kind: SectionKind): string {
+  const taken = new Set(sections.map((s) => s.id).filter((id): id is string => Boolean(id)));
+  if (!taken.has(kind)) return kind;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${kind}-${i}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${kind}-${Date.now()}`;
+}
 
 function pickInitialView(doc: ThesisDocument): EditorView {
   const bodyIdx = doc.sections.findIndex((s) => s.kind === 'body');

@@ -1,6 +1,6 @@
-# Web Editor API
+# Structured Document API
 
-`src/ThesisDocx.Api` exposes the MVP API used by the React editor. It is a thin application layer over Core models, validators, template resolution, renderer, inspector, and runtime file storage.
+`src/ThesisDocx.Api` exposes an API for structured thesis drafts. It is a thin application layer over Core models, validators, template resolution, renderer, inspector, and runtime file storage.
 
 ## Endpoints
 
