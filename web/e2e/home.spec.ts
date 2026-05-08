@@ -8,7 +8,7 @@ test('home page renders core CTAs', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '把论文写进结构里' })).toBeVisible();
   await expect(page.getByRole('button', { name: /新建论文|创建中…/ })).toBeVisible();
-  await expect(page.getByText('导入 JSON')).toBeVisible();
+  await expect(page.getByText('导入 JSON', { exact: true })).toBeVisible();
 });
 
 test('navigates to templates page', async ({ page }) => {
