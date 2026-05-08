@@ -36,7 +36,7 @@ npm run dev
 
 - **结构即骨架**：8 种段（封面 / 摘要 / 目录 / 正文…）固定，左栏导航。
 - **资源独立**：参考文献、图片是独立资源库，正文里通过引用占位符指向。
-- **格式不暴露**：用户视角只有「我学校的模板」+ 少量覆盖项，不直接填 cm/pt。
+- **格式边界清晰**：论文编辑器只改结构和内容；cm/pt 等格式字段只出现在 TemplatePackage 结构化编辑器中。
 
 ## 架构
 
@@ -59,7 +59,7 @@ src/
 │   ├─ ExportModal.tsx     校验 + 渲染 + 下载流程
 │   ├─ useAutoSave.ts      防抖自动保存
 │   └─ useShortcuts.ts     ⌘S 保存 / ⌘E 导出 / ⌘Z 撤销 / ⌘. 专注
-├─ templates/         TemplatePackage 导入 / 清理 / 轻量校验
+├─ templates/         TemplatePackage 导入 / 清理 / Page Template helpers / 轻量校验
 ├─ api/                fetcher + TanStack Query hooks
 ├─ types/              从 schemas/*.json 手写的 TS 类型
 └─ design/             tokens.css + global.css（CSS Modules + 设计令牌）
@@ -72,9 +72,10 @@ src/
 - 行内：粗体 / 斜体 / 下划线 / 超链接 / 文献引用（@ 触发）/ 交叉引用 / 脚注 / 尾注
 - 参考文献库（右栏）
 - 脚注 / 尾注管理器：新增、编辑、删除、空内容和重复 id 校验
-- 表格结构编辑：行列增删、表头行、cantSplit、横向/纵向/矩形合并、拆分已合并单元格
+- 表格结构编辑：行列增删、表头行、cantSplit、横向/纵向/矩形合并、拆分已合并单元格，并有纯函数结构校验
 - 本地草稿：新建、打开、复制、删除、刷新后恢复最近草稿
-- TemplatePackage 编辑器：导入/导出模板 JSON、编辑基本信息、变量、嵌入式 FormatSpec 基础字段、Page Template 文本项
+- TemplatePackage 编辑器：导入/导出模板 JSON、编辑基本信息、变量、assets、嵌入式 FormatSpec 基础字段、Page Template 元素
+- Page Template 元素表单：spacer / text / metadataField / image / fieldTable / declarationText / pageBreak，含变量、metadata 和 asset 引用校验
 - 模板选择 + 变量查看
 - 校验（含 path 跳转）
 - JSON 导入 / 导出
@@ -88,7 +89,7 @@ src/
 - DOCX 前端导入不做
 - AI 解析 / AI 改写不做
 - TemplatePackage 编辑器不导入目录或 zip，只导入核心 JSON 文件
-- Page Template 只做安全的结构化列表编辑，不做 Word 式任意版式设计器
+- Page Template 只做安全的 schema 表单和结构化预览，不做 Word 式任意版式设计器
 - 完整格式覆盖（需后端协作）
 
 ## 构建依赖
