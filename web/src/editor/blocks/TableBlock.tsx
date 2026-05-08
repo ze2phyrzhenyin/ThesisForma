@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
 import { useEditorActions } from '../EditorContext';
 import { BlockShell } from './BlockShell';
-import type { ApiIssue, TableBlock as TableBlockData, TableCell } from '@/types';
+import type { ApiIssue, TableBlock as TableBlockData } from '@/types';
 import {
   addTableColumn,
   addTableRow,
   deleteTableColumn,
   deleteTableRow,
+  getMergeRangeIssues,
+  isMergedCellAt,
   mergeTableRange,
   normalizeRange,
   splitMergedCell,
   tableGridWidth,
   validateTableGrid,
+  willDeleteColumnAffectMerges,
+  willDeleteRowAffectMerges,
   type CellAddress,
   type CellRange
 } from '../tableOps';
@@ -40,12 +44,6 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
       updater(b);
     });
 
-  const updateCell = (rowIdx: number, cellIdx: number, mut: (cell: TableCell) => void) =>
-    update((b) => {
-      const cell = b.rows[rowIdx]?.cells[cellIdx];
-      if (cell) mut(cell);
-    });
-
   const addRow = (afterRowIdx: number) =>
     update((b) => {
       Object.assign(b, addTableRow(b, afterRowIdx));
@@ -53,6 +51,10 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
 
   const deleteRow = (rowIdx: number) =>
     update((b) => {
+      if (willDeleteRowAffectMerges(b, rowIdx)) {
+        const ok = window.confirm('删除此行会影响表格合并区域，系统会自动修复纵向合并链。继续删除？');
+        if (!ok) return;
+      }
       const result = deleteTableRow(b, rowIdx);
       setOpIssues(result.issues);
       Object.assign(b, result.table);
@@ -65,6 +67,10 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
 
   const deleteCol = (colIdx: number) =>
     update((b) => {
+      if (willDeleteColumnAffectMerges(b, colIdx)) {
+        const ok = window.confirm('删除此列会影响表格合并区域，系统会自动收缩或拆除受影响的合并单元格。继续删除？');
+        if (!ok) return;
+      }
       const result = deleteTableColumn(b, colIdx);
       setOpIssues(result.issues);
       Object.assign(b, result.table);
@@ -89,7 +95,7 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
   };
 
   const mergeSelection = () => {
-    if (!range) return;
+    if (!range || !canMergeSelection) return;
     update((b) => {
       const result = mergeTableRange(b, range);
       setOpIssues(result.issues);
@@ -99,7 +105,7 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
 
   const splitSelection = () => {
     const target = range ? { row: range.rowStart, col: range.colStart } : anchor;
-    if (!target) return;
+    if (!target || !selectedMergedCell) return;
     update((b) => {
       const result = splitMergedCell(b, target);
       setOpIssues(result.issues);
@@ -109,6 +115,23 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
 
   const hasMergeSelection =
     Boolean(range) && (range!.rowStart !== range!.rowEnd || range!.colStart !== range!.colEnd);
+  const mergeIssues = useMemo(() => (range ? getMergeRangeIssues(block, range) : []), [block, range]);
+  const mergeError = mergeIssues.find((issue) => issue.severity === 'error');
+  const canMergeSelection = hasMergeSelection && !mergeError;
+  const selectedMergedCell = useMemo(
+    () => (range ? isMergedCellAt(block, { row: range.rowStart, col: range.colStart }) : false),
+    [block, range]
+  );
+  const mergeDisabledReason = !range
+    ? '先选择单元格。'
+    : !hasMergeSelection
+      ? '至少选择两个相邻单元格。'
+      : mergeError?.message ?? '';
+  const splitDisabledReason = !range
+    ? '先选择单元格。'
+    : selectedMergedCell
+      ? ''
+      : '选中的单元格不是合并单元格。';
 
   return (
     <BlockShell
@@ -162,7 +185,8 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
             type="button"
             className={styles.toolbarBtn}
             onClick={mergeSelection}
-            disabled={!hasMergeSelection}
+            disabled={!canMergeSelection}
+            title={mergeDisabledReason}
           >
             合并所选
           </button>
@@ -170,7 +194,8 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
             type="button"
             className={styles.toolbarBtn}
             onClick={splitSelection}
-            disabled={!range}
+            disabled={!range || !selectedMergedCell}
+            title={splitDisabledReason}
           >
             拆分单元格
           </button>
@@ -206,9 +231,9 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
           </label>
         </div>
 
-        {(gridIssues.length > 0 || opIssues.length > 0) && (
+        {([...opIssues, ...mergeIssues, ...gridIssues].length > 0) && (
           <div className={tStyles.issues} role="alert">
-            {[...opIssues, ...gridIssues].slice(0, 4).map((issue, i) => (
+            {[...opIssues, ...mergeIssues, ...gridIssues].slice(0, 4).map((issue, i) => (
               <div key={`${issue.code}-${i}`}>{issue.message}</div>
             ))}
           </div>
@@ -297,7 +322,6 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
                               target.text = e.target.value;
                               delete target.blocks;
                             });
-                            updateCell(rIdx, cIdx, () => undefined);
                           }}
                         />
                         {(cell.gridSpan ?? 1) > 1 && (
@@ -372,6 +396,8 @@ export function TableBlock({ block, sectionIndex, blockIndex, selected, totalBlo
           {range && (
             <span className={tStyles.selectionHint}>
               已选 {range.rowEnd - range.rowStart + 1} × {range.colEnd - range.colStart + 1}
+              {mergeDisabledReason && hasMergeSelection ? ` · ${mergeDisabledReason}` : ''}
+              {splitDisabledReason && !hasMergeSelection ? ` · ${splitDisabledReason}` : ''}
             </span>
           )}
         </div>

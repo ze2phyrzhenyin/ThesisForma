@@ -21,6 +21,11 @@ export interface LocatedCell {
   cell: TableCell;
 }
 
+interface ActiveVerticalMerge {
+  startCol: number;
+  endCol: number;
+}
+
 export interface TableOpResult {
   table: TableBlock;
   issues: ApiIssue[];
@@ -43,7 +48,8 @@ export function tableGridWidth(table: TableBlock): number {
   return table.rows.reduce((max, row) => Math.max(max, gridWidth(row)), 0);
 }
 
-export function locateCell(row: TableRow, logicalCol: number): LocatedCell | null {
+export function locateCell(row: TableRow | undefined, logicalCol: number): LocatedCell | null {
+  if (!row) return null;
   let col = 0;
   for (let cellIndex = 0; cellIndex < row.cells.length; cellIndex++) {
     const cell = row.cells[cellIndex];
@@ -77,26 +83,70 @@ export function locateCellsForRange(table: TableBlock, range: CellRange): Locate
   return located;
 }
 
+function hasVerticalMerge(cell: TableCell): boolean {
+  return cell.verticalMerge === 'restart' || cell.verticalMerge === 'continue';
+}
+
+function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
 export function validateTableGrid(table: TableBlock): ApiIssue[] {
   const issues: ApiIssue[] = [];
+  if (table.rows.length === 0) {
+    issues.push({
+      code: 'table.rows.empty',
+      message: '表格至少需要一行。',
+      severity: 'error',
+      path: 'rows',
+      suggestedAction: '添加表格行，或删除这个空表格块。'
+    });
+    return issues;
+  }
+
   let expected = -1;
-  const activeVerticalMerges = new Set<number>();
+  const activeVerticalMerges = new Map<number, ActiveVerticalMerge>();
   table.rows.forEach((row, rowIndex) => {
+    if (row.cells.length === 0) {
+      issues.push({
+        code: 'table.row.empty',
+        message: '表格行至少需要一个单元格。',
+        severity: 'error',
+        path: `rows[${rowIndex}].cells`,
+        suggestedAction: '添加单元格或删除这一行。'
+      });
+    }
+
     let col = 0;
-    const nextActive = new Set<number>();
+    const nextActive = new Map<number, ActiveVerticalMerge>();
     row.cells.forEach((cell, cellIndex) => {
-      const span = cellSpan(cell);
-      if (span < 1) {
-        issues.push(tableIssue('table.gridSpan.invalid', 'gridSpan 必须大于等于 1。', rowIndex, cellIndex));
+      const rawSpan = cell.gridSpan ?? 1;
+      if (!Number.isInteger(rawSpan) || rawSpan < 1) {
+        issues.push(tableIssue('table.gridSpan.invalid', 'gridSpan 必须是大于 0 的整数。', rowIndex, cellIndex));
       }
+      if (Number.isInteger(rawSpan) && rawSpan > 32) {
+        issues.push(tableIssue('table.gridSpan.tooWide', 'gridSpan 超出安全范围。', rowIndex, cellIndex));
+      }
+      if (cell.verticalMerge !== undefined && cell.verticalMerge !== 'none' && !hasVerticalMerge(cell)) {
+        issues.push(tableIssue('table.verticalMerge.invalidValue', 'verticalMerge 只能是 restart 或 continue。', rowIndex, cellIndex));
+      }
+
+      const span = cellSpan(cell);
       for (let logical = col; logical < col + span; logical++) {
-        if (cell.verticalMerge === 'continue' && !activeVerticalMerges.has(logical)) {
+        const active = activeVerticalMerges.get(logical);
+        if (
+          cell.verticalMerge === 'continue' &&
+          (!active || active.startCol !== col || active.endCol !== col + span - 1)
+        ) {
           issues.push(
             tableIssue('table.verticalMerge.invalidChain', '纵向合并 continuation 上方必须有 restart 或 continuation。', rowIndex, cellIndex)
           );
+          break;
         }
-        if (cell.verticalMerge === 'restart' || cell.verticalMerge === 'continue') {
-          nextActive.add(logical);
+      }
+      if (hasVerticalMerge(cell)) {
+        for (let logical = col; logical < col + span; logical++) {
+          nextActive.set(logical, { startCol: col, endCol: col + span - 1 });
         }
       }
       col += span;
@@ -112,7 +162,7 @@ export function validateTableGrid(table: TableBlock): ApiIssue[] {
       });
     }
     activeVerticalMerges.clear();
-    nextActive.forEach((value) => activeVerticalMerges.add(value));
+    nextActive.forEach((value, key) => activeVerticalMerges.set(key, value));
   });
   return issues;
 }
@@ -162,7 +212,7 @@ export function splitMergedCell(table: TableBlock, address: CellAddress): TableO
   const span = cellSpan(rootLocated.cell);
   const chainEnd = findVerticalMergeEnd(cloned, root, located.colStart);
 
-  if (span === 1 && !rootLocated.cell.verticalMerge) return result(table, []);
+  if (span === 1 && !hasVerticalMerge(rootLocated.cell)) return result(table, []);
 
   for (let rowIndex = root; rowIndex <= chainEnd; rowIndex++) {
     const row = cloned.rows[rowIndex];
@@ -184,10 +234,12 @@ export function splitMergedCell(table: TableBlock, address: CellAddress): TableO
 export function addTableRow(table: TableBlock, afterRow: number): TableBlock {
   const cloned = cloneTable(table);
   const width = Math.max(tableGridWidth(cloned), 1);
-  cloned.rows.splice(afterRow + 1, 0, {
+  const insertAt = Math.min(Math.max(afterRow + 1, 0), cloned.rows.length);
+  cloned.rows.splice(insertAt, 0, {
     id: newBlockId('tr'),
     cells: Array.from({ length: width }, () => ({ id: newBlockId('tc'), text: '' }))
   });
+  repairDanglingVerticalMerges(cloned);
   return cloned;
 }
 
@@ -264,11 +316,53 @@ function mergeRowCells(row: TableRow, colStart: number, colEnd: number, text: st
   row.cells.splice(first.cellIndex, last.cellIndex - first.cellIndex + 1, cell);
 }
 
+export function getMergeRangeIssues(table: TableBlock, range: CellRange): ApiIssue[] {
+  return assertExactRange(
+    table,
+    normalizeRange({ row: range.rowStart, col: range.colStart }, { row: range.rowEnd, col: range.colEnd })
+  );
+}
+
+export function isMergedCellAt(table: TableBlock, address: CellAddress): boolean {
+  const located = locateCell(table.rows[address.row], address.col);
+  return Boolean(located && (cellSpan(located.cell) > 1 || hasVerticalMerge(located.cell)));
+}
+
+export function willDeleteRowAffectMerges(table: TableBlock, rowIndex: number): boolean {
+  const row = table.rows[rowIndex];
+  if (!row) return false;
+  if (row.cells.some((cell) => cellSpan(cell) > 1 || hasVerticalMerge(cell))) return true;
+  return Boolean(table.rows[rowIndex + 1]?.cells.some((cell) => cell.verticalMerge === 'continue'));
+}
+
+export function willDeleteColumnAffectMerges(table: TableBlock, colIndex: number): boolean {
+  return table.rows.some((row) => {
+    let col = 0;
+    for (const cell of row.cells) {
+      const span = cellSpan(cell);
+      const colEnd = col + span - 1;
+      if (rangesOverlap(col, colEnd, colIndex, colIndex) && (span > 1 || hasVerticalMerge(cell))) {
+        return true;
+      }
+      col += span;
+    }
+    return false;
+  });
+}
+
 function assertExactRange(table: TableBlock, range: CellRange): ApiIssue[] {
-  const issues: ApiIssue[] = [];
+  const issues: ApiIssue[] = validateTableGrid(table);
+  if (issues.some((issue) => issue.severity === 'error')) {
+    return issues;
+  }
+
   if (!table.rows[range.rowStart] || !table.rows[range.rowEnd]) {
     return [opIssue('table.selection.invalid', '选择范围超出表格行数。')];
   }
+  if (range.rowStart < 0 || range.colStart < 0) {
+    return [opIssue('table.selection.invalid', '选择范围不能为负数。')];
+  }
+
   for (let rowIndex = range.rowStart; rowIndex <= range.rowEnd; rowIndex++) {
     const row = table.rows[rowIndex];
     const start = locateCell(row, range.colStart);
@@ -281,8 +375,11 @@ function assertExactRange(table: TableBlock, range: CellRange): ApiIssue[] {
       issues.push(opIssue('table.selection.partialMerge', '选择范围切到了已有合并单元格内部；请先拆分。'));
     }
     const cells = row.cells.slice(start.cellIndex, end.cellIndex + 1);
-    if (cells.some((cell) => cell.verticalMerge === 'restart' || cell.verticalMerge === 'continue')) {
+    if (cells.some((cell) => hasVerticalMerge(cell))) {
       issues.push(opIssue('table.selection.existingVerticalMerge', '包含已有纵向合并；请先拆分后再合并。'));
+    }
+    if (cells.some((cell) => cellSpan(cell) > 1)) {
+      issues.push(opIssue('table.selection.existingHorizontalMerge', '包含已有横向合并；请先拆分后再合并。'));
     }
   }
   return issues;
@@ -313,31 +410,32 @@ function findVerticalMergeEnd(table: TableBlock, root: number, col: number): num
 }
 
 function repairDanglingVerticalMerges(table: TableBlock): void {
-  const active = new Set<number>();
+  const active = new Map<number, ActiveVerticalMerge>();
   table.rows.forEach((row) => {
     let col = 0;
-    const next = new Set<number>();
+    const next = new Map<number, ActiveVerticalMerge>();
     row.cells.forEach((cell) => {
       const span = cellSpan(cell);
       if (cell.verticalMerge === 'continue') {
         let valid = true;
         for (let logical = col; logical < col + span; logical++) {
-          if (!active.has(logical)) valid = false;
+          const activeRange = active.get(logical);
+          if (!activeRange || activeRange.startCol !== col || activeRange.endCol !== col + span - 1) valid = false;
         }
         if (!valid) delete cell.verticalMerge;
       }
-      if (cell.verticalMerge === 'restart' || cell.verticalMerge === 'continue') {
-        for (let logical = col; logical < col + span; logical++) next.add(logical);
+      if (hasVerticalMerge(cell)) {
+        for (let logical = col; logical < col + span; logical++) next.set(logical, { startCol: col, endCol: col + span - 1 });
       }
       col += span;
     });
     active.clear();
-    next.forEach((value) => active.add(value));
+    next.forEach((value, key) => active.set(key, value));
   });
 }
 
 function cellSpan(cell: TableCell): number {
-  return Math.max(1, cell.gridSpan ?? 1);
+  return Number.isInteger(cell.gridSpan) && (cell.gridSpan ?? 1) > 0 ? cell.gridSpan ?? 1 : 1;
 }
 
 function cloneTable(table: TableBlock): TableBlock {
