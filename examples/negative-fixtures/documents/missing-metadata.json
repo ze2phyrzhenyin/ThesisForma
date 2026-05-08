@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.1.0",
+  "sections": [
+    {
+      "kind": "body",
+      "blocks": [
+        { "type": "paragraph", "inlines": [{ "type": "text", "text": "正文。" }] }
+      ]
+    }
+  ]
+}

@@ -114,12 +114,17 @@ public sealed class NegativeFixtureRunner
 
     private List<DiagnosticIssue> RunDocument(string path)
     {
+        var issues = new List<DiagnosticIssue>();
+        var schema = new ThesisSchemaValidator().ValidateDocumentFile(path, LocateSchema("thesis-document.schema.json"));
+        issues.AddRange(schema.Errors.Select(error => ToIssue(CanonicalCode(error.Code), "schema", "breaking", error.Message, error.Path)));
+        issues.AddRange(schema.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), "schema", "warning", warning.Message, warning.Path)));
+
         var document = JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(path), ThesisJson.Options)!;
         var format = JsonSerializer.Deserialize<ThesisFormatSpec>(File.ReadAllText(Path.Combine(LocateRepoRoot(), "examples", "format-specs", "strict-cn-thesis.json")), ThesisJson.Options)!;
         var validation = new ThesisInputValidator().Validate(document, format, Path.GetDirectoryName(path));
-        return validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), ClassifyDocument(error.Code), "breaking", error.Message, error.Path))
-            .Concat(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), ClassifyDocument(warning.Code), "warning", warning.Message, warning.Path)))
-            .ToList();
+        issues.AddRange(validation.Errors.Select(error => ToIssue(CanonicalCode(error.Code), ClassifyDocument(error.Code), "breaking", error.Message, error.Path)));
+        issues.AddRange(validation.Warnings.Select(warning => ToIssue(CanonicalCode(warning.Code), ClassifyDocument(warning.Code), "warning", warning.Message, warning.Path)));
+        return issues;
     }
 
     private List<DiagnosticIssue> RunMetadata(string path)
@@ -149,6 +154,16 @@ public sealed class NegativeFixtureRunner
 
     private static string CanonicalCode(string code)
     {
+        if (code.StartsWith("schema.document.PropertyRequired", StringComparison.Ordinal))
+        {
+            return "SchemaDocumentPropertyRequired";
+        }
+
+        if (code.StartsWith("schema.format.", StringComparison.Ordinal))
+        {
+            return "SchemaFormatSpecInvalid";
+        }
+
         return code switch
         {
             "requirements.item.evidenceMissing" => "RequirementMissingEvidence",
@@ -156,12 +171,24 @@ public sealed class NegativeFixtureRunner
             "requirements.item.lowConfidenceApproved" => "RequirementLowConfidenceApproved",
             "template.asset.missing" => "TemplateMissingAsset",
             "template.variable.requiredMissing" => "TemplateMissingRequiredVariable",
+            "template.variable.duplicate" => "TemplateDuplicateVariable",
+            "template.pageTemplate.variable.missing" => "TemplateVariableReferenceMissing",
+            "template.pageTemplate.image.asset.missing" => "TemplatePageTemplateImageAssetMissing",
+            "template.pageTemplate.pageSetup.margin.invalid" => "TemplateIllegalMargin",
             "template.inheritance.circular" => "TemplateCircularInheritance",
             "template.inheritance.parentMissing" => "TemplateCircularInheritance",
             "template.schemaVersion.unsupported" => "SchemaInvalidVersion",
+            "template.formatSpec.unsupportedSchemaVersion" => "SchemaInvalidVersion",
             "dangling.reference" => "CrossReferenceTargetMissing",
             "dangling.citation" => "CitationBibliographyKeyMissing",
             "heading.levelJump" => "HeadingLevelJump",
+            "table.gridSpan.tooWide" => "TableGridSpanTooWide",
+            "table.verticalMerge.invalidChain" => "TableVerticalMergeInvalidChain",
+            "table.grid.inconsistent" => "TableGridInconsistent",
+            "duplicate.blockOrBookmarkId" => "DuplicateBookmarkId",
+            "duplicate.footnoteId" => "DuplicateNoteId",
+            "duplicate.endnoteId" => "DuplicateNoteId",
+            "note.empty" => "NoteContentEmpty",
             _ => code
         };
     }
@@ -171,6 +198,9 @@ public sealed class NegativeFixtureRunner
         if (code.Contains("citation", StringComparison.OrdinalIgnoreCase)) return "citation";
         if (code.Contains("reference", StringComparison.OrdinalIgnoreCase)) return "crossReference";
         if (code.Contains("heading", StringComparison.OrdinalIgnoreCase)) return "heading";
+        if (code.Contains("table", StringComparison.OrdinalIgnoreCase)) return "table";
+        if (code.Contains("note", StringComparison.OrdinalIgnoreCase)) return "note";
+        if (code.Contains("bookmark", StringComparison.OrdinalIgnoreCase)) return "bookmark";
         return "document";
     }
 

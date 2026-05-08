@@ -1,0 +1,19 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-missing-variable-reference",
+  "name": "Negative Missing Variable Reference",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "pageTemplates": [
+    {
+      "id": "cover",
+      "targetSectionType": "cover",
+      "insertPosition": "replaceSectionContent",
+      "blocks": [
+        { "type": "text", "value": "{{variables.missingDefenseDate}}" }
+      ]
+    }
+  ],
+  "notes": ["Negative fixture."]
+}

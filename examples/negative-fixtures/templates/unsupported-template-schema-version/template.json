@@ -1,0 +1,9 @@
+{
+  "templateSchemaVersion": "9.9.9",
+  "id": "negative-unsupported-template-schema-version",
+  "name": "Negative Unsupported Template Schema Version",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "notes": ["Negative fixture."]
+}

@@ -1,0 +1,22 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-illegal-margin",
+  "name": "Negative Illegal Margin",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "pageTemplates": [
+    {
+      "id": "cover",
+      "targetSectionType": "cover",
+      "insertPosition": "replaceSectionContent",
+      "pageSetupOverride": {
+        "leftMarginCm": -1
+      },
+      "blocks": [
+        { "type": "text", "value": "Cover" }
+      ]
+    }
+  ],
+  "notes": ["Negative fixture."]
+}

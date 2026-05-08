@@ -69,6 +69,61 @@
       "notes": "Parent template cannot be resolved."
     },
     {
+      "id": "template-duplicate-variable",
+      "type": "template",
+      "path": "templates/duplicate-variable",
+      "command": "template validate --template templates/duplicate-variable",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateDuplicateVariable"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Template variables must not reuse the same name."
+    },
+    {
+      "id": "template-missing-variable-reference",
+      "type": "template",
+      "path": "templates/missing-variable-reference",
+      "command": "template validate --template templates/missing-variable-reference",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateVariableReferenceMissing"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Page template text references a missing variable."
+    },
+    {
+      "id": "template-page-template-missing-image-asset",
+      "type": "template",
+      "path": "templates/page-template-missing-image-asset",
+      "command": "template validate --template templates/page-template-missing-image-asset",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplatePageTemplateImageAssetMissing"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Page template image block references a missing asset id."
+    },
+    {
+      "id": "template-illegal-margin",
+      "type": "template",
+      "path": "templates/illegal-margin",
+      "command": "template validate --template templates/illegal-margin",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TemplateIllegalMargin"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Page template pageSetupOverride contains an illegal margin."
+    },
+    {
+      "id": "template-unsupported-schema-version",
+      "type": "template",
+      "path": "templates/unsupported-template-schema-version",
+      "command": "template validate --template templates/unsupported-template-schema-version",
+      "expectedExitCode": 2,
+      "expectedCodes": ["SchemaInvalidVersion"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": ["fix.schemaVersion"],
+      "notes": "Template package declares an unsupported templateSchemaVersion."
+    },
+    {
       "id": "document-dangling-cross-reference",
       "type": "document",
       "path": "documents/dangling-cross-reference.json",
@@ -89,6 +144,94 @@
       "expectedSeverity": "breaking",
       "expectedFixHintIds": ["fix.citationKey"],
       "notes": "Citation points to a missing bibliography key."
+    },
+    {
+      "id": "document-missing-schema-version",
+      "type": "document",
+      "path": "documents/missing-schema-version.json",
+      "command": "validate-input --document documents/missing-schema-version.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["SchemaDocumentPropertyRequired"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "ThesisDocument is missing schemaVersion."
+    },
+    {
+      "id": "document-missing-metadata",
+      "type": "document",
+      "path": "documents/missing-metadata.json",
+      "command": "validate-input --document documents/missing-metadata.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["SchemaDocumentPropertyRequired"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "ThesisDocument is missing metadata."
+    },
+    {
+      "id": "document-missing-sections",
+      "type": "document",
+      "path": "documents/missing-sections.json",
+      "command": "validate-input --document documents/missing-sections.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["SchemaDocumentPropertyRequired"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "ThesisDocument is missing sections."
+    },
+    {
+      "id": "document-table-gridspan-too-wide",
+      "type": "document",
+      "path": "documents/table-gridspan-too-wide.json",
+      "command": "validate-input --document documents/table-gridspan-too-wide.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TableGridSpanTooWide"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Advanced table gridSpan exceeds the supported safety range."
+    },
+    {
+      "id": "document-table-vmerge-continue-without-restart",
+      "type": "document",
+      "path": "documents/table-vmerge-continue-without-restart.json",
+      "command": "validate-input --document documents/table-vmerge-continue-without-restart.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TableVerticalMergeInvalidChain"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "A vMerge continuation appears without a restart above it."
+    },
+    {
+      "id": "document-table-grid-width-inconsistent",
+      "type": "document",
+      "path": "documents/table-grid-width-inconsistent.json",
+      "command": "validate-input --document documents/table-grid-width-inconsistent.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["TableGridInconsistent"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Rows in an advanced table have inconsistent logical grid width."
+    },
+    {
+      "id": "document-duplicate-bookmark-id",
+      "type": "document",
+      "path": "documents/duplicate-bookmark-id.json",
+      "command": "validate-input --document documents/duplicate-bookmark-id.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["DuplicateBookmarkId"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Two blocks reuse the same bookmark id."
+    },
+    {
+      "id": "document-footnote-inline-duplicate-empty",
+      "type": "document",
+      "path": "documents/footnote-inline-duplicate-empty.json",
+      "command": "validate-input --document documents/footnote-inline-duplicate-empty.json",
+      "expectedExitCode": 2,
+      "expectedCodes": ["DuplicateNoteId", "NoteContentEmpty"],
+      "expectedSeverity": "breaking",
+      "expectedFixHintIds": [],
+      "notes": "Inline footnotes contain a duplicate id and empty content."
     },
     {
       "id": "baseline-layout-threshold-fail",

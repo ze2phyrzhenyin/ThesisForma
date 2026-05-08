@@ -1,0 +1,13 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-duplicate-variable",
+  "name": "Negative Duplicate Variable",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "variables": [
+    { "name": "defenseDate", "label": "Defense Date", "type": "date", "defaultValue": "2026-06-01" },
+    { "name": "defenseDate", "label": "Defense Date Copy", "type": "date", "defaultValue": "2026-06-02" }
+  ],
+  "notes": ["Negative fixture."]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.1.0",
+  "metadata": {
+    "title": "Missing Sections",
+    "author": "Example Author",
+    "college": "Example College",
+    "major": "Software Engineering",
+    "studentId": "20260001",
+    "advisor": "Example Advisor",
+    "date": "2026-05-08",
+    "language": "zh-CN"
+  }
+}

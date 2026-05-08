@@ -1,0 +1,19 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "negative-page-template-missing-image-asset",
+  "name": "Negative Page Template Missing Image Asset",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "formatSpecRef": "../../../templates/example-university-engineering/format-spec.json",
+  "pageTemplates": [
+    {
+      "id": "cover",
+      "targetSectionType": "cover",
+      "insertPosition": "replaceSectionContent",
+      "blocks": [
+        { "type": "image", "assetId": "missingLogo" }
+      ]
+    }
+  ],
+  "notes": ["Negative fixture."]
+}
