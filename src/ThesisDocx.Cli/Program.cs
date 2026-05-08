@@ -450,13 +450,20 @@ internal static class ThesisDocxCli
             && double.TryParse(rawThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : 0.75;
-        var report = new TemplateGateService().Run(new TemplateGateOptions
+        var result = new TemplateWorkflowService().Gate(new TemplateGateRequest
         {
             TemplatePath = Required(options, "template"),
             DocumentPath = Required(options, "document"),
             OutputDirectory = outputDirectory,
             CoverageThreshold = threshold
         });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(outPath, result);
+            return 2;
+        }
+
         WriteJsonOutput(outPath, report);
         return report.Status == TemplateGateStatus.Fail ? 2 : 0;
     }
@@ -466,31 +473,22 @@ internal static class ThesisDocxCli
         var outPath = Required(options, "out");
         var outDirectory = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? Directory.GetCurrentDirectory();
         var artifactDirectory = Path.Combine(outDirectory, "template-diagnostic-artifacts");
-        Directory.CreateDirectory(artifactDirectory);
-
-        var gate = new TemplateGateService().Run(new TemplateGateOptions
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
         {
             TemplatePath = Required(options, "template"),
             DocumentPath = Required(options, "document"),
-            OutputDirectory = Path.Combine(artifactDirectory, "gate"),
+            RequirementsPath = options.GetValueOrDefault("requirements"),
+            SuitePath = options.GetValueOrDefault("suite"),
+            OutputDirectory = artifactDirectory,
             CoverageThreshold = 0.75
         });
-        var regression = options.TryGetValue("suite", out var suitePath)
-            ? new TemplateRegressionRunner().Run(suitePath, Path.Combine(artifactDirectory, "regression"))
-            : null;
-        var baseline = options.TryGetValue("suite", out var baselineSuitePath)
-            ? new TemplateBaselineManager().CompareSuite(baselineSuitePath, Path.Combine(artifactDirectory, "baseline"))
-            : null;
-        RequirementMappingReport? requirements = null;
-        if (options.TryGetValue("requirements", out var requirementsPath))
+        var report = result.Report;
+        if (report is null)
         {
-            requirements = new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(requirementsPath), Required(options, "template"));
-            var requirementsReportPath = Path.Combine(artifactDirectory, "requirements-report.json");
-            File.WriteAllText(requirementsReportPath, JsonSerializer.Serialize(requirements, ThesisJson.Options));
-            gate.Artifacts["requirementsReport"] = requirementsReportPath;
+            WriteJsonOutput(outPath, result);
+            return 2;
         }
 
-        var report = new DiagnosticReportBuilder().Build(gate, regression, baseline, requirements, artifacts: gate.Artifacts);
         WriteJsonOutput(outPath, report);
         if (options.TryGetValue("markdown", out var markdownPath))
         {
@@ -508,7 +506,7 @@ internal static class ThesisDocxCli
             && double.TryParse(rawThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : 0.85;
-        var report = new TemplateAuthoringReportBuilder().Build(new TemplateAuthoringReportOptions
+        var result = new TemplateWorkflowService().AuthoringReport(new TemplateAuthoringReportRequest
         {
             TemplatePath = Required(options, "template"),
             DocumentPath = Required(options, "document"),
@@ -517,6 +515,12 @@ internal static class ThesisDocxCli
             OutputDirectory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? Directory.GetCurrentDirectory(), "template-authoring-artifacts"),
             CoverageThreshold = threshold
         });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(outPath, result);
+            return 2;
+        }
 
         WriteJsonOutput(outPath, report);
         if (options.TryGetValue("markdown", out var markdownPath))

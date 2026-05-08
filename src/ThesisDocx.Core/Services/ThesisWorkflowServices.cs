@@ -1,12 +1,20 @@
 using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Ci;
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Models.Requirements;
 using ThesisDocx.Core.Models.Templates;
+using ThesisDocx.Core.Requirements;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
+using ThesisDocx.Core.Templates.Authoring;
+using ThesisDocx.Core.Templates.Baselines;
+using ThesisDocx.Core.Templates.Gate;
+using ThesisDocx.Core.Templates.Regression;
+using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Validation.FormatRuleCoverage;
 using ThesisDocx.Core.Versioning;
+using System.Text.Json;
 
 namespace ThesisDocx.Core.Services;
 
@@ -267,6 +275,124 @@ public sealed class TemplateWorkflowService
             return TemplateCoverageResult.Failure("service.template.coverageFailed", "Template coverage failed.", ex.Message);
         }
     }
+
+    public TemplateGateServiceResult Gate(TemplateGateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TemplatePath)
+            || string.IsNullOrWhiteSpace(request.DocumentPath)
+            || string.IsNullOrWhiteSpace(request.OutputDirectory))
+        {
+            return TemplateGateServiceResult.Failure("service.template.gate.request.invalid", "Template gate requires template, document, and output directory.");
+        }
+
+        try
+        {
+            var report = new TemplateGateService().Run(new TemplateGateOptions
+            {
+                TemplatePath = request.TemplatePath,
+                DocumentPath = request.DocumentPath,
+                OutputDirectory = request.OutputDirectory,
+                CoverageThreshold = request.CoverageThreshold
+            });
+            return new TemplateGateServiceResult
+            {
+                Success = report.Status != TemplateGateStatus.Fail,
+                Report = report,
+                ErrorCount = report.Diagnostics.Count(issue => UnifiedDiagnosticMapper.IsError(issue.Severity)),
+                WarningCount = report.Diagnostics.Count(issue => UnifiedDiagnosticMapper.IsWarning(issue.Severity)),
+                Diagnostics = report.Diagnostics.Select(UnifiedDiagnosticMapper.FromDiagnosticIssue).ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            return TemplateGateServiceResult.Failure("service.template.gateFailed", "Template gate failed.", ex.Message);
+        }
+    }
+
+    public TemplateDiagnoseServiceResult Diagnose(TemplateDiagnoseRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TemplatePath)
+            || string.IsNullOrWhiteSpace(request.DocumentPath)
+            || string.IsNullOrWhiteSpace(request.OutputDirectory))
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.template.diagnose.request.invalid", "Template diagnose requires template, document, and output directory.");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(request.OutputDirectory);
+            var gate = new TemplateGateService().Run(new TemplateGateOptions
+            {
+                TemplatePath = request.TemplatePath,
+                DocumentPath = request.DocumentPath,
+                OutputDirectory = Path.Combine(request.OutputDirectory, "gate"),
+                CoverageThreshold = request.CoverageThreshold
+            });
+            var regression = string.IsNullOrWhiteSpace(request.SuitePath)
+                ? null
+                : new TemplateRegressionRunner().Run(request.SuitePath, Path.Combine(request.OutputDirectory, "regression"));
+            var baseline = string.IsNullOrWhiteSpace(request.SuitePath)
+                ? null
+                : new TemplateBaselineManager().CompareSuite(request.SuitePath, Path.Combine(request.OutputDirectory, "baseline"));
+            RequirementMappingReport? requirements = null;
+            if (!string.IsNullOrWhiteSpace(request.RequirementsPath))
+            {
+                requirements = new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(request.RequirementsPath), request.TemplatePath);
+                var requirementsReportPath = Path.Combine(request.OutputDirectory, "requirements-report.json");
+                File.WriteAllText(requirementsReportPath, JsonSerializer.Serialize(requirements, ThesisJson.Options));
+                gate.Artifacts["requirementsReport"] = requirementsReportPath;
+            }
+
+            var report = new DiagnosticReportBuilder().Build(gate, regression, baseline, requirements, artifacts: gate.Artifacts);
+            return new TemplateDiagnoseServiceResult
+            {
+                Success = report.BreakingCount == 0,
+                Report = report,
+                ErrorCount = report.BreakingCount,
+                WarningCount = report.WarningCount,
+                Diagnostics = report.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.template.diagnoseFailed", "Template diagnose failed.", ex.Message);
+        }
+    }
+
+    public TemplateAuthoringReportServiceResult AuthoringReport(TemplateAuthoringReportRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.TemplatePath)
+            || string.IsNullOrWhiteSpace(request.DocumentPath)
+            || string.IsNullOrWhiteSpace(request.OutputDirectory))
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.template.authoringReport.request.invalid", "Template authoring report requires template, document, and output directory.");
+        }
+
+        try
+        {
+            var report = new TemplateAuthoringReportBuilder().Build(new TemplateAuthoringReportOptions
+            {
+                TemplatePath = request.TemplatePath,
+                DocumentPath = request.DocumentPath,
+                RequirementsPath = request.RequirementsPath,
+                SuitePath = request.SuitePath,
+                OutputDirectory = request.OutputDirectory,
+                CoverageThreshold = request.CoverageThreshold
+            });
+            return new TemplateAuthoringReportServiceResult
+            {
+                Success = report.PublishReadiness != "notReady",
+                Report = report,
+                ErrorCount = report.BlockingIssues.Count,
+                WarningCount = report.Warnings.Count,
+                Diagnostics = report.Diagnostics
+            };
+        }
+        catch (Exception ex)
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.template.authoringReportFailed", "Template authoring report failed.", ex.Message);
+        }
+    }
 }
 
 public sealed class CiQualityReportService
@@ -434,6 +560,79 @@ public sealed class TemplateCoverageResult : ServiceResult
     public static TemplateCoverageResult Failure(string code, string message, string? detail = null)
     {
         return new TemplateCoverageResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateWorkflowService")]
+        };
+    }
+}
+
+public sealed class TemplateGateRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+    public string DocumentPath { get; set; } = string.Empty;
+    public string OutputDirectory { get; set; } = string.Empty;
+    public double CoverageThreshold { get; set; } = 0.75;
+}
+
+public sealed class TemplateGateServiceResult : ServiceResult
+{
+    public TemplateGateReport? Report { get; set; }
+
+    public static TemplateGateServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new TemplateGateServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateWorkflowService")]
+        };
+    }
+}
+
+public sealed class TemplateDiagnoseRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+    public string DocumentPath { get; set; } = string.Empty;
+    public string? RequirementsPath { get; set; }
+    public string? SuitePath { get; set; }
+    public string OutputDirectory { get; set; } = string.Empty;
+    public double CoverageThreshold { get; set; } = 0.75;
+}
+
+public sealed class TemplateDiagnoseServiceResult : ServiceResult
+{
+    public DiagnosticReport? Report { get; set; }
+
+    public static TemplateDiagnoseServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new TemplateDiagnoseServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateWorkflowService")]
+        };
+    }
+}
+
+public sealed class TemplateAuthoringReportRequest
+{
+    public string TemplatePath { get; set; } = string.Empty;
+    public string DocumentPath { get; set; } = string.Empty;
+    public string? RequirementsPath { get; set; }
+    public string? SuitePath { get; set; }
+    public string OutputDirectory { get; set; } = string.Empty;
+    public double CoverageThreshold { get; set; } = 0.85;
+}
+
+public sealed class TemplateAuthoringReportServiceResult : ServiceResult
+{
+    public TemplateAuthoringReport? Report { get; set; }
+
+    public static TemplateAuthoringReportServiceResult Failure(string code, string message, string? detail = null)
+    {
+        return new TemplateAuthoringReportServiceResult
         {
             Success = false,
             ErrorCount = 1,

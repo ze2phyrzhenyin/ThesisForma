@@ -121,6 +121,105 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void TemplateWorkflowService_ShouldRunTemplateGate()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new TemplateWorkflowService().Gate(new TemplateGateRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "gate"),
+            CoverageThreshold = 0.85
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Report);
+        Assert.Equal("example-university-engineering", result.Report!.TemplateId);
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldBuildDiagnosticReport()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            RequirementsPath = Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"),
+            SuitePath = Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "diagnose")
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Report);
+        Assert.Equal("pass", result.Report!.Status);
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldBuildAuthoringReport()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new TemplateWorkflowService().AuthoringReport(new TemplateAuthoringReportRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            RequirementsPath = Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"),
+            SuitePath = Path.Combine(root, "examples", "template-regression", "template-regression-suite.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "authoring"),
+            CoverageThreshold = 0.85
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Report);
+        Assert.Equal("ready", result.Report!.PublishReadiness);
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnGateRequestDiagnostic()
+    {
+        var result = new TemplateWorkflowService().Gate(new TemplateGateRequest
+        {
+            TemplatePath = TemplatePath(),
+            OutputDirectory = NewTempDirectory()
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.gate.request.invalid");
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnDiagnoseRequestDiagnostic()
+    {
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
+        {
+            DocumentPath = "missing.json",
+            OutputDirectory = NewTempDirectory()
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.diagnose.request.invalid");
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnAuthoringReportRequestDiagnostic()
+    {
+        var result = new TemplateWorkflowService().AuthoringReport(new TemplateAuthoringReportRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = "missing.json"
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.authoringReport.request.invalid");
+    }
+
+    [Fact]
     public void CiQualityReportService_ShouldReturnReportForPassingGate()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
