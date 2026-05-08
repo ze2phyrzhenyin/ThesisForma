@@ -67,7 +67,7 @@ public sealed class ThesisSchemaValidator
 
     private static ThesisInputValidationResult ValidateJsonFile(string jsonPath, string schemaPath, string rootName)
     {
-        var result = new ThesisInputValidationResult();
+        var result = new ThesisInputValidationResult { Source = "ThesisSchemaValidator" };
         var schema = JsonSchema.FromJsonAsync(File.ReadAllText(schemaPath)).GetAwaiter().GetResult();
         var errors = schema.Validate(File.ReadAllText(jsonPath));
 

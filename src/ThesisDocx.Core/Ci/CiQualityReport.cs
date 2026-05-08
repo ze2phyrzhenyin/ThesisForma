@@ -14,6 +14,11 @@ public sealed class CiQualityReport
 
     public List<DiagnosticIssue> Warnings { get; set; } = [];
 
+    public List<UnifiedDiagnostic> Diagnostics => BlockingIssues
+        .Concat(Warnings)
+        .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .ToList();
+
     public List<string> RecommendedNextActions { get; set; } = [];
 
     public string MergeDecision { get; set; } = "approve";

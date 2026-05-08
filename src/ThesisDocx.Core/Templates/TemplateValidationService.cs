@@ -24,7 +24,7 @@ public sealed class TemplateValidationService
 
     public ThesisInputValidationResult Validate(string templatePath, string? schemaPath = null)
     {
-        var result = new ThesisInputValidationResult();
+        var result = new ThesisInputValidationResult { Source = "TemplateValidationService" };
         if (schemaPath is not null)
         {
             Merge(result, new ThesisSchemaValidator().ValidateTemplateFile(Path.Combine(templatePath, "template.json"), schemaPath));

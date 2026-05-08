@@ -28,6 +28,11 @@ public sealed class TemplateAuthoringReport
 
     public List<DiagnosticIssue> Warnings { get; set; } = [];
 
+    public List<UnifiedDiagnostic> Diagnostics => BlockingIssues
+        .Concat(Warnings)
+        .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .ToList();
+
     public List<string> RecommendedNextActions { get; set; } = [];
 
     public string PublishReadiness { get; set; } = "notReady";

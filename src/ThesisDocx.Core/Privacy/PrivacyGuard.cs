@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Onboarding;
 using ThesisDocx.Core.Utilities;
 
@@ -221,6 +222,9 @@ public sealed class PrivacyGuardResult
     public int BreakingCount { get; set; }
     public int WarningCount { get; set; }
     public List<PrivacyFinding> Findings { get; set; } = [];
+    public List<UnifiedDiagnostic> Diagnostics => Findings
+        .Select(finding => UnifiedDiagnosticMapper.FromPrivacyFinding(finding, "PrivacyGuard"))
+        .ToList();
 }
 
 public sealed class PrivacyFinding

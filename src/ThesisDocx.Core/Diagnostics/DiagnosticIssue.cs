@@ -4,6 +4,12 @@ public sealed class DiagnosticIssue
 {
     public string Id { get; set; } = string.Empty;
 
+    public string Code
+    {
+        get => Id;
+        set => Id = value;
+    }
+
     public string Source { get; set; } = string.Empty;
 
     public string Category { get; set; } = "unknown";
@@ -36,7 +42,36 @@ public sealed class DiagnosticIssue
 
     public List<FixHint> FixHints { get; set; } = [];
 
+    public string? FixHint
+    {
+        get => FixHints.FirstOrDefault()?.SuggestedAction;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            FixHints =
+            [
+                new FixHint
+                {
+                    HintId = $"{Id}.inlineFixHint",
+                    Title = "Fix hint",
+                    Description = value!,
+                    SuggestedAction = value!
+                }
+            ];
+        }
+    }
+
     public List<string> RelatedDocs { get; set; } = [];
 
     public List<string> RelatedFixtures { get; set; } = [];
+
+    public List<string> RelatedPaths { get; set; } = [];
+
+    public Dictionary<string, string> Details { get; set; } = new(StringComparer.Ordinal);
+
+    public string? DocumentationRef { get; set; }
 }

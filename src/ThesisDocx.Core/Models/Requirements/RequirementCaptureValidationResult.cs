@@ -1,5 +1,7 @@
 namespace ThesisDocx.Core.Models.Requirements;
 
+using ThesisDocx.Core.Diagnostics;
+
 public sealed class RequirementCaptureValidationResult
 {
     public bool IsValid => Errors.Count == 0;
@@ -7,6 +9,11 @@ public sealed class RequirementCaptureValidationResult
     public List<RequirementCaptureValidationIssue> Errors { get; set; } = [];
 
     public List<RequirementCaptureValidationIssue> Warnings { get; set; } = [];
+
+    public List<UnifiedDiagnostic> Diagnostics => Errors
+        .Select(error => UnifiedDiagnosticMapper.FromRequirementIssue(error, DiagnosticSeverity.Error, "RequirementCaptureValidator"))
+        .Concat(Warnings.Select(warning => UnifiedDiagnosticMapper.FromRequirementIssue(warning, DiagnosticSeverity.Warning, "RequirementCaptureValidator")))
+        .ToList();
 }
 
 public sealed class RequirementCaptureValidationIssue

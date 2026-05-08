@@ -16,6 +16,10 @@ public sealed class TemplateGateReport
 
     public List<DiagnosticIssue> Diagnostics { get; set; } = [];
 
+    public List<UnifiedDiagnostic> MachineDiagnostics => Diagnostics
+        .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .ToList();
+
     public List<FixHint> FixHints { get; set; } = [];
 
     public List<TemplateGateChecklistItem> Checklist { get; set; } = [];

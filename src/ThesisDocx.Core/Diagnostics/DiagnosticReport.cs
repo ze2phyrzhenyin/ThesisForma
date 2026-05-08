@@ -14,6 +14,10 @@ public sealed class DiagnosticReport
 
     public List<DiagnosticIssue> Issues { get; set; } = [];
 
+    public List<UnifiedDiagnostic> Diagnostics => Issues
+        .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .ToList();
+
     public List<DiagnosticIssueGroup> GroupedIssues { get; set; } = [];
 
     public List<string> TopRecommendedActions { get; set; } = [];

@@ -20,6 +20,7 @@
       }
     },
     "issues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
     "groupedIssues": { "type": "array" },
     "topRecommendedActions": { "type": "array", "items": { "type": "string" } },
     "relatedArtifacts": { "type": "object", "additionalProperties": { "type": "string" } }
@@ -36,6 +37,24 @@
         "title": { "type": "string" },
         "message": { "type": "string" },
         "fixHints": { "type": "array" }
+      }
+    },
+    "unifiedDiagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "path", "message", "category", "source"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "path": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "fixHint": { "type": "string" },
+        "category": {
+          "enum": ["schema", "semantic", "template", "rendering", "openxml", "privacy", "requirement", "coverage", "regression", "baseline", "intake", "negativeFixture"]
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "relatedPaths": { "type": "array", "items": { "type": "string" } },
+        "details": { "type": "object", "additionalProperties": { "type": "string" } },
+        "documentationRef": { "type": "string" }
       }
     }
   }

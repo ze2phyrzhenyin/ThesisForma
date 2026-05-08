@@ -9,6 +9,10 @@ public sealed class NegativeFixtureRunResult
     public bool Passed => Cases.All(fixture => fixture.Passed);
 
     public List<NegativeFixtureCaseResult> Cases { get; set; } = [];
+
+    public List<UnifiedDiagnostic> Diagnostics => Cases
+        .SelectMany(fixture => fixture.Diagnostics)
+        .ToList();
 }
 
 public sealed class NegativeFixtureCaseResult
@@ -36,6 +40,10 @@ public sealed class NegativeFixtureCaseResult
     public List<string> ActualFixHintIds { get; set; } = [];
 
     public List<DiagnosticIssue> Issues { get; set; } = [];
+
+    public List<UnifiedDiagnostic> Diagnostics => Issues
+        .Select(UnifiedDiagnosticMapper.FromDiagnosticIssue)
+        .ToList();
 
     public List<string> Errors { get; set; } = [];
 }
