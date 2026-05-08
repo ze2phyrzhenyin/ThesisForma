@@ -1,5 +1,8 @@
 using NJsonSchema;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Validation;
 
@@ -69,7 +72,9 @@ public sealed class ThesisSchemaValidator
     {
         var result = new ThesisInputValidationResult { Source = "ThesisSchemaValidator" };
         var schema = JsonSchema.FromJsonAsync(File.ReadAllText(schemaPath)).GetAwaiter().GetResult();
-        var errors = schema.Validate(File.ReadAllText(jsonPath));
+        var json = File.ReadAllText(jsonPath);
+        result.VersionReport = BuildVersionReport(json, rootName);
+        var errors = schema.Validate(json);
 
         foreach (var error in errors)
         {
@@ -80,6 +85,37 @@ public sealed class ThesisSchemaValidator
         }
 
         return result;
+    }
+
+    private static SchemaVersionReport BuildVersionReport(string json, string rootName)
+    {
+        JsonObject? root;
+        try
+        {
+            root = JsonNode.Parse(json)?.AsObject();
+        }
+        catch (JsonException)
+        {
+            return SchemaVersionReport.Empty();
+        }
+
+        if (root is null)
+        {
+            return SchemaVersionReport.Empty();
+        }
+
+        return rootName switch
+        {
+            "document" => SchemaVersionReport.ForDocument(ReadString(root, "schemaVersion")),
+            "format" => SchemaVersionReport.ForFormat(ReadString(root, "schemaVersion")),
+            "template" => SchemaVersionReport.ForTemplatePackage(ReadString(root, "templateSchemaVersion")),
+            _ => SchemaVersionReport.Empty()
+        };
+    }
+
+    private static string? ReadString(JsonObject root, string propertyName)
+    {
+        return root[propertyName] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
     }
 
     public static bool IsSupportedVersion(string? schemaVersion)

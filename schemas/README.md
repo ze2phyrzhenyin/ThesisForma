@@ -25,6 +25,8 @@ Both schemas require `schemaVersion`. Supported versions are:
 
 The project uses the `NJsonSchema` NuGet package for schema validation. JSON Schema validates shape and scalar constraints. Cross-document and cross-reference checks are handled separately by `ThesisInputValidator`.
 
+Backend schema validation attaches a `versionReport` for `ThesisDocument`, `ThesisFormatSpec`, and `TemplatePackage` inputs. CLI JSON output and service facade results use the same report shape so consumers can inspect supported, current, old, future, missing, and unsupported version states without parsing message text.
+
 The document schema uses `type` discriminators for block and inline nodes. Equation blocks constrain `sourceType` to `omml`, `latex`, or `plain`; advanced table fields constrain width type, border style, vertical merge values, and basic numeric ranges.
 
 The template schema constrains `id`, semver, inheritance, relative paths, variable types, asset types, target section types, insert positions, and layout block discriminators. Asset and `formatSpecRef` paths must be relative to the template directory.

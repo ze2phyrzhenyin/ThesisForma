@@ -107,6 +107,19 @@ public sealed class SchemaVersionSupportTests
     }
 
     [Fact]
+    public void VersionReport_ShouldMergeChecksByContractKind()
+    {
+        var report = SchemaVersionReport.ForDocument("1.0.0");
+
+        report.MergeFrom(SchemaVersionReport.ForFormat("1.2.0"));
+        report.MergeFrom(SchemaVersionReport.ForDocument("1.1.0"));
+
+        Assert.Equal(2, report.Checks.Count);
+        Assert.Contains(report.Checks, check => check.Kind == "thesisDocument" && check.Version == "1.1.0");
+        Assert.Contains(report.Checks, check => check.Kind == "thesisFormatSpec" && check.Version == "1.2.0");
+    }
+
+    [Fact]
     public void Cli_ValidateInput_ShouldReportUnsupportedFutureVersion()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
@@ -131,6 +144,34 @@ public sealed class SchemaVersionSupportTests
         var checks = json["versionReport"]!["checks"]!.AsArray();
         Assert.Contains(checks, check =>
             check?["kind"]?.GetValue<string>() == "thesisDocument"
+            && check["direction"]?.GetValue<string>() == "future");
+    }
+
+    [Fact]
+    public void Cli_ValidateDocx_ShouldFailUnsupportedFormatVersionWithVersionReport()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var rendered = TestRenderHelper.RenderSimpleThesis();
+        var format = JsonSerializer.Deserialize<ThesisFormatSpec>(
+            File.ReadAllText(Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json")),
+            ThesisJson.Options)!;
+        format.SchemaVersion = "9.9.9";
+        var temp = NewTempDirectory();
+        var formatPath = Path.Combine(temp, "future-format.json");
+        File.WriteAllText(formatPath, JsonSerializer.Serialize(format, ThesisJson.Options));
+
+        var result = CliRunner.Run(
+            root,
+            "validate",
+            "--docx", rendered.DocxPath,
+            "--format", formatPath,
+            "--json");
+        var json = JsonNode.Parse(result.StandardOutput)!.AsObject();
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(json["diagnostics"]!.AsArray(), diagnostic => diagnostic?["code"]?.GetValue<string>() == "format.schemaVersion.unsupported");
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check =>
+            check?["kind"]?.GetValue<string>() == "thesisFormatSpec"
             && check["direction"]?.GetValue<string>() == "future");
     }
 

@@ -30,6 +30,8 @@ Facade results share these fields:
 - `diagnostics`: machine-readable diagnostics using `code`, `severity`, `path`, `message`, `fixHint`, `category`, and `source`.
 - `versionReport`: present on schema-aware document/template operations.
 
+`versionReport` uses `SchemaVersionSupport` and has a stable `reportVersion`, `isValid`, `checks[]`, and `diagnostics[]`. Schema-aware CLI JSON consumers should read this report instead of reimplementing supported-version checks. Unsupported versions also surface as normalized diagnostics when they affect operation success.
+
 Specific facades may also return:
 
 - `isValid`

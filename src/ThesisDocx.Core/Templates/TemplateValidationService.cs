@@ -241,5 +241,6 @@ public sealed class TemplateValidationService
     {
         target.Errors.AddRange(source.Errors);
         target.Warnings.AddRange(source.Warnings);
+        target.VersionReport.MergeFrom(source.VersionReport);
     }
 }

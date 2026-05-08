@@ -59,7 +59,7 @@ public sealed class ThesisValidateService
         target.Warnings.AddRange(source.Warnings);
         if (source.VersionReport.Checks.Count > 0)
         {
-            target.VersionReport = source.VersionReport;
+            target.VersionReport.MergeFrom(source.VersionReport);
         }
     }
 
@@ -83,23 +83,25 @@ public sealed class ThesisValidateService
             else if (request.Format is not null)
             {
                 validation = new FormatConformanceValidator().Validate(request.DocxPath, request.Format);
-                versionReport = new SchemaVersionReport
-                {
-                    Checks = [new SchemaVersionSupport().CheckThesisFormatSpec(request.Format.SchemaVersion)]
-                };
+                versionReport = SchemaVersionReport.ForFormat(request.Format.SchemaVersion);
             }
             else
             {
                 return ValidateDocxResult.Failure("service.format.missing", "Format spec or template path is required for DOCX validation.");
             }
 
+            var diagnostics = ServiceDiagnostics.Merge(validation.Diagnostics, versionReport.Diagnostics);
+            var versionErrorCount = versionReport.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsError(diagnostic.Severity));
+            var versionWarningCount = versionReport.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity));
+            var isValid = validation.IsValid && versionReport.IsValid;
+
             return new ValidateDocxResult
             {
-                Success = validation.IsValid,
-                IsValid = validation.IsValid,
-                Diagnostics = validation.Diagnostics,
-                ErrorCount = validation.Errors.Count,
-                WarningCount = validation.Warnings.Count,
+                Success = isValid,
+                IsValid = isValid,
+                Diagnostics = diagnostics,
+                ErrorCount = validation.Errors.Count + versionErrorCount,
+                WarningCount = validation.Warnings.Count + versionWarningCount,
                 CheckedRules = validation.CheckedRules.ToList(),
                 Validation = validation,
                 VersionReport = versionReport
@@ -187,22 +189,29 @@ public sealed class TemplateResolveService
         try
         {
             var resolution = new TemplateResolver().Resolve(request.TemplatePath, request.Document, request.Variables);
+            var versionReport = SchemaVersionReport.ForTemplate(resolution.Template?.TemplateSchemaVersion, resolution.FormatSpec?.SchemaVersion);
+            var diagnostics = ServiceDiagnostics.Merge(
+                resolution.Errors.Select(error => ToDiagnostic(error, DiagnosticSeverity.Error))
+                    .Concat(resolution.Warnings.Select(warning => ToDiagnostic(warning, DiagnosticSeverity.Warning))),
+                versionReport.Diagnostics);
+            var errorCount = diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsError(diagnostic.Severity));
+            var warningCount = diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity));
+            var isValid = resolution.IsValid && versionReport.IsValid;
+
             return new TemplateResolveServiceResult
             {
-                Success = resolution.IsValid,
-                IsValid = resolution.IsValid,
+                Success = isValid,
+                IsValid = isValid,
                 TemplateId = resolution.Template?.Id,
                 FormatSpecName = resolution.FormatSpec?.Name,
                 PageTemplateCount = resolution.PageTemplates.Count,
                 AssetCount = resolution.Assets.Count,
                 VariableCount = resolution.Variables.Count,
                 Resolution = resolution,
-                ErrorCount = resolution.Errors.Count,
-                WarningCount = resolution.Warnings.Count,
-                VersionReport = SchemaVersionReport.ForTemplate(resolution.Template?.TemplateSchemaVersion, resolution.FormatSpec?.SchemaVersion),
-                Diagnostics = resolution.Errors.Select(error => ToDiagnostic(error, DiagnosticSeverity.Error))
-                    .Concat(resolution.Warnings.Select(warning => ToDiagnostic(warning, DiagnosticSeverity.Warning)))
-                    .ToList()
+                ErrorCount = errorCount,
+                WarningCount = warningCount,
+                VersionReport = versionReport,
+                Diagnostics = diagnostics
             };
         }
         catch (Exception ex)
@@ -995,6 +1004,23 @@ public sealed class OnboardingPackageValidateServiceResult : ServiceResult
             ErrorCount = 1,
             Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Privacy, "OnboardingPackageWorkflowService")]
         };
+    }
+}
+
+internal static class ServiceDiagnostics
+{
+    public static List<UnifiedDiagnostic> Merge(IEnumerable<UnifiedDiagnostic> primary, IEnumerable<UnifiedDiagnostic> secondary)
+    {
+        var diagnostics = primary.ToList();
+        foreach (var diagnostic in secondary)
+        {
+            if (!diagnostics.Any(existing => existing.Code == diagnostic.Code && existing.Path == diagnostic.Path))
+            {
+                diagnostics.Add(diagnostic);
+            }
+        }
+
+        return diagnostics;
     }
 }
 

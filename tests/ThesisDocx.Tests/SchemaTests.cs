@@ -29,6 +29,10 @@ public sealed class SchemaTests
             Path.Combine(root, "schemas", "thesis-document.schema.json"));
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "thesisDocument"
+            && check.Version == "1.0.0"
+            && check.Direction == "supported");
     }
 
     [Fact]
@@ -54,6 +58,7 @@ public sealed class SchemaTests
             Path.Combine(root, "schemas", "thesis-format-spec.schema.json"));
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+        Assert.Contains(result.VersionReport.Checks, check => check.Kind == "thesisFormatSpec");
     }
 
     [Theory]
@@ -84,6 +89,7 @@ public sealed class SchemaTests
         var result = new ThesisSchemaValidator().ValidateTemplateFile(path, Path.Combine(root, "schemas", "template-package.schema.json"));
 
         Assert.True(result.IsValid, $"{path}:{Environment.NewLine}{string.Join(Environment.NewLine, result.Errors)}");
+        Assert.Contains(result.VersionReport.Checks, check => check.Kind == "templatePackage");
     }
 
     [Fact]
@@ -97,6 +103,9 @@ public sealed class SchemaTests
         var result = new ThesisSchemaValidator().ValidateDocumentFile(temp, Path.Combine(root, "schemas", "thesis-document.schema.json"));
 
         Assert.False(result.IsValid);
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "thesisDocument"
+            && check.Direction == "missing");
     }
 
     [Fact]

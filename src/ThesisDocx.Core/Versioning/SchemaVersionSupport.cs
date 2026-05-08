@@ -124,6 +124,30 @@ public sealed class SchemaVersionReport
         return new SchemaVersionReport();
     }
 
+    public static SchemaVersionReport ForDocument(string? documentVersion)
+    {
+        return new SchemaVersionReport
+        {
+            Checks = [new SchemaVersionSupport().CheckThesisDocument(documentVersion)]
+        };
+    }
+
+    public static SchemaVersionReport ForFormat(string? formatVersion)
+    {
+        return new SchemaVersionReport
+        {
+            Checks = [new SchemaVersionSupport().CheckThesisFormatSpec(formatVersion)]
+        };
+    }
+
+    public static SchemaVersionReport ForTemplatePackage(string? templateVersion)
+    {
+        return new SchemaVersionReport
+        {
+            Checks = [new SchemaVersionSupport().CheckTemplatePackage(templateVersion)]
+        };
+    }
+
     public static SchemaVersionReport ForDocumentAndFormat(string? documentVersion, string? formatVersion)
     {
         var support = new SchemaVersionSupport();
@@ -150,6 +174,22 @@ public sealed class SchemaVersionReport
         }
 
         return new SchemaVersionReport { Checks = checks };
+    }
+
+    public void MergeFrom(SchemaVersionReport source)
+    {
+        foreach (var check in source.Checks)
+        {
+            var existingIndex = Checks.FindIndex(existing => existing.Kind == check.Kind);
+            if (existingIndex >= 0)
+            {
+                Checks[existingIndex] = check;
+            }
+            else
+            {
+                Checks.Add(check);
+            }
+        }
     }
 }
 
