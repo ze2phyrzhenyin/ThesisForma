@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Utilities;
+using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Versioning;
 using ThesisDocx.Tests.Fixtures;
 
@@ -117,6 +118,32 @@ public sealed class SchemaVersionSupportTests
         Assert.Equal(2, report.Checks.Count);
         Assert.Contains(report.Checks, check => check.Kind == "thesisDocument" && check.Version == "1.1.0");
         Assert.Contains(report.Checks, check => check.Kind == "thesisFormatSpec" && check.Version == "1.2.0");
+    }
+
+    [Fact]
+    public void Schema_ShouldValidateVersionReportContract()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var path = Path.Combine(NewTempDirectory(), "version-report.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(SchemaVersionReport.ForDocument("9.9.9"), ThesisJson.Options));
+
+        var result = new ThesisSchemaValidator().ValidateVersionReportFile(path, Path.Combine(root, "schemas", "version-report.schema.json"));
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+    }
+
+    [Fact]
+    public void Schema_ShouldRejectInvalidVersionReportDirection()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var path = Path.Combine(NewTempDirectory(), "version-report.invalid.json");
+        var node = JsonSerializer.SerializeToNode(SchemaVersionReport.ForDocument("9.9.9"), ThesisJson.Options)!;
+        node["checks"]![0]!["direction"] = "newerThanExpected";
+        File.WriteAllText(path, node.ToJsonString(ThesisJson.Options));
+
+        var result = new ThesisSchemaValidator().ValidateVersionReportFile(path, Path.Combine(root, "schemas", "version-report.schema.json"));
+
+        Assert.False(result.IsValid);
     }
 
     [Fact]

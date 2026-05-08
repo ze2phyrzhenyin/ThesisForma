@@ -11,6 +11,7 @@ This directory contains the formal JSON Schema contract for Stage 1 structured i
 - `negative-fixture-manifest.schema.json`: validates expected-failure fixture suites.
 - `fix-hint-rules.schema.json`: validates the fix hint rule catalog.
 - `diagnostic-report.schema.json`: documents the machine-readable diagnostic report shape.
+- `version-report.schema.json`: validates the shared `versionReport` payload used by schema-aware CLI JSON and service facade results.
 - `onboarding-workspace.schema.json`: validates private or fictional onboarding workspace manifests.
 - `template-pilot-package-manifest.schema.json`: validates deterministic pilot package manifests.
 - `docx-extraction.schema.json`: validates OpenXML extraction evidence from uploaded DOCX files.
@@ -25,7 +26,7 @@ Both schemas require `schemaVersion`. Supported versions are:
 
 The project uses the `NJsonSchema` NuGet package for schema validation. JSON Schema validates shape and scalar constraints. Cross-document and cross-reference checks are handled separately by `ThesisInputValidator`.
 
-Backend schema validation attaches a `versionReport` for `ThesisDocument`, `ThesisFormatSpec`, and `TemplatePackage` inputs. CLI JSON output and service facade results use the same report shape so consumers can inspect supported, current, old, future, missing, and unsupported version states without parsing message text.
+Backend schema validation attaches a `versionReport` for `ThesisDocument`, `ThesisFormatSpec`, and `TemplatePackage` inputs. CLI JSON output and service facade results use the same report shape so consumers can inspect supported, current, old, future, missing, and unsupported version states without parsing message text. The contract fixes `checks[].direction` to `current`, `supported`, `old`, `future`, `missing`, `unsupported`, or `unknown`; unsupported versions also appear in `versionReport.diagnostics[]`.
 
 The document schema uses `type` discriminators for block and inline nodes. Equation blocks constrain `sourceType` to `omml`, `latex`, or `plain`; advanced table fields constrain width type, border style, vertical merge values, and basic numeric ranges.
 

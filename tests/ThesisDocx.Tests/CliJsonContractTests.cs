@@ -45,6 +45,37 @@ public sealed class CliJsonContractTests
     }
 
     [Fact]
+    public void CliJson_UnsupportedVersionReport_ShouldExposeChecksAndDiagnostics()
+    {
+        var root = RepoRoot();
+        var temp = NewTempDirectory();
+        var documentPath = Path.Combine(temp, "future-document.json");
+        File.WriteAllText(
+            documentPath,
+            File.ReadAllText(Path.Combine(root, "examples", "simple-thesis", "document.json"))
+                .Replace("\"schemaVersion\": \"1.0.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
+
+        var result = CliRunner.Run(
+            root,
+            "validate-input",
+            "--document", documentPath,
+            "--format", Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json"),
+            "--json");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+        var json = ParseObject(result.StandardOutput);
+        var versionReport = AssertVersionReport(json, expectedKinds: ["thesisDocument", "thesisFormatSpec"]);
+        Assert.False(versionReport["isValid"]!.GetValue<bool>());
+        var check = RequiredVersionCheck(versionReport, "thesisDocument");
+        Assert.Equal("future", check["direction"]!.GetValue<string>());
+        Assert.False(check["isSupported"]!.GetValue<bool>());
+        var diagnostic = RequiredVersionDiagnostic(versionReport, "thesis.schemaVersion.unsupported");
+        AssertDiagnosticContract(diagnostic, expectedSeverity: "error", expectedCategory: "schema");
+        Assert.Equal("future", diagnostic["details"]!["direction"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void CliJson_CoreCommands_ShouldProduceParseableJson()
     {
         var root = RepoRoot();
@@ -119,19 +150,50 @@ public sealed class CliJsonContractTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostic["source"]!.GetValue<string>()));
     }
 
-    private static void AssertVersionReport(JsonObject json, string[] expectedKinds)
+    private static JsonObject AssertVersionReport(JsonObject json, string[] expectedKinds)
     {
         var versionReport = json["versionReport"]?.AsObject()
             ?? throw new Xunit.Sdk.XunitException("Missing versionReport.");
         Assert.Equal("1.0.0", versionReport["reportVersion"]!.GetValue<string>());
-        var kinds = versionReport["checks"]!.AsArray()
-            .OfType<JsonObject>()
+        Assert.NotNull(versionReport["diagnostics"]?.AsArray());
+        var checks = versionReport["checks"]!.AsArray().OfType<JsonObject>().ToList();
+        var kinds = checks
             .Select(check => check["kind"]!.GetValue<string>())
             .ToHashSet(StringComparer.Ordinal);
         foreach (var kind in expectedKinds)
         {
             Assert.Contains(kind, kinds);
         }
+
+        foreach (var check in checks)
+        {
+            Assert.Contains(check["direction"]!.GetValue<string>(), ValidVersionDirections);
+            Assert.True(check["supportedVersions"]!.AsArray().Count > 0);
+        }
+
+        foreach (var diagnostic in versionReport["diagnostics"]!.AsArray().OfType<JsonObject>())
+        {
+            AssertDiagnosticContract(
+                diagnostic,
+                expectedSeverity: diagnostic["severity"]!.GetValue<string>(),
+                expectedCategory: diagnostic["category"]!.GetValue<string>());
+        }
+
+        return versionReport;
+    }
+
+    private static JsonObject RequiredVersionCheck(JsonObject versionReport, string kind)
+    {
+        return versionReport["checks"]!.AsArray()
+            .OfType<JsonObject>()
+            .Single(check => check["kind"]?.GetValue<string>() == kind);
+    }
+
+    private static JsonObject RequiredVersionDiagnostic(JsonObject versionReport, string code)
+    {
+        return versionReport["diagnostics"]!.AsArray()
+            .OfType<JsonObject>()
+            .Single(diagnostic => diagnostic["code"]?.GetValue<string>() == code);
     }
 
     private static IEnumerable<string> EnumerateSeverityValues(JsonNode? node)
@@ -164,6 +226,17 @@ public sealed class CliJsonContractTests
     }
 
     private static string RepoRoot() => TestRenderHelper.LocateRepoRootForTests();
+
+    private static readonly HashSet<string> ValidVersionDirections = new(StringComparer.Ordinal)
+    {
+        "current",
+        "supported",
+        "old",
+        "future",
+        "missing",
+        "unsupported",
+        "unknown"
+    };
 
     private static string NewTempDirectory()
     {

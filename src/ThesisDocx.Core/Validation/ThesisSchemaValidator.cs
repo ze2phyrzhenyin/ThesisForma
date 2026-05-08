@@ -53,6 +53,11 @@ public sealed class ThesisSchemaValidator
         return ValidateJsonFile(reportPath, schemaPath, "diagnosticReport");
     }
 
+    public ThesisInputValidationResult ValidateVersionReportFile(string reportPath, string schemaPath)
+    {
+        return ValidateJsonFile(reportPath, schemaPath, "versionReport");
+    }
+
     public ThesisInputValidationResult ValidateOnboardingWorkspaceFile(string workspacePath, string schemaPath)
     {
         return ValidateJsonFile(workspacePath, schemaPath, "onboardingWorkspace");
