@@ -98,7 +98,9 @@ describe('ThesisDocument contract helpers', () => {
                       gridSpan: 2,
                       verticalAlignment: 'center',
                       shading: 'EEEEEE',
-                      cellMargins: { leftCm: 0.1 }
+                      cellMargins: { leftCm: 0.1 },
+                      font: { eastAsia: '黑体', latin: 'Times New Roman', sizePt: 10.5, bold: true },
+                      paragraph: { alignment: 'center', lineSpacingMultiple: 1.2, widowControl: true }
                     }
                   ]
                 }
@@ -117,7 +119,20 @@ describe('ThesisDocument contract helpers', () => {
       type: 'table',
       width: { type: 'percent', value: 100 },
       borders: { bottom: { style: 'single', size: 4 } },
-      rows: [{ cells: [{ gridSpan: 2, verticalAlignment: 'center', shading: 'EEEEEE', cellMargins: { leftCm: 0.1 } }] }]
+      rows: [
+        {
+          cells: [
+            {
+              gridSpan: 2,
+              verticalAlignment: 'center',
+              shading: 'EEEEEE',
+              cellMargins: { leftCm: 0.1 },
+              font: { eastAsia: '黑体', latin: 'Times New Roman', sizePt: 10.5, bold: true },
+              paragraph: { alignment: 'center', lineSpacingMultiple: 1.2, widowControl: true }
+            }
+          ]
+        }
+      ]
     });
   });
 
@@ -141,7 +156,9 @@ describe('ThesisDocument contract helpers', () => {
                         widthCm: 3,
                         alignment: 'center',
                         verticalAlignment: 'bottom',
-                        borders: { top: { style: 'single' } }
+                        borders: { top: { style: 'single' } },
+                        font: { sizePt: 11, italic: true },
+                        paragraph: { spaceBeforePt: 2, alignment: 'both' }
                       }
                     ]
                   }
@@ -158,7 +175,20 @@ describe('ThesisDocument contract helpers', () => {
     expect(table).toMatchObject({
       type: 'table',
       width: { type: 'percent', value: 100 },
-      rows: [{ cells: [{ widthCm: 3, alignment: 'center', verticalAlignment: 'bottom', borders: { top: { style: 'single' } } }] }]
+      rows: [
+        {
+          cells: [
+            {
+              widthCm: 3,
+              alignment: 'center',
+              verticalAlignment: 'bottom',
+              borders: { top: { style: 'single' } },
+              font: { sizePt: 11, italic: true },
+              paragraph: { spaceBeforePt: 2, alignment: 'both' }
+            }
+          ]
+        }
+      ]
     });
   });
 

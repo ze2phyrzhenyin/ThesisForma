@@ -425,6 +425,8 @@ function normalizeTableCell(value: unknown, path: string, issues: ApiIssue[]): T
     ...(typeof value.shading === 'string' ? { shading: value.shading } : {}),
     ...(isRecord(value.borders) ? { borders: value.borders as TableCell['borders'] } : {}),
     ...(isRecord(value.cellMargins) ? { cellMargins: value.cellMargins as TableCell['cellMargins'] } : {}),
+    ...(isRecord(value.font) ? { font: value.font as TableCell['font'] } : {}),
+    ...(isRecord(value.paragraph) ? { paragraph: value.paragraph as TableCell['paragraph'] } : {}),
     ...(Array.isArray(value.blocks) ? { blocks: normalizeBlocks(value.blocks, `${path}.blocks`, issues) } : {})
   };
 }
@@ -641,7 +643,9 @@ function cleanTableCell(cell: TableCell): TableCell {
     ...(cell.verticalAlignment ? { verticalAlignment: cell.verticalAlignment } : {}),
     ...(cell.shading ? { shading: cell.shading } : {}),
     ...(cell.borders ? { borders: cell.borders } : {}),
-    ...(cell.cellMargins ? { cellMargins: cell.cellMargins } : {})
+    ...(cell.cellMargins ? { cellMargins: cell.cellMargins } : {}),
+    ...(cell.font ? { font: cell.font } : {}),
+    ...(cell.paragraph ? { paragraph: cell.paragraph } : {})
   });
 }
 
@@ -721,7 +725,7 @@ function validateBlock(block: Block, path: string, issues: ApiIssue[]) {
   }
   if (block.type === 'table') validateTableBlock(block, path, issues);
   if ((block.type === 'footnote' || block.type === 'endnote') && block.inlines.length === 0) {
-    issues.push(issue('note.empty', '注释内容为空。', 'warning', `${path}.inlines`));
+    issues.push(issue('note.empty', '注释内容为空。', 'error', `${path}.inlines`));
   }
 }
 
@@ -797,11 +801,11 @@ function validateNotes(document: ThesisDocument, issues: ApiIssue[]) {
   walkInlines(document, (inline, path) => {
     if (inline.type === 'footnote') {
       addNote(inline.noteId, path, seenFootnotes, 'duplicate.footnoteId', issues);
-      if (!inlinesPlainText(inline.inlines).trim()) issues.push(issue('note.empty', '脚注内容为空。', 'warning', path));
+      if (!inlinesPlainText(inline.inlines).trim()) issues.push(issue('note.empty', '脚注内容为空。', 'error', path));
     }
     if (inline.type === 'endnote') {
       addNote(inline.noteId, path, seenEndnotes, 'duplicate.endnoteId', issues);
-      if (!inlinesPlainText(inline.inlines).trim()) issues.push(issue('note.empty', '尾注内容为空。', 'warning', path));
+      if (!inlinesPlainText(inline.inlines).trim()) issues.push(issue('note.empty', '尾注内容为空。', 'error', path));
     }
   });
 }

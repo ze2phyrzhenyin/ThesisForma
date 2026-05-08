@@ -162,6 +162,24 @@ export interface CellMargins {
   rightCm?: number;
 }
 
+export interface TableCellFont {
+  eastAsia?: string;
+  latin?: string;
+  sizePt?: number;
+  bold?: boolean;
+  italic?: boolean;
+}
+
+export interface TableCellParagraph {
+  lineSpacingMultiple?: number;
+  spaceBeforePt?: number;
+  spaceAfterPt?: number;
+  firstLineIndentChars?: number;
+  hangingIndentCm?: number;
+  alignment?: TextAlignment;
+  widowControl?: boolean;
+}
+
 export interface TableCell {
   id?: string;
   text?: string;
@@ -175,6 +193,8 @@ export interface TableCell {
   shading?: string;
   borders?: Borders;
   cellMargins?: CellMargins;
+  font?: TableCellFont;
+  paragraph?: TableCellParagraph;
 }
 
 export interface TableRow {

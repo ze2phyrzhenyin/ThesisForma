@@ -49,7 +49,7 @@ export interface TemplateDetail {
 }
 
 export interface TemplatePackage {
-  templateSchemaVersion: '1.0.0';
+  templateSchemaVersion: string;
   id: string;
   name: string;
   version: string;

@@ -56,6 +56,36 @@ public sealed class SchemaTests
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
     }
 
+    [Theory]
+    [MemberData(nameof(ExampleThesisDocuments))]
+    public void Schema_ShouldValidateExampleThesisDocuments(string path)
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new ThesisSchemaValidator().ValidateDocumentFile(path, Path.Combine(root, "schemas", "thesis-document.schema.json"));
+
+        Assert.True(result.IsValid, $"{path}:{Environment.NewLine}{string.Join(Environment.NewLine, result.Errors)}");
+    }
+
+    [Theory]
+    [MemberData(nameof(ExampleFormatSpecs))]
+    public void Schema_ShouldValidateExampleFormatSpecs(string path)
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new ThesisSchemaValidator().ValidateFormatFile(path, Path.Combine(root, "schemas", "thesis-format-spec.schema.json"));
+
+        Assert.True(result.IsValid, $"{path}:{Environment.NewLine}{string.Join(Environment.NewLine, result.Errors)}");
+    }
+
+    [Theory]
+    [MemberData(nameof(ExampleTemplatePackages))]
+    public void Schema_ShouldValidateExampleTemplatePackages(string path)
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new ThesisSchemaValidator().ValidateTemplateFile(path, Path.Combine(root, "schemas", "template-package.schema.json"));
+
+        Assert.True(result.IsValid, $"{path}:{Environment.NewLine}{string.Join(Environment.NewLine, result.Errors)}");
+    }
+
     [Fact]
     public void Schema_ShouldRejectDocumentMissingSchemaVersion()
     {
@@ -227,5 +257,31 @@ public sealed class SchemaTests
         }
 
         throw new InvalidOperationException($"Could not find block '{type}'.");
+    }
+
+    public static IEnumerable<object[]> ExampleThesisDocuments()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        return Directory.EnumerateFiles(Path.Combine(root, "examples", "simple-thesis"), "*.json", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.EnumerateFiles(Path.Combine(root, "examples", "full-thesis"), "*.json", SearchOption.TopDirectoryOnly))
+            .Where(path => Path.GetFileName(path).Equals("document.json", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .Select(path => new object[] { path });
+    }
+
+    public static IEnumerable<object[]> ExampleFormatSpecs()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        return Directory.EnumerateFiles(Path.Combine(root, "examples", "format-specs"), "*.json", SearchOption.TopDirectoryOnly)
+            .Order(StringComparer.Ordinal)
+            .Select(path => new object[] { path });
+    }
+
+    public static IEnumerable<object[]> ExampleTemplatePackages()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        return Directory.EnumerateFiles(Path.Combine(root, "examples", "templates"), "template.json", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal)
+            .Select(path => new object[] { path });
     }
 }

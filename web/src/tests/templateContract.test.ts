@@ -38,6 +38,23 @@ describe('TemplatePackage contract helpers', () => {
     expect(validateTemplatePackage(template).some((issue) => issue.code === 'template.formatSpec.margin.invalid')).toBe(true);
   });
 
+  it('rejects unsupported template schema versions instead of normalizing them away', () => {
+    const result = parseTemplatePackageJson(
+      JSON.stringify({
+        templateSchemaVersion: '9.9.9',
+        id: 'template-a',
+        name: 'Template A',
+        version: '1.0.0',
+        locale: 'zh-CN',
+        formatSpecRef: 'format-spec.json'
+      })
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.template?.templateSchemaVersion).toBe('9.9.9');
+    expect(result.issues.some((issue) => issue.code === 'template.schemaVersion.unsupported')).toBe(true);
+  });
+
   it('cleans empty optional arrays without removing required fields', () => {
     const template = cleanTemplatePackage(createBlankTemplatePackage());
     expect(template.templateSchemaVersion).toBe('1.0.0');

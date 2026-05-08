@@ -173,7 +173,7 @@ export function templateFileName(template: TemplatePackage): string {
 
 function normalizeTemplatePackage(value: Record<string, unknown>): TemplatePackage {
   return {
-    templateSchemaVersion: value.templateSchemaVersion === '1.0.0' ? '1.0.0' : '1.0.0',
+    templateSchemaVersion: stringValue(value.templateSchemaVersion) || '1.0.0',
     id: stringValue(value.id),
     name: stringValue(value.name),
     version: stringValue(value.version) || '0.1.0',

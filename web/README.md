@@ -73,12 +73,14 @@ src/
 - 参考文献库（右栏）
 - 脚注 / 尾注管理器：新增、编辑、删除、空内容和重复 id 校验
 - 表格结构编辑：行列增删、表头行、cantSplit、横向/纵向/矩形合并、拆分已合并单元格，并有纯函数结构校验
+- 表格导入/导出保留后端 schema 支持的高级字段，包括 gridSpan、verticalMerge、width、borders、cellMargins、font 和 paragraph
 - 本地草稿：新建、打开、复制、删除、刷新后恢复最近草稿
 - TemplatePackage 编辑器：导入/导出模板 JSON、编辑基本信息、变量、assets、嵌入式 FormatSpec 基础字段、Page Template 元素
 - Page Template 元素表单：spacer / text / metadataField / image / fieldTable / declarationText / pageBreak，含变量、metadata 和 asset 引用校验
 - 模板选择 + 变量查看
 - 校验（含 path 跳转）
 - JSON 导入 / 导出
+- 仓库 examples fixture round-trip 测试，防止合法后端字段在前端 clean/parse 时被误删
 - 自动保存（防抖 1.5s）
 - 撤销 / 重做（最多 200 步）
 - 快捷键：⌘/Ctrl+S 保存、⌘/Ctrl+E 导出 JSON、⌘/Ctrl+. 专注模式
@@ -91,6 +93,19 @@ src/
 - TemplatePackage 编辑器不导入目录或 zip，只导入核心 JSON 文件
 - Page Template 只做安全的 schema 表单和结构化预览，不做 Word 式任意版式设计器
 - 完整格式覆盖（需后端协作）
+
+## 本地质量门禁
+
+```bash
+dotnet build ThesisDocx.slnx
+dotnet test ThesisDocx.slnx
+cd web
+npm run typecheck
+npm test
+npm run build
+```
+
+后端质量工具仍是权威门禁：`template validate --json`、`template coverage`、`negative-fixtures run` 和 `ci quality-report` 会输出结构化 JSON，适合 CI 和后续前端消费。
 
 ## 构建依赖
 
