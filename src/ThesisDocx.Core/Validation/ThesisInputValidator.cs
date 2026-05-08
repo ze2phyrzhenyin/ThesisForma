@@ -5,6 +5,8 @@ namespace ThesisDocx.Core.Validation;
 
 public sealed class ThesisInputValidator
 {
+    private const int MaxInlineImageBytes = 8 * 1024 * 1024;
+
     private static readonly HashSet<string> SupportedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/png",
@@ -22,6 +24,8 @@ public sealed class ThesisInputValidator
 
         var result = new ThesisInputValidationResult();
         ValidateSchemaVersions(document, format, result);
+        ValidateDocumentShape(document, result);
+        ValidateFormat(format, result);
 
         var sectionIds = new HashSet<string>(StringComparer.Ordinal);
         var blockAndBookmarkIds = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -102,6 +106,83 @@ public sealed class ThesisInputValidator
         }
     }
 
+    private static void ValidateDocumentShape(ThesisDocument document, ThesisInputValidationResult result)
+    {
+        if (document.Sections.Count == 0)
+        {
+            result.Add("document.sections.empty", "$.sections", "ThesisDocument must contain at least one section.");
+        }
+    }
+
+    private static void ValidateFormat(ThesisFormatSpec format, ThesisInputValidationResult result)
+    {
+        ValidatePageSetup(format.PageSetup, "$.pageSetup", result);
+        ValidateFont(format.DefaultFont, "$.defaultFont", result);
+        ValidateParagraph(format.BodyParagraph, "$.bodyParagraph", result);
+
+        foreach (var (level, heading) in format.Headings)
+        {
+            var path = $"$.headings.{level}";
+            if (level is < 1 or > 6 || heading.Level is < 1 or > 6)
+            {
+                result.Add("format.heading.level.invalid", path, "Heading levels must be between 1 and 6.");
+            }
+
+            ValidateFont(heading.Font, $"{path}.font", result);
+            ValidateNonNegative(heading.SpaceBeforePt, $"{path}.spaceBeforePt", "format.spacing.negative", "Heading spaceBeforePt must be non-negative.", result);
+            ValidateNonNegative(heading.SpaceAfterPt, $"{path}.spaceAfterPt", "format.spacing.negative", "Heading spaceAfterPt must be non-negative.", result);
+        }
+
+        ValidateTableWidth(format.Tables.DefaultWidth, "$.tables.defaultWidth", result);
+        ValidateMargins(format.Tables.DefaultCellMargins, "$.tables.defaultCellMargins", result);
+        ValidateBorders(format.Tables.DefaultBorders, "$.tables.defaultBorders", result);
+        ValidateBorders(format.Tables.ThreeLineTableBorders, "$.tables.threeLineTableBorders", result);
+        ValidateParagraph(format.Bibliography.EntryParagraph, "$.bibliography.entryParagraph", result);
+
+        if (format.Equations.FontSizePt <= 0)
+        {
+            result.Add("format.fontSize.invalid", "$.equations.fontSizePt", "Equation fontSizePt must be greater than 0.");
+        }
+
+        ValidateNonNegative(format.Equations.SpacingBeforePt, "$.equations.spacingBeforePt", "format.spacing.negative", "Equation spacingBeforePt must be non-negative.", result);
+        ValidateNonNegative(format.Equations.SpacingAfterPt, "$.equations.spacingAfterPt", "format.spacing.negative", "Equation spacingAfterPt must be non-negative.", result);
+    }
+
+    private static void ValidatePageSetup(PageSetupSpec pageSetup, string path, ThesisInputValidationResult result)
+    {
+        ValidateNonNegative(pageSetup.TopMarginCm, $"{path}.topMarginCm", "format.margin.negative", "Page top margin must be non-negative.", result);
+        ValidateNonNegative(pageSetup.BottomMarginCm, $"{path}.bottomMarginCm", "format.margin.negative", "Page bottom margin must be non-negative.", result);
+        ValidateNonNegative(pageSetup.LeftMarginCm, $"{path}.leftMarginCm", "format.margin.negative", "Page left margin must be non-negative.", result);
+        ValidateNonNegative(pageSetup.RightMarginCm, $"{path}.rightMarginCm", "format.margin.negative", "Page right margin must be non-negative.", result);
+        ValidateNonNegative(pageSetup.GutterCm, $"{path}.gutterCm", "format.margin.negative", "Page gutter must be non-negative.", result);
+        ValidateNonNegative(pageSetup.HeaderDistanceCm, $"{path}.headerDistanceCm", "format.headerFooterDistance.negative", "Header distance must be non-negative.", result);
+        ValidateNonNegative(pageSetup.FooterDistanceCm, $"{path}.footerDistanceCm", "format.headerFooterDistance.negative", "Footer distance must be non-negative.", result);
+        if (pageSetup.Columns < 1)
+        {
+            result.Add("format.pageSetup.columns.invalid", $"{path}.columns", "Page setup columns must be at least 1.");
+        }
+    }
+
+    private static void ValidateFont(FontFormatSpec font, string path, ThesisInputValidationResult result)
+    {
+        if (font.SizePt <= 0)
+        {
+            result.Add("format.fontSize.invalid", $"{path}.sizePt", "Font size must be greater than 0.");
+        }
+    }
+
+    private static void ValidateParagraph(ParagraphFormatSpec paragraph, string path, ThesisInputValidationResult result)
+    {
+        if (paragraph.LineSpacingMultiple <= 0)
+        {
+            result.Add("format.lineSpacing.invalid", $"{path}.lineSpacingMultiple", "Line spacing multiple must be greater than 0.");
+        }
+
+        ValidateNonNegative(paragraph.SpaceBeforePt, $"{path}.spaceBeforePt", "format.spacing.negative", "Paragraph spaceBeforePt must be non-negative.", result);
+        ValidateNonNegative(paragraph.SpaceAfterPt, $"{path}.spaceAfterPt", "format.spacing.negative", "Paragraph spaceAfterPt must be non-negative.", result);
+        ValidateNonNegative(paragraph.HangingIndentCm, $"{path}.hangingIndentCm", "format.indent.negative", "Hanging indent must be non-negative.", result);
+    }
+
     private static void ValidateHeadingSequence(ThesisSection section, ThesisFormatSpec format, string sectionPath, ThesisInputValidationResult result)
     {
         if (format.Validation.AllowHeadingLevelSkips)
@@ -156,9 +237,19 @@ public sealed class ThesisInputValidator
         switch (block)
         {
             case ParagraphBlock paragraph:
+                if (string.IsNullOrWhiteSpace(PlainText(paragraph.Inlines)))
+                {
+                    result.AddWarning("paragraph.empty", $"{path}.inlines", "Paragraph has no visible text.");
+                }
+
                 VisitInlines(paragraph.Inlines, $"{path}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
                 break;
             case HeadingBlock heading:
+                if (heading.Level is < 1 or > 6)
+                {
+                    result.Add("heading.level.invalid", $"{path}.level", "Heading level must be between 1 and 6.");
+                }
+
                 if (!string.IsNullOrWhiteSpace(block.Id))
                 {
                     headingIds.Add(block.Id);
@@ -246,6 +337,11 @@ public sealed class ThesisInputValidator
                 for (var i = 0; i < bibliography.Entries.Count; i++)
                 {
                     var entry = bibliography.Entries[i];
+                    if (string.IsNullOrWhiteSpace(entry.Text))
+                    {
+                        result.AddWarning("bibliography.entry.empty", $"{path}.entries[{i}].text", "Bibliography entry text is empty.");
+                    }
+
                     if (!bibliographyKeys.Add(entry.Id))
                     {
                         result.Add("duplicate.bibliographyKey", $"{path}.entries[{i}].id", $"Bibliography key '{entry.Id}' is duplicated.");
@@ -330,6 +426,26 @@ public sealed class ThesisInputValidator
         {
             result.Add("missing.imageSource", path, "Figure requires imagePath or imageDataBase64.");
         }
+        else
+        {
+            ValidateImageDataBase64(figure.ImageDataBase64, $"{path}.imageDataBase64", result);
+        }
+    }
+
+    private static void ValidateImageDataBase64(string value, string path, ThesisInputValidationResult result)
+    {
+        var estimatedBytes = value.Length * 3 / 4;
+        if (estimatedBytes > MaxInlineImageBytes)
+        {
+            result.Add("image.base64.tooLarge", path, $"Inline image data exceeds {MaxInlineImageBytes} bytes.");
+            return;
+        }
+
+        var buffer = new byte[Math.Max(estimatedBytes, 1)];
+        if (!Convert.TryFromBase64String(value, buffer, out _))
+        {
+            result.Add("image.base64.invalid", path, "imageDataBase64 must be valid base64.");
+        }
     }
 
     private static void ValidateEquation(EquationBlock equation, string path, ThesisFormatSpec format, ThesisInputValidationResult result)
@@ -391,13 +507,23 @@ public sealed class ThesisInputValidator
 
     private static void ValidateTable(TableBlock table, string path, ThesisInputValidationResult result)
     {
+        ValidateTableWidth(table.Width, $"{path}.width", result);
+        ValidateMargins(table.CellMargins, $"{path}.cellMargins", result);
+        ValidateBorders(table.Borders, $"{path}.borders", result);
+
         var expectedColumns = -1;
         var hasBodyRow = false;
-        var activeVerticalMerges = new HashSet<int>();
+        var activeVerticalMerges = new Dictionary<int, int>();
+        var fixedLayoutMissingWidths = table.Layout == TableLayoutKind.Fixed;
 
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
         {
             var row = table.Rows[rowIndex];
+            if (row.HeightPt is < 0)
+            {
+                result.Add("table.rowHeight.negative", $"{path}.rows[{rowIndex}].heightPt", "Table row height must be non-negative.");
+            }
+
             if (!row.IsHeader)
             {
                 hasBodyRow = true;
@@ -408,11 +534,29 @@ public sealed class ThesisInputValidator
             }
 
             var logicalColumns = 0;
-            var nextActiveVerticalMerges = new HashSet<int>();
+            var nextActiveVerticalMerges = new Dictionary<int, int>();
             for (var cellIndex = 0; cellIndex < row.Cells.Count; cellIndex++)
             {
                 var cell = row.Cells[cellIndex];
                 var cellPath = $"{path}.rows[{rowIndex}].cells[{cellIndex}]";
+                if (cell.Width is not null || cell.WidthCm.HasValue)
+                {
+                    fixedLayoutMissingWidths = false;
+                }
+
+                ValidateTableWidth(cell.Width, $"{cellPath}.width", result);
+                if (cell.WidthCm is < 0)
+                {
+                    result.Add("table.cellWidth.negative", $"{cellPath}.widthCm", "Table cell widthCm must be non-negative.");
+                }
+
+                ValidateMargins(cell.CellMargins, $"{cellPath}.cellMargins", result);
+                ValidateBorders(cell.Borders, $"{cellPath}.borders", result);
+                if (cell.VerticalAlignment.HasValue && !Enum.IsDefined(cell.VerticalAlignment.Value))
+                {
+                    result.Add("table.cellVerticalAlignment.invalid", $"{cellPath}.verticalAlignment", "Table cell verticalAlignment is not supported.");
+                }
+
                 if (cell.GridSpan < 1)
                 {
                     result.Add("table.gridSpan.invalid", $"{cellPath}.gridSpan", "gridSpan must be greater than or equal to 1.");
@@ -425,14 +569,18 @@ public sealed class ThesisInputValidator
                 var span = Math.Max(1, cell.GridSpan);
                 for (var col = logicalColumns; col < logicalColumns + span; col++)
                 {
-                    if (cell.VerticalMerge == VerticalMergeKind.Continue && !activeVerticalMerges.Contains(col))
+                    if (cell.VerticalMerge == VerticalMergeKind.Continue && !activeVerticalMerges.ContainsKey(col))
                     {
                         result.Add("table.verticalMerge.invalidChain", $"{cellPath}.verticalMerge", "vMerge continue requires a restart or continue above it.");
+                    }
+                    else if (cell.VerticalMerge == VerticalMergeKind.Continue && activeVerticalMerges.TryGetValue(col, out var activeSpan) && activeSpan != span)
+                    {
+                        result.Add("table.verticalMerge.spanMismatch", $"{cellPath}.gridSpan", "vMerge continue must keep the same gridSpan as the active merge above it.");
                     }
 
                     if (cell.VerticalMerge is VerticalMergeKind.Restart or VerticalMergeKind.Continue)
                     {
-                        nextActiveVerticalMerges.Add(col);
+                        nextActiveVerticalMerges[col] = span;
                     }
                 }
 
@@ -454,6 +602,98 @@ public sealed class ThesisInputValidator
         if (table.RepeatHeaderRows.HasValue && table.RepeatHeaderRows.Value > table.Rows.Count(row => row.IsHeader))
         {
             result.Add("table.repeatHeaderRows.invalid", $"{path}.repeatHeaderRows", "repeatHeaderRows exceeds available header rows.");
+        }
+
+        if (fixedLayoutMissingWidths)
+        {
+            result.AddWarning("table.fixedLayout.widthsMissing", $"{path}.rows", "Fixed layout table should specify table or cell widths.");
+        }
+    }
+
+    private static void ValidateTableWidth(TableWidthSpec? width, string path, ThesisInputValidationResult result)
+    {
+        if (width is null)
+        {
+            return;
+        }
+
+        if (width.Type == TableWidthKind.Percent && width.Value is < 0 or > 100)
+        {
+            result.Add("table.width.percent.invalid", $"{path}.value", "Percent table width must be between 0 and 100.");
+        }
+
+        if (width.Type == TableWidthKind.Dxa && width.Value is < 0)
+        {
+            result.Add("table.width.dxa.negative", $"{path}.value", "Dxa table width must be non-negative.");
+        }
+    }
+
+    private static void ValidateMargins(TableCellMarginsSpec? margins, string path, ThesisInputValidationResult result)
+    {
+        if (margins is null)
+        {
+            return;
+        }
+
+        ValidateNonNegative(margins.TopCm, $"{path}.topCm", "table.cellMargin.negative", "Table cell top margin must be non-negative.", result);
+        ValidateNonNegative(margins.BottomCm, $"{path}.bottomCm", "table.cellMargin.negative", "Table cell bottom margin must be non-negative.", result);
+        ValidateNonNegative(margins.LeftCm, $"{path}.leftCm", "table.cellMargin.negative", "Table cell left margin must be non-negative.", result);
+        ValidateNonNegative(margins.RightCm, $"{path}.rightCm", "table.cellMargin.negative", "Table cell right margin must be non-negative.", result);
+    }
+
+    private static void ValidateBorders(TableBordersSpec? borders, string path, ThesisInputValidationResult result)
+    {
+        if (borders is null)
+        {
+            return;
+        }
+
+        ValidateBorder(borders.Top, $"{path}.top", result);
+        ValidateBorder(borders.Bottom, $"{path}.bottom", result);
+        ValidateBorder(borders.Left, $"{path}.left", result);
+        ValidateBorder(borders.Right, $"{path}.right", result);
+        ValidateBorder(borders.InsideH, $"{path}.insideH", result);
+        ValidateBorder(borders.InsideV, $"{path}.insideV", result);
+    }
+
+    private static void ValidateBorder(BorderSpec? border, string path, ThesisInputValidationResult result)
+    {
+        if (border is null)
+        {
+            return;
+        }
+
+        if (!Enum.IsDefined(border.Style))
+        {
+            result.Add("table.border.style.invalid", $"{path}.style", "Table border style is not supported.");
+        }
+
+        if (border.Size < 0)
+        {
+            result.Add("table.border.size.negative", $"{path}.size", "Table border size must be non-negative.");
+        }
+
+        if (border.Space < 0)
+        {
+            result.Add("table.border.space.negative", $"{path}.space", "Table border space must be non-negative.");
+        }
+
+        if (!IsHexColor(border.Color))
+        {
+            result.Add("table.border.color.invalid", $"{path}.color", "Table border color must be a six-digit RGB hex value.");
+        }
+    }
+
+    private static bool IsHexColor(string? value)
+    {
+        return value is { Length: 6 } && value.All(Uri.IsHexDigit);
+    }
+
+    private static void ValidateNonNegative(double? value, string path, string code, string message, ThesisInputValidationResult result)
+    {
+        if (value is < 0)
+        {
+            result.Add(code, path, message);
         }
     }
 

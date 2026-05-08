@@ -63,7 +63,7 @@ OMML is safety-checked before rendering. Unknown namespaces, `altChunk`, relatio
 - row `isHeader`, `cantSplit`, and `heightPt`;
 - cell `gridSpan`, `verticalMerge`, `width`, `alignment`, `verticalAlignment`, `shading`, `borders`, `cellMargins`, `font`, and `paragraph`.
 
-Semantic validation checks logical column counts, vertical merge chains, header row ordering, gridSpan bounds, duplicate caption bookmarks, and table reference targets.
+Semantic validation checks logical column counts, vertical merge chains, vertical merge span consistency, header row ordering, gridSpan bounds, table widths, cell margins, border overrides, duplicate caption bookmarks, and table reference targets.
 
 ## Inline Nodes
 
@@ -83,7 +83,7 @@ Inline nodes use `type`:
 
 See `examples/simple-thesis/document.json`.
 
-Formal validation is defined in `schemas/thesis-document.schema.json`. JSON Schema handles shape and scalar rules; `ThesisInputValidator` handles semantic rules such as duplicate ids, dangling references, bibliography keys, heading level jumps, image source existence, and note id uniqueness.
+Formal validation is defined in `schemas/thesis-document.schema.json`. JSON Schema handles shape and scalar rules; `ThesisInputValidator` handles semantic rules such as duplicate ids, dangling references, bibliography keys, heading level jumps, empty paragraph warnings, image source existence, inline base64 image safety, note id/content validity, and format values that would produce invalid layout.
 For `1.1.0` it also validates equation source consistency, OMML safety, equation numbering formats, table grids, vertical merges, and advanced table references.
 
 ## Template Interaction

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
@@ -16,11 +17,14 @@ public sealed class TemplateVariableResolver
         List<TemplateIssue> warnings)
     {
         var resolved = new List<TemplateVariableResolution>();
+        var declaredVariables = package.Variables.Select(v => v.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToHashSet(StringComparer.Ordinal);
         foreach (var variable in package.Variables.OrderBy(v => v.DisplayOrder).ThenBy(v => v.Name, StringComparer.Ordinal))
         {
             var fullVariableKey = $"variables.{variable.Name}";
             string? value = null;
             var source = "missing";
+
+            ValidateDefaultValue(variable, errors);
 
             if (TryGetCliValue(cliVariables, fullVariableKey, out value) || TryGetCliValue(cliVariables, variable.Name, out value))
             {
@@ -78,6 +82,20 @@ public sealed class TemplateVariableResolver
             });
         }
 
+        foreach (var key in cliVariables.Keys.Order(StringComparer.Ordinal))
+        {
+            var variableName = key.StartsWith("variables.", StringComparison.Ordinal) ? key["variables.".Length..] : key;
+            if (!declaredVariables.Contains(variableName))
+            {
+                warnings.Add(new TemplateIssue
+                {
+                    Code = "template.variable.unknownSupplied",
+                    Path = $"$.variables.{variableName}",
+                    Message = $"Supplied variable '{key}' is not declared by the template."
+                });
+            }
+        }
+
         return resolved;
     }
 
@@ -125,6 +143,34 @@ public sealed class TemplateVariableResolver
 
         value = null;
         return false;
+    }
+
+    private static void ValidateDefaultValue(TemplateVariable variable, List<TemplateIssue> errors)
+    {
+        if (variable.DefaultValue is null)
+        {
+            return;
+        }
+
+        var valid = variable.Type switch
+        {
+            TemplateVariableType.Number => variable.DefaultValue is JsonValue number && number.TryGetValue<double>(out _),
+            TemplateVariableType.Boolean => variable.DefaultValue is JsonValue boolean && boolean.TryGetValue<bool>(out _),
+            TemplateVariableType.Enum => variable.DefaultValue is JsonValue enumValue
+                && enumValue.TryGetValue<string>(out var text)
+                && (variable.EnumValues.Count == 0 || variable.EnumValues.Contains(text, StringComparer.Ordinal)),
+            _ => variable.DefaultValue is JsonValue stringValue && stringValue.TryGetValue<string>(out _)
+        };
+
+        if (!valid)
+        {
+            errors.Add(new TemplateIssue
+            {
+                Code = "template.variable.defaultTypeMismatch",
+                Path = $"$.variables.{variable.Name}.defaultValue",
+                Message = $"Default value for variable '{variable.Name}' does not match type '{variable.Type}'."
+            });
+        }
     }
 
     private static bool TryResolveDocumentPath(ThesisDocument document, string path, out string? value)

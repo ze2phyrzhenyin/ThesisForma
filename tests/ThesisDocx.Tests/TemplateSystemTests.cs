@@ -350,6 +350,32 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void TemplateVariableResolver_ShouldWarnForUnknownSuppliedVariable()
+    {
+        var package = new TemplatePackage
+        {
+            Variables = [new TemplateVariable { Name = "known", Label = "Known", DefaultValue = JsonValue.Create("default") }]
+        };
+
+        var result = ResolveVariables(package, new Dictionary<string, string> { ["variables.unknown"] = "value" });
+
+        Assert.Contains(result.Warnings, warning => warning.Code == "template.variable.unknownSupplied");
+    }
+
+    [Fact]
+    public void TemplateVariableResolver_ShouldRejectDefaultTypeMismatch()
+    {
+        var package = new TemplatePackage
+        {
+            Variables = [new TemplateVariable { Name = "count", Label = "Count", Type = TemplateVariableType.Number, DefaultValue = JsonValue.Create("not-a-number") }]
+        };
+
+        var result = ResolveVariables(package, new Dictionary<string, string>());
+
+        Assert.Contains(result.Errors, error => error.Code == "template.variable.defaultTypeMismatch");
+    }
+
+    [Fact]
     public void TemplateVariableResolver_ShouldEscapeXmlSensitiveText()
     {
         var package = new TemplatePackage

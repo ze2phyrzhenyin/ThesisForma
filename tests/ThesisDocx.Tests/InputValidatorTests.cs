@@ -205,6 +205,57 @@ public sealed class InputValidatorTests
     }
 
     [Fact]
+    public void InputValidator_ShouldRejectVerticalMergeSpanMismatch()
+    {
+        var (document, format, baseDir) = LoadFull();
+        var table = FindFirstTable(document);
+        table.Rows[1].Cells[0].GridSpan = 2;
+        table.Rows[1].Cells[0].VerticalMerge = VerticalMergeKind.Restart;
+        table.Rows[1].Cells.RemoveAt(1);
+        table.Rows[2].Cells[0].GridSpan = 1;
+        table.Rows[2].Cells[0].VerticalMerge = VerticalMergeKind.Continue;
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "table.verticalMerge.spanMismatch");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldRejectInvalidTableSizingAndBorders()
+    {
+        var (document, format, baseDir) = LoadFull();
+        var table = FindFirstTable(document);
+        table.Width = new TableWidthSpec { Type = TableWidthKind.Percent, Value = 120 };
+        table.CellMargins = new TableCellMarginsSpec { LeftCm = -0.1 };
+        table.Borders = new TableBordersSpec { Top = new BorderSpec { Color = "bad", Size = -1 } };
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "table.width.percent.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "table.cellMargin.negative");
+        Assert.Contains(result.Errors, error => error.Code == "table.border.color.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "table.border.size.negative");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldWarnForFixedLayoutWithoutWidths()
+    {
+        var (document, format, baseDir) = LoadFull();
+        var table = FindFirstTable(document);
+        table.Layout = TableLayoutKind.Fixed;
+        table.Width = null;
+        foreach (var cell in table.Rows.SelectMany(row => row.Cells))
+        {
+            cell.Width = null;
+            cell.WidthCm = null;
+        }
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Warnings, warning => warning.Code == "table.fixedLayout.widthsMissing");
+    }
+
+    [Fact]
     public void InputValidator_ShouldRejectEmptyInlineNotes()
     {
         var (document, format, baseDir) = LoadFull();
@@ -214,6 +265,52 @@ public sealed class InputValidatorTests
         var result = new ThesisInputValidator().Validate(document, format, baseDir);
 
         Assert.Contains(result.Errors, error => error.Code == "note.empty");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldWarnForEmptyParagraph()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        document.Sections[0].Blocks.Add(new ParagraphBlock());
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Warnings, warning => warning.Code == "paragraph.empty");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldRejectInvalidInlineImageBase64()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        document.Sections[0].Blocks.Add(new FigureBlock
+        {
+            Caption = "bad image",
+            ImageContentType = "image/png",
+            ImageDataBase64 = "not-base64"
+        });
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "image.base64.invalid");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldRejectInvalidFormatValues()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        format.PageSetup.LeftMarginCm = -1;
+        format.DefaultFont.SizePt = 0;
+        format.BodyParagraph.LineSpacingMultiple = 0;
+        format.BodyParagraph.SpaceAfterPt = -1;
+        format.Headings[1].Level = 7;
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "format.margin.negative");
+        Assert.Contains(result.Errors, error => error.Code == "format.fontSize.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "format.lineSpacing.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "format.spacing.negative");
+        Assert.Contains(result.Errors, error => error.Code == "format.heading.level.invalid");
     }
 
     [Fact]
