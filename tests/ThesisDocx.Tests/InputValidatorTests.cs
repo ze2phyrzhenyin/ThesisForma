@@ -295,6 +295,25 @@ public sealed class InputValidatorTests
     }
 
     [Fact]
+    public void InputValidator_ShouldRejectOversizedInlineImageBase64WithoutEchoingPayload()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        var payload = new string('A', 12_000_000);
+        document.Sections[0].Blocks.Add(new FigureBlock
+        {
+            Caption = "too large image",
+            ImageContentType = "image/png",
+            ImageDataBase64 = payload
+        });
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+        var error = Assert.Single(result.Errors, error => error.Code == "image.base64.tooLarge");
+
+        Assert.DoesNotContain(payload[..1024], error.Message);
+        Assert.True(error.Message.Length < 200);
+    }
+
+    [Fact]
     public void InputValidator_ShouldRejectInvalidFormatValues()
     {
         var (document, format, baseDir) = LoadSimple();
