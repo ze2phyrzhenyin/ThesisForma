@@ -166,7 +166,7 @@ public sealed class TableRenderer
 
         if (!string.IsNullOrWhiteSpace(cell.Shading))
         {
-            cellProperties.AppendChild(new W.Shading { Fill = cell.Shading });
+            cellProperties.AppendChild(new W.Shading { Val = W.ShadingPatternValues.Clear, Fill = cell.Shading });
         }
 
         var margins = cell.CellMargins ?? null;

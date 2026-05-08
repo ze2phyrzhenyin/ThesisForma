@@ -22,6 +22,16 @@ internal static class TestRenderHelper
         return LocateRepoRoot();
     }
 
+    public static RenderedDocx RenderDocument(ThesisDocument document, ThesisFormatSpec format, DocxRenderContext? context = null)
+    {
+        var root = LocateRepoRoot();
+        var outputDirectory = Path.Combine(Path.GetTempPath(), "ThesisDocx.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "custom.docx");
+        new DocxRenderer().Render(document, format, outputPath, context);
+        return new RenderedDocx(root, outputPath, format);
+    }
+
     private static RenderedDocx Render(string documentFixtureName, string formatFixtureName)
     {
         var root = LocateRepoRoot();
