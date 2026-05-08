@@ -76,6 +76,7 @@ Generated files belong under explicit output directories such as `/tmp`, ignored
 
 For successful commands, CLI output keeps the historical report shape:
 
+- `render --json` writes `RenderResult` to stdout and keeps the DOCX path in `artifact`.
 - `template gate` writes `TemplateGateReport`.
 - `template diagnose` writes `DiagnosticReport`.
 - `template authoring-report` writes `TemplateAuthoringReport`.

@@ -127,6 +127,61 @@ public sealed class CliJsonContractTests
     }
 
     [Fact]
+    public void CliJson_Render_ShouldReturnArtifactMetadata()
+    {
+        var root = RepoRoot();
+        var temp = NewTempDirectory();
+        var output = Path.Combine(temp, "rendered.docx");
+
+        var result = CliRunner.Run(
+            root,
+            "render",
+            "--document", Path.Combine(root, "examples", "simple-thesis", "document.json"),
+            "--format", Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json"),
+            "--out", output,
+            "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+        Assert.True(File.Exists(output));
+        var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
+        Assert.True(json["success"]!.GetValue<bool>());
+        Assert.Equal("rendered.docx", json["artifact"]!["path"]!.GetValue<string>());
+        AssertVersionReport(json, expectedKinds: ["thesisDocument", "thesisFormatSpec"]);
+    }
+
+    [Fact]
+    public void CliJson_RenderInvalidInput_ShouldReturnDiagnosticsWithoutArtifact()
+    {
+        var root = RepoRoot();
+        var temp = NewTempDirectory();
+        var documentPath = Path.Combine(temp, "future-document.json");
+        var output = Path.Combine(temp, "should-not-render.docx");
+        File.WriteAllText(
+            documentPath,
+            File.ReadAllText(Path.Combine(root, "examples", "simple-thesis", "document.json"))
+                .Replace("\"schemaVersion\": \"1.0.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
+
+        var result = CliRunner.Run(
+            root,
+            "render",
+            "--document", documentPath,
+            "--format", Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json"),
+            "--out", output,
+            "--json");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+        Assert.False(File.Exists(output));
+        var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
+        Assert.False(json["success"]!.GetValue<bool>());
+        AssertDiagnosticContract(RequiredDiagnostic(json, "thesis.schemaVersion.unsupported"), "error", "schema");
+        AssertVersionReport(json, expectedKinds: ["thesisDocument", "thesisFormatSpec"]);
+    }
+
+    [Fact]
     public void CliJson_TemplateGateUnsupportedVersion_ShouldExposeVersionReport()
     {
         var root = RepoRoot();

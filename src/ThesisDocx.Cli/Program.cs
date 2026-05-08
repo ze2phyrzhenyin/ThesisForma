@@ -121,6 +121,12 @@ internal static class ThesisDocxCli
             RenderContext = renderContext
         });
 
+        if (options.ContainsKey("json"))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(render, ThesisJson.Options));
+            return render.Success ? 0 : 2;
+        }
+
         if (!render.Success)
         {
             WriteDiagnostics(render.Diagnostics);
@@ -1705,7 +1711,7 @@ internal static class ThesisDocxCli
     private static void PrintHelp()
     {
         Console.WriteLine("""
-        thesis-docx render --document examples/simple-thesis/document.json --format examples/format-specs/basic-cn-thesis.json --out out/simple.docx
+        thesis-docx render --document examples/simple-thesis/document.json --format examples/format-specs/basic-cn-thesis.json --out out/simple.docx --json
         thesis-docx validate-input --document examples/simple-thesis/document.json --format examples/format-specs/basic-cn-thesis.json
         thesis-docx validate --docx out/simple.docx --format examples/format-specs/basic-cn-thesis.json
         thesis-docx inspect --docx out/simple.docx --out out/simple.inspect.json
