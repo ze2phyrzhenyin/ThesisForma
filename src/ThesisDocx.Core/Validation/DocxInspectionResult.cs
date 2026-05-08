@@ -2,6 +2,8 @@ namespace ThesisDocx.Core.Validation;
 
 public sealed class DocxInspectionResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public List<string> Entries { get; set; } = [];
 
     public List<string> PackageParts { get; set; } = [];

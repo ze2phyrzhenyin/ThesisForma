@@ -5,6 +5,8 @@ namespace ThesisDocx.Core.Ci;
 
 public sealed class CiQualityReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string Status { get; set; } = "pass";
 
     public List<CiQualityCheck> Checks { get; set; } = [];

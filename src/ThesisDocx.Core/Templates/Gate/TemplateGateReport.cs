@@ -5,6 +5,8 @@ using ThesisDocx.Core.Versioning;
 
 public sealed class TemplateGateReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string TemplateId { get; set; } = string.Empty;
 
     public TemplateGateStatus Status { get; set; }

@@ -5,6 +5,8 @@ using ThesisDocx.Core.Versioning;
 
 public sealed class ThesisInputValidationResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string Source { get; set; } = "ThesisInputValidator";
 
     public bool IsValid => Errors.Count == 0;

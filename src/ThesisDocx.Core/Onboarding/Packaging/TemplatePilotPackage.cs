@@ -330,6 +330,7 @@ public sealed class TemplatePilotPackageValidator
 
 public sealed class TemplatePilotPackageBuildResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public bool IsValid { get; set; }
     public string PackagePath { get; set; } = string.Empty;
     public List<string> Errors { get; set; } = [];
@@ -339,6 +340,7 @@ public sealed class TemplatePilotPackageBuildResult
 
 public sealed class TemplatePilotPackageValidationResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public string PackagePath { get; set; } = string.Empty;
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = [];

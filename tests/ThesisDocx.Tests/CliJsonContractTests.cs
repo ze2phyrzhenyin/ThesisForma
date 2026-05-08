@@ -19,6 +19,7 @@ public sealed class CliJsonContractTests
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
         var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
         var diagnostic = RequiredDiagnostic(json, "table.gridSpan.outOfRange");
         AssertDiagnosticContract(diagnostic, expectedSeverity: "error", expectedCategory: "semantic");
         Assert.Equal("$.sections[0].blocks[0].rows[0].cells[0].gridSpan", diagnostic["path"]!.GetValue<string>());
@@ -38,6 +39,7 @@ public sealed class CliJsonContractTests
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
         var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
         var diagnostic = RequiredDiagnostic(json, "template.variable.missing");
         AssertDiagnosticContract(diagnostic, expectedSeverity: "error", expectedCategory: "template");
         Assert.Equal("Define the referenced variable or remove the reference.", diagnostic["fixHint"]!.GetValue<string>());
@@ -65,6 +67,7 @@ public sealed class CliJsonContractTests
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
         var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
         var versionReport = AssertVersionReport(json, expectedKinds: ["thesisDocument", "thesisFormatSpec"]);
         Assert.False(versionReport["isValid"]!.GetValue<bool>());
         var check = RequiredVersionCheck(versionReport, "thesisDocument");
@@ -86,7 +89,8 @@ public sealed class CliJsonContractTests
         {
             ("validate", () => CliRunner.Run(root, "validate", "--docx", rendered.DocxPath, "--format", Path.Combine(root, "examples", "format-specs", "basic-cn-thesis.json"), "--json"), result => ParseObject(result.StandardOutput), 0),
             ("template inspect", () => CliRunner.Run(root, "template", "inspect", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering")), result => ParseObject(result.StandardOutput), 0),
-            ("template resolve", () => CliRunner.Run(root, "template", "resolve", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering")), result => ParseObject(result.StandardOutput), 0),
+            ("template resolve", () => CliRunner.Run(root, "template", "resolve", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering"), "--json"), result => ParseObject(result.StandardOutput), 0),
+            ("inspect", () => CliRunner.Run(root, "inspect", "--docx", rendered.DocxPath), result => ParseObject(result.StandardOutput), 0),
             ("template coverage", () => CliRunner.Run(root, "template", "coverage", "--template", Path.Combine(root, "examples", "templates", "example-university-engineering")), result => ParseObject(result.StandardOutput), 0),
             ("requirements validate", () => CliRunner.Run(root, "requirements", "validate", "--requirements", Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json"), "--json"), result => ParseObject(result.StandardOutput), 0)
         };
@@ -96,7 +100,12 @@ public sealed class CliJsonContractTests
             var result = command.Run();
             Assert.Equal(command.ExpectedExit, result.ExitCode);
             Assert.True(string.IsNullOrWhiteSpace(result.StandardError), $"{command.Name}: {result.StandardError}");
-            Assert.NotNull(command.ReadJson(result));
+            var json = command.ReadJson(result);
+            Assert.NotNull(json);
+            if (command.Name is "validate" or "template resolve" or "inspect" or "template coverage" or "requirements validate")
+            {
+                AssertReportVersion(json);
+            }
         }
 
         AssertReportFile(root, "requirements report", Path.Combine(temp, "requirements-report.json"),
@@ -139,6 +148,7 @@ public sealed class CliJsonContractTests
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
         var json = ParseObject(File.ReadAllText(outputPath));
+        AssertReportVersion(json);
         var versionReport = AssertVersionReport(json, expectedKinds: ["thesisDocument", "templatePackage", "thesisFormatSpec"]);
         Assert.False(versionReport["isValid"]!.GetValue<bool>());
         Assert.Equal("future", RequiredVersionCheck(versionReport, "thesisDocument")["direction"]!.GetValue<string>());
@@ -152,9 +162,11 @@ public sealed class CliJsonContractTests
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), $"{name}: {result.StandardError}");
         Assert.True(File.Exists(outputPath), $"{name} did not write {outputPath}");
         var json = ParseObject(File.ReadAllText(outputPath));
+        AssertReportVersion(json);
         Assert.DoesNotContain(EnumerateSeverityValues(json), severity => severity == "breaking");
         if (expectedVersionKinds is not null)
         {
+            AssertReportVersion(json);
             AssertVersionReport(json, expectedVersionKinds);
         }
 
@@ -174,6 +186,11 @@ public sealed class CliJsonContractTests
         return diagnostics
             .OfType<JsonObject>()
             .Single(diagnostic => diagnostic["code"]?.GetValue<string>() == code);
+    }
+
+    private static void AssertReportVersion(JsonObject json)
+    {
+        Assert.Equal("1.0.0", json["reportVersion"]?.GetValue<string>());
     }
 
     private static void AssertDiagnosticContract(JsonObject diagnostic, string expectedSeverity, string expectedCategory)

@@ -2,6 +2,8 @@ namespace ThesisDocx.Core.Diff.Layout;
 
 public sealed class DocxLayoutSignature
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string SourcePath { get; set; } = string.Empty;
 
     public List<LayoutSectionSignature> Sections { get; set; } = [];
@@ -157,6 +159,8 @@ public sealed class LayoutBibliographySignature
 
 public sealed class LayoutSignatureCompareResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public double SimilarityScore { get; set; }
 
     public bool MeetsThreshold { get; set; }

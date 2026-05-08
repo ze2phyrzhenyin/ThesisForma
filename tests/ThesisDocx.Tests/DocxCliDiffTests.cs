@@ -20,7 +20,9 @@ public sealed class DocxCliDiffTests
         var result = CliRunner.Run(RepoRoot(), "docx", "diff", "--base", docx, "--target", docx, "--json");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("\"isEqual\": true", result.StandardOutput);
+        var json = JsonNode.Parse(result.StandardOutput)!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.True(json["isEqual"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -33,6 +35,7 @@ public sealed class DocxCliDiffTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.True(json["isEqual"]!.GetValue<bool>());
     }
 
@@ -45,6 +48,7 @@ public sealed class DocxCliDiffTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.True(json["sections"]!.AsArray().Count >= 3);
     }
 
@@ -60,6 +64,7 @@ public sealed class DocxCliDiffTests
         var json = JsonNode.Parse(File.ReadAllText(compare))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.True(json["meetsThreshold"]!.GetValue<bool>());
         Assert.Equal(1.0, json["similarityScore"]!.GetValue<double>());
     }
@@ -192,7 +197,9 @@ public sealed class DocxCliDiffTests
 
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
-        return JsonNode.Parse(result.StandardOutput) ?? throw new InvalidOperationException("DOCX diff JSON output was empty.");
+        var json = JsonNode.Parse(result.StandardOutput) ?? throw new InvalidOperationException("DOCX diff JSON output was empty.");
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        return json;
     }
 
     private static JsonNode RunLayoutCompareJson(string source, string changed)
@@ -207,7 +214,9 @@ public sealed class DocxCliDiffTests
 
         Assert.Equal(2, result.ExitCode);
         Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
-        return JsonNode.Parse(result.StandardOutput) ?? throw new InvalidOperationException("Layout compare JSON output was empty.");
+        var json = JsonNode.Parse(result.StandardOutput) ?? throw new InvalidOperationException("Layout compare JSON output was empty.");
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        return json;
     }
 
     private static void AssertJsonChange(JsonNode json, string arrayName, string category, string pathFragment, string severity)

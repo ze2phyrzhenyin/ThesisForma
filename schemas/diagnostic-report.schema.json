@@ -4,8 +4,9 @@
   "title": "DiagnosticReport",
   "type": "object",
   "additionalProperties": true,
-  "required": ["status", "summary", "issues", "groupedIssues", "topRecommendedActions", "relatedArtifacts"],
+  "required": ["reportVersion", "status", "summary", "issues", "groupedIssues", "topRecommendedActions", "relatedArtifacts"],
   "properties": {
+    "reportVersion": { "type": "string", "enum": ["1.0.0"] },
     "status": { "enum": ["pass", "passWithWarnings", "fail"] },
     "summary": {
       "type": "object",

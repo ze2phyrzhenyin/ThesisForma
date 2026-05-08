@@ -4,6 +4,8 @@ using ThesisDocx.Core.Diagnostics;
 
 public sealed class RequirementCaptureValidationResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public bool IsValid => Errors.Count == 0;
 
     public List<RequirementCaptureValidationIssue> Errors { get; set; } = [];

@@ -4,6 +4,8 @@ using ThesisDocx.Core.Versioning;
 
 public sealed class DiagnosticReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string Status { get; set; } = "pass";
 
     public DiagnosticReportSummary Summary { get; set; } = new();

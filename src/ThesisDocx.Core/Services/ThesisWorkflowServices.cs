@@ -1026,6 +1026,7 @@ internal static class ServiceDiagnostics
 
 public abstract class ServiceResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public bool Success { get; set; }
     public int ErrorCount { get; set; }
     public int WarningCount { get; set; }

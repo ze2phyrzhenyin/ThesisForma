@@ -4,6 +4,8 @@ using ThesisDocx.Core.Diagnostics;
 
 public sealed class TemplateRegressionResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string SuiteName { get; set; } = string.Empty;
 
     public bool Passed => Cases.All(c => c.Passed);

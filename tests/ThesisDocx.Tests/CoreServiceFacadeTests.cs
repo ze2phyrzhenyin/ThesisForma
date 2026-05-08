@@ -23,6 +23,7 @@ public sealed class CoreServiceFacadeTests
         });
 
         Assert.True(result.Success);
+        Assert.Equal("1.0.0", result.ReportVersion);
         Assert.True(result.IsValid);
         Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Severity == "error");
         Assert.Contains(result.VersionReport.Checks, check => check.Kind == "thesisDocument");
@@ -82,6 +83,7 @@ public sealed class CoreServiceFacadeTests
         });
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("1.0.0", result.ReportVersion);
         Assert.NotNull(result.Artifact);
         Assert.Equal("service-render.docx", result.Artifact!.Path);
         Assert.True(result.Artifact.ByteSize > 0);
@@ -124,6 +126,7 @@ public sealed class CoreServiceFacadeTests
         });
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("1.0.0", result.ReportVersion);
         Assert.Equal("example-university-engineering", result.TemplateId);
         Assert.True(result.PageTemplateCount > 0);
         Assert.NotNull(result.Resolution?.FormatSpec);
@@ -190,6 +193,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
+        Assert.Equal("1.0.0", result.Report!.ReportVersion);
         Assert.Equal("example-university-engineering", result.Report!.TemplateId);
         Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
         Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "templatePackage");
@@ -212,6 +216,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
+        Assert.Equal("1.0.0", result.Report!.ReportVersion);
         Assert.Equal("pass", result.Report!.Status);
         Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
         Assert.DoesNotContain(result.Report.Diagnostics, diagnostic => diagnostic.Code == "thesis.schemaVersion.unsupported");
@@ -234,6 +239,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
+        Assert.Equal("1.0.0", result.Report!.ReportVersion);
         Assert.Equal("ready", result.Report!.PublishReadiness);
         Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "templatePackage");
     }
@@ -364,6 +370,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Report);
+        Assert.Equal("1.0.0", result.Report!.ReportVersion);
         Assert.Equal("pass", result.Report!.Status);
         Assert.Contains("gateReport", result.Report.Artifacts.Keys);
         Assert.Contains(result.Report.VersionReport.Checks, check => check.Kind == "thesisDocument");
@@ -406,6 +413,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Result);
+        Assert.Equal("1.0.0", result.Result!.ReportVersion);
         Assert.True(result.Result!.Cases.Count > 0);
     }
 
@@ -425,6 +433,7 @@ public sealed class CoreServiceFacadeTests
 
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Scan);
+        Assert.Equal("1.0.0", result.Scan!.ReportVersion);
         Assert.True(result.Scan!.SuppressedWarningCount >= 0);
     }
 
@@ -442,6 +451,7 @@ public sealed class CoreServiceFacadeTests
         Assert.True(build.IsValid, string.Join(Environment.NewLine, build.Errors));
         Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.NotNull(result.Validation);
+        Assert.Equal("1.0.0", result.Validation!.ReportVersion);
         Assert.True(result.Validation!.IsValid);
     }
 

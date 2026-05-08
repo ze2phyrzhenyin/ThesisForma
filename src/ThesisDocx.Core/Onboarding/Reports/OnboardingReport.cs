@@ -2,11 +2,13 @@ using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Privacy;
 using ThesisDocx.Core.Templates.Authoring;
 using ThesisDocx.Core.Templates.Gate;
+using ThesisDocx.Core.Versioning;
 
 namespace ThesisDocx.Core.Onboarding.Reports;
 
 public sealed class OnboardingReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public string WorkspaceId { get; set; } = string.Empty;
     public Dictionary<string, object> InstitutionSummary { get; set; } = new(StringComparer.Ordinal);
     public string Phase { get; set; } = string.Empty;
@@ -24,6 +26,7 @@ public sealed class OnboardingReport
     public List<string> RecommendedNextActions { get; set; } = [];
     public List<string> ArtifactPaths { get; set; } = [];
     public List<OnboardingChecklistItem> Checklist { get; set; } = [];
+    public SchemaVersionReport VersionReport { get; set; } = SchemaVersionReport.Empty();
 }
 
 public sealed class OnboardingReportIssue
@@ -100,6 +103,20 @@ public sealed class OnboardingReportBuilder
             DiagnoseStatus = diagnostic?.Status ?? "notRun",
             AuthoringStatus = authoring?.PublishReadiness ?? "notRun"
         };
+        if (gate is not null)
+        {
+            report.VersionReport.MergeFrom(gate.VersionReport);
+        }
+
+        if (diagnostic is not null)
+        {
+            report.VersionReport.MergeFrom(diagnostic.VersionReport);
+        }
+
+        if (authoring is not null)
+        {
+            report.VersionReport.MergeFrom(authoring.VersionReport);
+        }
 
         report.BlockingIssues.AddRange(validation.Errors.Select(e => Issue(e.Code, DiagnosticSeverity.Error, e.Message, e.Path)));
         report.Warnings.AddRange(validation.Warnings.Select(e => Issue(e.Code, DiagnosticSeverity.Warning, e.Message, e.Path)));

@@ -4,6 +4,8 @@ namespace ThesisDocx.Core.Testing.NegativeFixtures;
 
 public sealed class NegativeFixtureRunResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string SuiteId { get; set; } = string.Empty;
 
     public bool Passed => Cases.All(fixture => fixture.Passed);

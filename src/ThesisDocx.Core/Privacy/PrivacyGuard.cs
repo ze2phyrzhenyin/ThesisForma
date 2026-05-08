@@ -330,6 +330,7 @@ public sealed class PrivacyGuardOptions
 
 public sealed class PrivacyGuardResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
     public string RootPath { get; set; } = string.Empty;
     public bool IsValid { get; set; }
     public int BreakingCount { get; set; }

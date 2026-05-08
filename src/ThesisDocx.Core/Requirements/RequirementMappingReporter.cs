@@ -104,6 +104,8 @@ public sealed class RequirementMappingReporter
 
 public sealed class RequirementMappingReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public bool IsValid { get; set; }
 
     public List<RequirementCaptureValidationIssue> Errors { get; set; } = [];

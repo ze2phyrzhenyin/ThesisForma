@@ -5,6 +5,8 @@ namespace ThesisDocx.Core.Templates.Authoring;
 
 public sealed class TemplateAuthoringReport
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string TemplateId { get; set; } = string.Empty;
 
     public string TemplateVersion { get; set; } = string.Empty;

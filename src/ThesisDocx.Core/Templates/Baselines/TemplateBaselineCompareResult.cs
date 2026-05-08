@@ -2,6 +2,8 @@ namespace ThesisDocx.Core.Templates.Baselines;
 
 public sealed class TemplateBaselineCompareResult
 {
+    public string ReportVersion { get; set; } = "1.0.0";
+
     public string SuiteId { get; set; } = string.Empty;
 
     public bool Passed => Cases.All(c => c.Passed);

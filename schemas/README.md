@@ -28,7 +28,7 @@ The project uses the `NJsonSchema` NuGet package for schema validation. JSON Sch
 
 Backend schema validation attaches a `versionReport` for `ThesisDocument`, `ThesisFormatSpec`, and `TemplatePackage` inputs. CLI JSON output and service facade results use the same report shape so consumers can inspect supported, current, old, future, missing, malformed, and unsupported version states without parsing message text. The contract fixes `checks[].direction` to `current`, `supported`, `old`, `future`, `missing`, `unsupported`, or `unknown`; unsupported versions also appear in `versionReport.diagnostics[]`.
 
-Template quality reports (`template gate`, `template diagnose`, `template authoring-report`, and `ci quality-report`) preserve their existing root report shape and include `versionReport` as an additive machine-readable field. Consumers should treat `schemas/version-report.schema.json` as the canonical nested contract.
+Machine-readable reports now carry `reportVersion: "1.0.0"` at the root when they are produced by Core facade/report contracts. Template quality reports (`template gate`, `template diagnose`, `template authoring-report`, and `ci quality-report`) preserve their existing root report shape and include `versionReport` as an additive machine-readable field. Consumers should treat `schemas/version-report.schema.json` as the canonical nested contract.
 
 The document schema uses `type` discriminators for block and inline nodes. Equation blocks constrain `sourceType` to `omml`, `latex`, or `plain`; advanced table fields constrain width type, border style, vertical merge values, and basic numeric ranges.
 

@@ -24,6 +24,7 @@ CLI commands should parse arguments, call a facade, write the existing report sh
 
 Facade results share these fields:
 
+- `reportVersion`: stable machine-readable report contract version. Current value is `1.0.0`.
 - `success`: operation-level success.
 - `errorCount`: normalized error count.
 - `warningCount`: normalized warning count.
@@ -39,7 +40,7 @@ The same version report is now carried through the long-running template quality
 - `template authoring-report`
 - `ci quality-report`
 
-These reports include checks for `thesisDocument`, `templatePackage`, and the resolved `thesisFormatSpec` when all inputs are available. This is additive: the historical report root object is preserved, and `versionReport` is a stable nested contract for machine consumers.
+These reports include `reportVersion: "1.0.0"` and checks for `thesisDocument`, `templatePackage`, and the resolved `thesisFormatSpec` when all inputs are available. This is additive: the historical report root object is preserved, and `versionReport` is a stable nested contract for machine consumers.
 
 Specific facades may also return:
 

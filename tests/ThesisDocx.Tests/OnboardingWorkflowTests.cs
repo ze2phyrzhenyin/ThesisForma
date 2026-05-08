@@ -196,7 +196,9 @@ public sealed class OnboardingWorkflowTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.Equal("pass", json["status"]!.GetValue<string>());
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "templatePackage");
     }
 
     [Fact]
@@ -210,7 +212,10 @@ public sealed class OnboardingWorkflowTests
         var result = CliRunner.Run(RepoRoot(), "onboarding", "diagnose", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("pass", JsonNode.Parse(File.ReadAllText(jsonPath))!["status"]!.GetValue<string>());
+        var json = JsonNode.Parse(File.ReadAllText(jsonPath))!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Equal("pass", json["status"]!.GetValue<string>());
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "thesisDocument");
         Assert.Contains("Diagnostic", File.ReadAllText(markdownPath));
     }
 
@@ -225,7 +230,10 @@ public sealed class OnboardingWorkflowTests
         var result = CliRunner.Run(RepoRoot(), "onboarding", "authoring-report", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("ready", JsonNode.Parse(File.ReadAllText(jsonPath))!["publishReadiness"]!.GetValue<string>());
+        var json = JsonNode.Parse(File.ReadAllText(jsonPath))!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Equal("ready", json["publishReadiness"]!.GetValue<string>());
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "thesisFormatSpec");
         Assert.Contains("merge decision", File.ReadAllText(markdownPath), StringComparison.OrdinalIgnoreCase);
     }
 
@@ -240,7 +248,10 @@ public sealed class OnboardingWorkflowTests
         var result = CliRunner.Run(RepoRoot(), "onboarding", "summary", "--workspace", workspace, "--out", jsonPath, "--markdown", markdownPath);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("readyForTemplateLibrary", JsonNode.Parse(File.ReadAllText(jsonPath))!["releaseReadiness"]!.GetValue<string>());
+        var json = JsonNode.Parse(File.ReadAllText(jsonPath))!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Equal("readyForTemplateLibrary", json["releaseReadiness"]!.GetValue<string>());
+        Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "templatePackage");
         Assert.Contains("Onboarding Summary", File.ReadAllText(markdownPath));
     }
 
@@ -264,9 +275,11 @@ public sealed class OnboardingWorkflowTests
         var package = BuildPackage();
 
         var result = CliRunner.Run(RepoRoot(), "onboarding", "package-validate", "--package", package);
+        var json = JsonNode.Parse(result.StandardOutput)!;
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("\"isValid\": true", result.StandardOutput);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.True(json["isValid"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -503,6 +516,7 @@ public sealed class OnboardingWorkflowTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.True(json["isValid"]!.GetValue<bool>());
     }
 
@@ -531,6 +545,7 @@ public sealed class OnboardingWorkflowTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.Equal(0, result.ExitCode);
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
         Assert.Equal(expectedSuppressed, json["suppressedWarningCount"]!.GetValue<int>());
         Assert.DoesNotContain(json["findings"]!.AsArray(), finding => finding?["code"]?.GetValue<string>() == "privacy.generatedArtifact.forbidden");
     }
@@ -541,8 +556,10 @@ public sealed class OnboardingWorkflowTests
         var report = new OnboardingReportBuilder().Build(new OnboardingReportOptions { WorkspacePath = CopyExampleWorkspace() });
 
         Assert.Equal("example-engineering-pilot", report.WorkspaceId);
+        Assert.Equal("1.0.0", report.ReportVersion);
         Assert.Equal("pass", report.PrivacyStatus);
         Assert.NotEmpty(report.Checklist);
+        Assert.Contains(report.VersionReport.Checks, check => check.Kind == "templatePackage");
     }
 
     [Fact]
