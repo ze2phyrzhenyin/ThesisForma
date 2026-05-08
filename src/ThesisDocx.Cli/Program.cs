@@ -1264,13 +1264,20 @@ internal static class ThesisDocxCli
     private static int OnboardingRunGate(Dictionary<string, string> options)
     {
         var workspace = OnboardingWorkspaceInspector.Load(Required(options, "workspace"));
-        var report = new TemplateGateService().Run(new TemplateGateOptions
+        var result = new TemplateWorkflowService().Gate(new TemplateGateRequest
         {
             TemplatePath = workspace.TemplateDirectory,
             DocumentPath = workspace.DocumentPath,
             OutputDirectory = Path.Combine(workspace.ArtifactsDirectory, "gate"),
             CoverageThreshold = workspace.Manifest.Quality.CoverageThreshold
         });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(Required(options, "out"), result);
+            return 2;
+        }
+
         WriteJsonOutput(Required(options, "out"), report);
         return report.Status == TemplateGateStatus.Fail ? 2 : 0;
     }
@@ -1278,17 +1285,21 @@ internal static class ThesisDocxCli
     private static int OnboardingDiagnose(Dictionary<string, string> options)
     {
         var workspace = OnboardingWorkspaceInspector.Load(Required(options, "workspace"));
-        var gate = new TemplateGateService().Run(new TemplateGateOptions
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
         {
             TemplatePath = workspace.TemplateDirectory,
             DocumentPath = workspace.DocumentPath,
-            OutputDirectory = Path.Combine(workspace.ArtifactsDirectory, "diagnose-gate"),
+            RequirementsPath = File.Exists(workspace.RequirementsFile) ? workspace.RequirementsFile : null,
+            OutputDirectory = Path.Combine(workspace.ArtifactsDirectory, "diagnose"),
             CoverageThreshold = workspace.Manifest.Quality.CoverageThreshold
         });
-        var requirements = File.Exists(workspace.RequirementsFile)
-            ? new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(workspace.RequirementsFile), workspace.TemplateDirectory)
-            : null;
-        var report = new DiagnosticReportBuilder().Build(gate, requirements: requirements, artifacts: gate.Artifacts);
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(Required(options, "out"), result);
+            return 2;
+        }
+
         WriteJsonOutput(Required(options, "out"), report);
         if (options.TryGetValue("markdown", out var markdownPath))
         {
@@ -1301,7 +1312,7 @@ internal static class ThesisDocxCli
     private static int OnboardingAuthoringReport(Dictionary<string, string> options)
     {
         var workspace = OnboardingWorkspaceInspector.Load(Required(options, "workspace"));
-        var report = new TemplateAuthoringReportBuilder().Build(new TemplateAuthoringReportOptions
+        var result = new TemplateWorkflowService().AuthoringReport(new TemplateAuthoringReportRequest
         {
             TemplatePath = workspace.TemplateDirectory,
             DocumentPath = workspace.DocumentPath,
@@ -1309,6 +1320,13 @@ internal static class ThesisDocxCli
             OutputDirectory = Path.Combine(workspace.ArtifactsDirectory, "authoring"),
             CoverageThreshold = workspace.Manifest.Quality.CoverageThreshold
         });
+        var report = result.Report;
+        if (report is null)
+        {
+            WriteJsonOutput(Required(options, "out"), result);
+            return 2;
+        }
+
         WriteJsonOutput(Required(options, "out"), report);
         if (options.TryGetValue("markdown", out var markdownPath))
         {

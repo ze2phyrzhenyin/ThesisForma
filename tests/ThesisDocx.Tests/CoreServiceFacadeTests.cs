@@ -222,6 +222,55 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void TemplateWorkflowService_ShouldReturnGateMissingDocumentDiagnostic()
+    {
+        var result = new TemplateWorkflowService().Gate(new TemplateGateRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(NewTempDirectory(), "missing-document.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "gate")
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        AssertServiceDiagnostic(result, "service.document.pathMissing");
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnDiagnoseMissingSuiteDiagnostic()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new TemplateWorkflowService().Diagnose(new TemplateDiagnoseRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            SuitePath = Path.Combine(NewTempDirectory(), "missing-suite.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "diagnose")
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        AssertServiceDiagnostic(result, "service.regressionSuite.pathMissing");
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnAuthoringMissingRequirementsDiagnostic()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var result = new TemplateWorkflowService().AuthoringReport(new TemplateAuthoringReportRequest
+        {
+            TemplatePath = TemplatePath(),
+            DocumentPath = Path.Combine(root, "examples", "full-thesis", "document.json"),
+            RequirementsPath = Path.Combine(NewTempDirectory(), "missing-requirements.json"),
+            OutputDirectory = Path.Combine(NewTempDirectory(), "authoring")
+        });
+
+        Assert.False(result.Success);
+        Assert.Null(result.Report);
+        AssertServiceDiagnostic(result, "service.requirements.pathMissing");
+    }
+
+    [Fact]
     public void CiQualityReportService_ShouldReturnReportForPassingGate()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
@@ -339,6 +388,16 @@ public sealed class CoreServiceFacadeTests
         Assert.False(result.Success);
         Assert.NotEmpty(result.Diagnostics);
         Assert.All(result.Diagnostics, diagnostic => Assert.Equal("error", diagnostic.Severity));
+    }
+
+    private static void AssertServiceDiagnostic(ServiceResult result, string expectedCode)
+    {
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(expectedCode, diagnostic.Code);
+        Assert.Equal("error", diagnostic.Severity);
+        Assert.Equal("template", diagnostic.Category);
+        Assert.Equal("TemplateWorkflowService", diagnostic.Source);
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic.FixHint));
     }
 
     private static (ThesisDocument Document, ThesisFormatSpec Format, string BaseDirectory) LoadSimple()

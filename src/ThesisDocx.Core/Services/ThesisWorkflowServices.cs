@@ -288,6 +288,16 @@ public sealed class TemplateWorkflowService
             return TemplateGateServiceResult.Failure("service.template.gate.request.invalid", "Template gate requires template, document, and output directory.");
         }
 
+        if (!Directory.Exists(request.TemplatePath))
+        {
+            return TemplateGateServiceResult.Failure("service.template.pathMissing", "Template path does not exist.");
+        }
+
+        if (!File.Exists(request.DocumentPath))
+        {
+            return TemplateGateServiceResult.Failure("service.document.pathMissing", "Document path does not exist.");
+        }
+
         try
         {
             var report = new TemplateGateService().Run(new TemplateGateOptions
@@ -319,6 +329,26 @@ public sealed class TemplateWorkflowService
             || string.IsNullOrWhiteSpace(request.OutputDirectory))
         {
             return TemplateDiagnoseServiceResult.Failure("service.template.diagnose.request.invalid", "Template diagnose requires template, document, and output directory.");
+        }
+
+        if (!Directory.Exists(request.TemplatePath))
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.template.pathMissing", "Template path does not exist.");
+        }
+
+        if (!File.Exists(request.DocumentPath))
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.document.pathMissing", "Document path does not exist.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.RequirementsPath) && !File.Exists(request.RequirementsPath))
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.requirements.pathMissing", "Requirements path does not exist.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SuitePath) && !File.Exists(request.SuitePath))
+        {
+            return TemplateDiagnoseServiceResult.Failure("service.regressionSuite.pathMissing", "Template regression suite path does not exist.");
         }
 
         try
@@ -369,6 +399,26 @@ public sealed class TemplateWorkflowService
             || string.IsNullOrWhiteSpace(request.OutputDirectory))
         {
             return TemplateAuthoringReportServiceResult.Failure("service.template.authoringReport.request.invalid", "Template authoring report requires template, document, and output directory.");
+        }
+
+        if (!Directory.Exists(request.TemplatePath))
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.template.pathMissing", "Template path does not exist.");
+        }
+
+        if (!File.Exists(request.DocumentPath))
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.document.pathMissing", "Document path does not exist.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.RequirementsPath) && !File.Exists(request.RequirementsPath))
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.requirements.pathMissing", "Requirements path does not exist.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SuitePath) && !File.Exists(request.SuitePath))
+        {
+            return TemplateAuthoringReportServiceResult.Failure("service.regressionSuite.pathMissing", "Template regression suite path does not exist.");
         }
 
         try
