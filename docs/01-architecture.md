@@ -41,6 +41,9 @@ flowchart TD
 `Templates`
 : template loading, registry listing, inheritance resolution, deterministic format-spec merge, variable and asset resolution, rule diff, and coverage reporting.
 
+`Services`
+: lightweight Core facades for future API reuse. `ThesisValidateService`, `ThesisRenderService`, and `TemplateResolveService` return normalized diagnostics and artifact metadata without binding to HTTP hosting or production deployment.
+
 ## Renderer Split
 
 The renderer is intentionally decomposed:

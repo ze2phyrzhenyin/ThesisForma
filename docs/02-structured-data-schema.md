@@ -2,6 +2,14 @@
 
 `ThesisDocument` represents content, not college formatting. The root object requires `schemaVersion`. The renderer and validators currently accept `1.0.0` and `1.1.0`.
 
+`SchemaVersionSupport` centralizes the supported-version declaration for backend services:
+
+- `ThesisDocument`: `1.0.0`, `1.1.0`
+- `ThesisFormatSpec`: `1.0.0`, `1.1.0`, `1.2.0`
+- `TemplatePackage`: `1.0.0`
+
+Migration hooks exist as no-op interfaces for future versions. They do not automatically rewrite an older document into a newer schema version; unsupported future or old versions should produce diagnostics until an explicit migration is implemented and reviewed.
+
 ## Root
 
 - `schemaVersion`: `"1.0.0"` or `"1.1.0"`.
