@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using ThesisDocx.Core.Onboarding;
 using ThesisDocx.Core.Onboarding.Packaging;
 using ThesisDocx.Core.Onboarding.Reports;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Privacy;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
@@ -292,7 +293,7 @@ public sealed class OnboardingWorkflowTests
 
         var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
 
-        Assert.Contains(result.Findings, finding => finding.Code == "privacy.realInstitutionInExamples" && finding.Severity == "breaking");
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.realInstitutionInExamples" && finding.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -326,6 +327,19 @@ public sealed class OnboardingWorkflowTests
         var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
 
         Assert.Contains(result.Findings, finding => finding.Code == "privacy.path.absolute");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldDetectWindowsAbsolutePath()
+    {
+        var workspace = CopyExampleWorkspace();
+        MutateFile(Path.Combine(workspace, "onboarding.json"), node => node["paths"]!["requirementsPath"] = "C:\\Users\\Example\\requirements.json");
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+
+        var finding = Assert.Single(result.Findings, finding => finding.Code == "privacy.path.absolute" && finding.Path.EndsWith("$.paths.requirementsPath", StringComparison.Ordinal));
+        Assert.Equal("C:\\U...json", finding.RedactedExcerpt);
+        Assert.DoesNotContain("C:\\Users\\Example\\requirements.json", finding.Message);
     }
 
     [Fact]
@@ -370,6 +384,45 @@ public sealed class OnboardingWorkflowTests
         var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
 
         Assert.Contains(result.Findings, finding => finding.Code == "privacy.personal.phone");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldDetectLikelyIdentityIdAndEmail()
+    {
+        var workspace = CopyExampleWorkspace();
+        MutateFile(Path.Combine(workspace, "requirements", "requirements.json"), node =>
+        {
+            node["approval"]!["notes"] = "Reviewer 110105199001011234 should email reviewer@university.edu.";
+        });
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.personal.identityId");
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.personal.email");
+        Assert.DoesNotContain(result.Findings, finding => finding.Message.Contains("110105199001011234", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldDetectGeneratedDocxArtifact()
+    {
+        var workspace = CopyExampleWorkspace();
+        Directory.CreateDirectory(Path.Combine(workspace, "reports"));
+        File.WriteAllText(Path.Combine(workspace, "reports", "rendered-draft.docx"), "not a real docx");
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.generatedArtifact.forbidden");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldDetectOversizedBase64Blob()
+    {
+        var workspace = CopyExampleWorkspace();
+        MutateFile(Path.Combine(workspace, "requirements", "requirements.json"), node => node["approval"]!["notes"] = new string('A', 300));
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace, MaxBase64Length = 120 });
+
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.base64.oversized" && finding.RedactedExcerpt == "base64:300 chars");
     }
 
     [Fact]
@@ -507,6 +560,7 @@ public sealed class OnboardingWorkflowTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.Contains("Forbidden package entry", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "privacy.package.forbiddenExtension" && diagnostic.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]

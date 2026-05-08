@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Onboarding.Reports;
 using ThesisDocx.Core.Privacy;
@@ -34,7 +35,7 @@ public sealed class TemplatePilotPackageBuilder
             return new TemplatePilotPackageBuildResult
             {
                 IsValid = false,
-                Errors = privacy.Findings.Where(f => f.Severity == "breaking").Select(f => f.Code).ToList(),
+                Errors = privacy.Findings.Where(f => UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => f.Code).ToList(),
                 PrivacyScan = privacy
             };
         }
@@ -236,19 +237,19 @@ public sealed class TemplatePilotPackageValidator
         {
             if (entry.StartsWith("/", StringComparison.Ordinal) || entry.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
             {
-                result.Errors.Add($"Invalid package path: {entry}");
+                AddError(result, "privacy.package.path.invalid", entry, $"Invalid package path: {entry}", "Remove entries that escape the package root.");
             }
 
             if (ForbiddenExtensions.Contains(Path.GetExtension(entry)))
             {
-                result.Errors.Add($"Forbidden package entry: {entry}");
+                AddError(result, "privacy.package.forbiddenExtension", entry, $"Forbidden package entry: {entry}", "Remove source documents and font binaries from the package.");
             }
         }
 
         var checksumsEntry = archive.GetEntry("checksums.json");
         if (checksumsEntry is null)
         {
-            result.Errors.Add("Missing checksums.json.");
+            AddError(result, "privacy.package.checksums.missing", "checksums.json", "Missing checksums.json.", "Build the pilot package with onboarding package so checksums are generated.");
         }
         else
         {
@@ -259,14 +260,14 @@ public sealed class TemplatePilotPackageValidator
                 var entry = archive.GetEntry(pair.Key);
                 if (entry is null)
                 {
-                    result.Errors.Add($"Checksum entry missing from package: {pair.Key}");
+                    AddError(result, "privacy.package.checksumEntry.missing", pair.Key, $"Checksum entry missing from package: {pair.Key}", "Regenerate the pilot package so checksums match included files.");
                     continue;
                 }
 
                 var actual = Convert.ToHexString(SHA256.HashData(ReadEntryBytes(entry))).ToLowerInvariant();
                 if (!string.Equals(actual, pair.Value, StringComparison.OrdinalIgnoreCase))
                 {
-                    result.Errors.Add($"Checksum mismatch for {pair.Key}.");
+                    AddError(result, "privacy.package.checksum.mismatch", pair.Key, $"Checksum mismatch for {pair.Key}.", "Regenerate the pilot package from a clean onboarding workspace.");
                 }
             }
         }
@@ -274,7 +275,7 @@ public sealed class TemplatePilotPackageValidator
         var manifestEntry = archive.GetEntry("manifest.json");
         if (manifestEntry is null)
         {
-            result.Errors.Add("Missing manifest.json.");
+            AddError(result, "privacy.package.manifest.missing", "manifest.json", "Missing manifest.json.", "Build the pilot package with onboarding package.");
         }
         else
         {
@@ -283,7 +284,26 @@ public sealed class TemplatePilotPackageValidator
 
         result.IsValid = result.Errors.Count == 0;
         result.Errors = result.Errors.Order(StringComparer.Ordinal).ToList();
+        result.Diagnostics = result.Diagnostics
+            .OrderBy(diagnostic => diagnostic.Code, StringComparer.Ordinal)
+            .ThenBy(diagnostic => diagnostic.Path, StringComparer.Ordinal)
+            .ToList();
         return result;
+    }
+
+    private static void AddError(TemplatePilotPackageValidationResult result, string code, string path, string message, string fixHint)
+    {
+        result.Errors.Add(message);
+        result.Diagnostics.Add(new UnifiedDiagnostic
+        {
+            Code = code,
+            Severity = DiagnosticSeverity.Error,
+            Path = path,
+            Message = message,
+            FixHint = fixHint,
+            Category = DiagnosticCategory.Privacy,
+            Source = "TemplatePilotPackageValidator"
+        });
     }
 
     private static string ReadEntry(ZipArchiveEntry entry)
@@ -316,6 +336,7 @@ public sealed class TemplatePilotPackageValidationResult
     public string PackagePath { get; set; } = string.Empty;
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = [];
+    public List<UnifiedDiagnostic> Diagnostics { get; set; } = [];
     public TemplatePilotPackageManifest? Manifest { get; set; }
 }
 

@@ -14,6 +14,11 @@ public sealed class PrivacyGuard
         ".pdf", ".docx", ".doc", ".wps"
     };
 
+    private static readonly HashSet<string> GeneratedArtifactExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".docx", ".pdf"
+    };
+
     private static readonly HashSet<string> ForbiddenPackageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf", ".docx", ".doc", ".wps", ".ttf", ".otf", ".ttc"
@@ -25,7 +30,7 @@ public sealed class PrivacyGuard
         var result = new PrivacyGuardResult { RootPath = root };
         if (!Directory.Exists(root) && !File.Exists(root))
         {
-            Add(result, "privacy.path.missing", "breaking", root, "Path does not exist.", "Check the workspace or package path.");
+            Add(result, "privacy.path.missing", DiagnosticSeverity.Error, root, "Path does not exist.", "Check the workspace or package path.");
             return Finish(result);
         }
 
@@ -61,17 +66,22 @@ public sealed class PrivacyGuard
             || normalizedRelative.Contains("/reports/", StringComparison.Ordinal);
         if (isExamples && SourceDocumentExtensions.Contains(extension) && !isGeneratedArtifact)
         {
-            Add(result, "privacy.sourceDocumentInExamples", "breaking", relative, "Source documents must not be committed under examples.", "Move real source files to onboarding-workspaces/<slug>/source-documents.");
+            Add(result, "privacy.sourceDocumentInExamples", DiagnosticSeverity.Error, relative, "Source documents must not be committed under examples.", "Move real source files to onboarding-workspaces/<slug>/source-documents.");
+        }
+
+        if (isGeneratedArtifact && GeneratedArtifactExtensions.Contains(extension))
+        {
+            Add(result, "privacy.generatedArtifact.forbidden", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, relative, "Generated DOCX/PDF artifacts should not be committed or released.", "Keep generated documents under ignored out/ or private onboarding workspaces.");
         }
 
         if (SensitivePatternCatalog.FontExtensions.Contains(extension))
         {
-            Add(result, "privacy.fontAsset.forbidden", "breaking", relative, "Font files must not be distributed by this workflow.", "Keep only font metadata in templates.");
+            Add(result, "privacy.fontAsset.forbidden", DiagnosticSeverity.Error, relative, "Font files must not be distributed by this workflow.", "Keep only font metadata in templates.");
         }
 
         if (options.PackageMode && ForbiddenPackageExtensions.Contains(extension))
         {
-            Add(result, "privacy.package.forbiddenExtension", "breaking", relative, "Pilot package contains a forbidden source or font file.", "Remove source documents and font binaries from the package.");
+            Add(result, "privacy.package.forbiddenExtension", DiagnosticSeverity.Error, relative, "Pilot package contains a forbidden source or font file.", "Remove source documents and font binaries from the package.");
         }
 
         if (!string.Equals(extension, ".json", StringComparison.OrdinalIgnoreCase) || new FileInfo(file).Length > 2_000_000)
@@ -107,7 +117,7 @@ public sealed class PrivacyGuard
         var isReal = node["institution"]?["isRealInstitution"]?.GetValue<bool>() ?? false;
         if (isExamples && isReal)
         {
-            Add(result, "privacy.realInstitutionInExamples", "breaking", path, "Real institution workspace is not allowed under examples.", "Move it to onboarding-workspaces/ or another private directory.");
+            Add(result, "privacy.realInstitutionInExamples", DiagnosticSeverity.Error, path, "Real institution workspace is not allowed under examples.", "Move it to onboarding-workspaces/ or another private directory.");
         }
     }
 
@@ -146,47 +156,61 @@ public sealed class PrivacyGuard
         if ((key.Contains("path", StringComparison.OrdinalIgnoreCase) || key.EndsWith("Dir", StringComparison.OrdinalIgnoreCase))
             && !key.Equals("rootPath", StringComparison.OrdinalIgnoreCase))
         {
-            if (Path.IsPathRooted(text))
+            if (Path.IsPathRooted(text) || SensitivePatternCatalog.WindowsAbsolutePathRegex.IsMatch(text))
             {
-                Add(result, "privacy.path.absolute", options.PackageMode ? "breaking" : "warning", $"{filePath}:{jsonPath}", $"Absolute path is not allowed: {text}", "Use a workspace-relative path.");
+                Add(result, "privacy.path.absolute", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Absolute path is not allowed.", "Use a workspace-relative path.", Redact(text));
             }
 
             if (text.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
             {
-                Add(result, "privacy.path.traversal", options.PackageMode ? "breaking" : "warning", $"{filePath}:{jsonPath}", $"Path escapes the workspace: {text}", "Keep paths inside the workspace.");
+                Add(result, "privacy.path.traversal", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Path escapes the workspace.", "Keep paths inside the workspace.", Redact(text));
             }
         }
 
-        if (key.Equals("shortQuote", StringComparison.OrdinalIgnoreCase) && text.Length > options.MaxEvidenceExcerptLength)
+        if ((key.Equals("shortQuote", StringComparison.OrdinalIgnoreCase)
+                || key.Contains("evidence", StringComparison.OrdinalIgnoreCase)
+                || key.Contains("excerpt", StringComparison.OrdinalIgnoreCase))
+            && text.Length > options.MaxEvidenceExcerptLength)
         {
-            Add(result, "privacy.evidence.tooLong", "warning", $"{filePath}:{jsonPath}", "Evidence excerpt is longer than the configured maximum.", "Keep only short excerpts, page numbers, or section references.");
+            Add(result, "privacy.evidence.tooLong", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Evidence excerpt is longer than the configured maximum.", "Keep only short excerpts, page numbers, or section references.", Redact(text));
+        }
+
+        if (text.Length > options.MaxBase64Length && SensitivePatternCatalog.Base64BlobRegex.IsMatch(text))
+        {
+            Add(result, "privacy.base64.oversized", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like an oversized base64 blob.", "Move binary content to private workspace artifacts and reference it by package-safe asset key.", $"base64:{text.Length} chars");
         }
 
         if (SensitivePatternCatalog.StudentIdRegex.IsMatch(text))
         {
-            Add(result, "privacy.personal.studentId", "warning", $"{filePath}:{jsonPath}", "Value looks like a real student id.", "Replace personal data with fictional or redacted values.");
+            Add(result, "privacy.personal.studentId", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like a real student id.", "Replace personal data with fictional or redacted values.", Redact(text));
+        }
+
+        if (SensitivePatternCatalog.ChinaIdRegex.IsMatch(text))
+        {
+            Add(result, "privacy.personal.identityId", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like a personal identity number.", "Replace identity numbers with fictional or redacted values.", Redact(text));
         }
 
         if (SensitivePatternCatalog.PhoneRegex.IsMatch(text))
         {
-            Add(result, "privacy.personal.phone", "warning", $"{filePath}:{jsonPath}", "Value looks like a phone number.", "Remove personal phone numbers from examples and release packages.");
+            Add(result, "privacy.personal.phone", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like a phone number.", "Remove personal phone numbers from examples and release packages.", Redact(text));
         }
 
         if (SensitivePatternCatalog.EmailRegex.IsMatch(text) && !text.Contains("example.", StringComparison.OrdinalIgnoreCase))
         {
-            Add(result, "privacy.personal.email", "warning", $"{filePath}:{jsonPath}", "Value looks like a non-example email address.", "Use example.invalid or redact the email.");
+            Add(result, "privacy.personal.email", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like a non-example email address.", "Use example.invalid or redact the email.", Redact(text));
         }
     }
 
-    internal static void Add(PrivacyGuardResult result, string code, string severity, string path, string message, string suggestedAction)
+    internal static void Add(PrivacyGuardResult result, string code, string severity, string path, string message, string suggestedAction, string? redactedExcerpt = null)
     {
         result.Findings.Add(new PrivacyFinding
         {
             Code = code,
-            Severity = severity,
+            Severity = UnifiedDiagnosticMapper.NormalizeSeverity(severity),
             Path = path.Replace('\\', '/'),
             Message = message,
-            SuggestedAction = suggestedAction
+            SuggestedAction = suggestedAction,
+            RedactedExcerpt = redactedExcerpt
         });
     }
 
@@ -196,9 +220,9 @@ public sealed class PrivacyGuard
             .OrderBy(f => f.Code, StringComparer.Ordinal)
             .ThenBy(f => f.Path, StringComparer.Ordinal)
             .ToList();
-        result.IsValid = result.Findings.All(f => f.Severity != "breaking");
-        result.BreakingCount = result.Findings.Count(f => f.Severity == "breaking");
-        result.WarningCount = result.Findings.Count(f => f.Severity == "warning");
+        result.IsValid = result.Findings.All(f => !UnifiedDiagnosticMapper.IsError(f.Severity));
+        result.BreakingCount = result.Findings.Count(f => UnifiedDiagnosticMapper.IsError(f.Severity));
+        result.WarningCount = result.Findings.Count(f => UnifiedDiagnosticMapper.IsWarning(f.Severity));
         return result;
     }
 
@@ -206,12 +230,25 @@ public sealed class PrivacyGuard
     {
         return path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("examples", StringComparer.Ordinal);
     }
+
+    private static string Redact(string value)
+    {
+        if (value.Length <= 8)
+        {
+            return "***";
+        }
+
+        var prefix = value[..Math.Min(4, value.Length)];
+        var suffix = value[^Math.Min(4, value.Length)..];
+        return $"{prefix}...{suffix}";
+    }
 }
 
 public sealed class PrivacyGuardOptions
 {
     public string Path { get; set; } = string.Empty;
     public int MaxEvidenceExcerptLength { get; set; } = 240;
+    public int MaxBase64Length { get; set; } = 200_000;
     public bool PackageMode { get; set; }
 }
 
@@ -234,13 +271,17 @@ public sealed class PrivacyFinding
     public string Path { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string SuggestedAction { get; set; } = string.Empty;
+    public string? RedactedExcerpt { get; set; }
 }
 
 public static class SensitivePatternCatalog
 {
     public static readonly Regex StudentIdRegex = new(@"(?<!\d)(20\d{8,14}|[A-Z]{1,4}\d{7,14})(?!\d)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    public static readonly Regex ChinaIdRegex = new(@"(?<!\d)([1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx])(?!\d)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static readonly Regex PhoneRegex = new(@"(?<!\d)(\+?\d{1,3}[- ]?)?1[3-9]\d{9}(?!\d)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static readonly Regex EmailRegex = new(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    public static readonly Regex WindowsAbsolutePathRegex = new(@"^[A-Za-z]:[\\/]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    public static readonly Regex Base64BlobRegex = new(@"^[A-Za-z0-9+/=\r\n]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static readonly HashSet<string> FontExtensions = new(StringComparer.OrdinalIgnoreCase) { ".ttf", ".otf", ".ttc" };
 }
 

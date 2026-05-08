@@ -17,7 +17,7 @@ Package contents:
 - `baselines/`
 - `checksums.json`
 
-The package excludes source documents, generated DOCX files, system fonts, absolute paths, and long evidence excerpts. `package-validate` checks forbidden extensions and SHA-256 checksums.
+The package excludes source documents, generated DOCX files, system fonts, absolute paths, and long evidence excerpts. `package-validate` checks forbidden extensions and SHA-256 checksums and returns normalized privacy diagnostics for invalid paths, forbidden entries, missing manifests, and checksum mismatches.
 
 ```bash
 dotnet run --project src/ThesisDocx.Cli -- onboarding package \

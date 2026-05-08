@@ -105,18 +105,18 @@ public sealed class OnboardingReportBuilder
             AuthoringStatus = authoring?.PublishReadiness ?? "notRun"
         };
 
-        report.BlockingIssues.AddRange(validation.Errors.Select(e => Issue(e.Code, "breaking", e.Message, e.Path)));
-        report.Warnings.AddRange(validation.Warnings.Select(e => Issue(e.Code, "warning", e.Message, e.Path)));
-        report.BlockingIssues.AddRange(privacy.Findings.Where(f => f.Severity == "breaking").Select(f => Issue(f.Code, f.Severity, f.Message, f.Path)));
-        report.Warnings.AddRange(privacy.Findings.Where(f => f.Severity != "breaking").Select(f => Issue(f.Code, f.Severity, f.Message, f.Path)));
+        report.BlockingIssues.AddRange(validation.Errors.Select(e => Issue(e.Code, DiagnosticSeverity.Error, e.Message, e.Path)));
+        report.Warnings.AddRange(validation.Warnings.Select(e => Issue(e.Code, DiagnosticSeverity.Warning, e.Message, e.Path)));
+        report.BlockingIssues.AddRange(privacy.Findings.Where(f => UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => Issue(f.Code, f.Severity, f.Message, f.Path)));
+        report.Warnings.AddRange(privacy.Findings.Where(f => !UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => Issue(f.Code, f.Severity, f.Message, f.Path)));
         if (gate is not null && gate.Status == TemplateGateStatus.Fail)
         {
-            report.BlockingIssues.Add(Issue("onboarding.gate.failed", "breaking", "Template gate failed.", "gate"));
+            report.BlockingIssues.Add(Issue("onboarding.gate.failed", DiagnosticSeverity.Error, "Template gate failed.", "gate"));
         }
 
         if (authoring is not null && authoring.PublishReadiness == "notReady")
         {
-            report.BlockingIssues.Add(Issue("onboarding.authoring.notReady", "breaking", "Authoring report is not ready.", "authoring"));
+            report.BlockingIssues.Add(Issue("onboarding.authoring.notReady", DiagnosticSeverity.Error, "Authoring report is not ready.", "authoring"));
         }
 
         report.Checklist = BuildChecklist(report, privacy, validation, gate, authoring).OrderBy(i => i.Code, StringComparer.Ordinal).ToList();
@@ -140,7 +140,7 @@ public sealed class OnboardingReportBuilder
         return
         [
             Item("workspace.valid", "workspace manifest and required paths valid", validation.IsValid),
-            Item("privacy.clean", "privacy scan has no blocking findings", privacy.IsValid, $"{privacy.BreakingCount} breaking; {privacy.WarningCount} warnings"),
+            Item("privacy.clean", "privacy scan has no error findings", privacy.IsValid, $"{privacy.BreakingCount} errors; {privacy.WarningCount} warnings"),
             Item("requirements.present", "RequirementCapture present and valid", report.RequirementStatus == "pass"),
             Item("template.present", "TemplatePackage scaffold present", report.TemplateStatus == "present"),
             Item("fixtures.present", "fixture document present", report.FixtureStatus == "present"),
