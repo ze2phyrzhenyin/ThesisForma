@@ -42,6 +42,8 @@ Explicit CLI flags override values loaded from `--policy`, which keeps CI defaul
 
 Suppression is deliberately limited. Error findings are never suppressed, and personal-data warnings such as `privacy.personal.email`, `privacy.personal.phone`, `privacy.personal.identityId`, and `privacy.personal.studentId` remain visible even when a broad path suppression is configured. Suppressions are intended only for known generated example artifacts, not for real source material or personal data.
 
+The public example policy uses a zero-warning budget after suppression. Its path whitelist is deliberately narrow and covers only generated onboarding artifacts plus intentionally invalid/regression fixture files. If a new warning appears outside that whitelist, treat it as a quality-gate failure and either remove the finding or add a narrow, reviewable suppression with a documented reason.
+
 Pilot package manifests include both `privacyScanSummary` and `privacyPolicySummary`. The policy summary records the configured excerpt/base64 limits, warning threshold, explicit suppressions, and non-suppressible warning prefixes so reviewers can see which privacy gate settings were used when the package was built.
 
 PrivacyGuard is not a substitute for human privacy review. It is a quality gate that catches common mistakes.

@@ -49,4 +49,13 @@ dotnet run --project src/ThesisDocx.Cli -- privacy scan \
   --out "$OUT_DIR/privacy-scan-examples.json"
 ```
 
-The policy is the source of warning thresholds and narrow warning suppressions. The fictional example currently allows up to 25 warnings and suppresses known generated-artifact warnings while keeping personal-data warnings non-suppressible. Do not add broad suppressions for real pilot material; move source files into private onboarding workspaces instead.
+The policy is the source of warning thresholds and narrow warning suppressions. The fictional example keeps `maxWarningCount` at `0`, suppresses known generated-artifact warnings, and whitelists only exact example fixture path prefixes that are intentionally noisy in repository-wide scans:
+
+- `onboarding/example-engineering-pilot/artifacts/`
+- `onboarding/example-engineering-pilot/reports/`
+- `artifacts/`
+- `reports/`
+- `requirements/example-engineering-requirements-invalid.json`
+- `template-regression/template-regression-suite.json`
+
+The repository-relative prefixes cover `privacy scan --path examples`; the workspace-relative prefixes cover `onboarding package` and `onboarding summary` when they scan a copied workspace. Any new unsuppressed privacy warning fails the gate through `privacy.warningThreshold.exceeded`. Personal-data warnings remain non-suppressible, so the whitelist cannot hide likely emails, phone numbers, identity ids, or student ids. Do not add broad suppressions for real pilot material; move source files into private onboarding workspaces instead.

@@ -813,8 +813,10 @@ public sealed class OnboardingWorkflowTests
         var manifest = JsonNode.Parse(ExtractPackageEntry(package, "manifest.json"))!;
 
         Assert.Equal(240, manifest["privacyPolicySummary"]!["maxEvidenceExcerptLength"]!.GetValue<int>());
-        Assert.Equal(25, manifest["privacyPolicySummary"]!["maxWarningCount"]!.GetValue<int>());
+        Assert.Equal(0, manifest["privacyPolicySummary"]!["maxWarningCount"]!.GetValue<int>());
         Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningCodes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.generatedArtifact.forbidden");
+        Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningPathPrefixes"]!.AsArray(), item => item?.GetValue<string>() == "artifacts/");
+        Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningPathPrefixes"]!.AsArray(), item => item?.GetValue<string>() == "template-regression/template-regression-suite.json");
         Assert.Contains(manifest["privacyPolicySummary"]!["nonSuppressibleWarningCodePrefixes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.personal.");
     }
 

@@ -25,8 +25,16 @@
     "prohibitSourceDocumentsInRelease": true,
     "prohibitPersonalDataInExamples": true,
     "maxEvidenceExcerptLength": 240,
-    "maxWarningCount": 25,
-    "suppressedWarningCodes": ["privacy.generatedArtifact.forbidden"]
+    "maxWarningCount": 0,
+    "suppressedWarningCodes": ["privacy.generatedArtifact.forbidden"],
+    "suppressedWarningPathPrefixes": [
+      "artifacts/",
+      "onboarding/example-engineering-pilot/artifacts/",
+      "onboarding/example-engineering-pilot/reports/",
+      "reports/",
+      "requirements/example-engineering-requirements-invalid.json",
+      "template-regression/template-regression-suite.json"
+    ]
   },
   "quality": {
     "coverageThreshold": 0.85,
