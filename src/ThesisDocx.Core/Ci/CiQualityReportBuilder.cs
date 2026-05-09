@@ -16,13 +16,13 @@ public sealed class CiQualityReportBuilder
         var report = new CiQualityReport();
 
         var requirements = new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(options.RequirementsPath), options.TemplatePath);
-        AddCheck(report, "requirements", "Requirements mapping", requirements.IsValid, $"{requirements.MappedRequirements} mapped, {requirements.UnmappedRequirements} unmapped", ("requirementsReport", Path.Combine(options.OutputDirectory, "requirements-report.json")));
+        AddCheck(report, "requirements", "Requirements mapping", requirements.IsValid, $"{requirements.MappedRequirements} mapped, {requirements.UnmappedRequirements} unmapped", ("requirementsReport", ArtifactPath(options.OutputDirectory, "requirements-report.json")));
 
         var baseline = new TemplateBaselineManager().CompareSuite(options.SuitePath, Path.Combine(options.OutputDirectory, "baseline"));
-        AddCheck(report, "baseline", "Baseline compare", baseline.Passed, $"{baseline.Cases.Count} case(s)", ("baselineReport", Path.Combine(options.OutputDirectory, "baseline-compare-report.json")));
+        AddCheck(report, "baseline", "Baseline compare", baseline.Passed, $"{baseline.Cases.Count} case(s)", ("baselineReport", ArtifactPath(options.OutputDirectory, "baseline-compare-report.json")));
 
         var regression = new TemplateRegressionRunner().Run(options.SuitePath, Path.Combine(options.OutputDirectory, "regression"));
-        AddCheck(report, "regression", "Template regression", regression.Passed, $"{regression.Cases.Count} case(s)", ("regressionReport", Path.Combine(options.OutputDirectory, "template-regression-report.json")));
+        AddCheck(report, "regression", "Template regression", regression.Passed, $"{regression.Cases.Count} case(s)", ("regressionReport", ArtifactPath(options.OutputDirectory, "template-regression-report.json")));
 
         var gate = new TemplateGateService().Run(new TemplateGateOptions
         {
@@ -31,10 +31,10 @@ public sealed class CiQualityReportBuilder
             OutputDirectory = Path.Combine(options.OutputDirectory, "gate"),
             CoverageThreshold = options.Threshold
         });
-        AddCheck(report, "gate", "Template gate", gate.Status != TemplateGateStatus.Fail, gate.Status.ToString(), ("gateReport", Path.Combine(options.OutputDirectory, "template-gate-report.json")));
+        AddCheck(report, "gate", "Template gate", gate.Status != TemplateGateStatus.Fail, gate.Status.ToString(), ("gateReport", ArtifactPath(options.OutputDirectory, "template-gate-report.json")));
 
         var diagnostic = new DiagnosticReportBuilder().Build(gate, regression, baseline, requirements, artifacts: gate.Artifacts);
-        AddCheck(report, "diagnose", "Template diagnostics", diagnostic.BreakingCount == 0, $"{diagnostic.IssueCount} issue(s)", ("diagnosticReport", Path.Combine(options.OutputDirectory, "template-diagnostic-report.json")));
+        AddCheck(report, "diagnose", "Template diagnostics", diagnostic.BreakingCount == 0, $"{diagnostic.IssueCount} issue(s)", ("diagnosticReport", ArtifactPath(options.OutputDirectory, "template-diagnostic-report.json")));
 
         var authoring = new TemplateAuthoringReportBuilder().Build(new TemplateAuthoringReportOptions
         {
@@ -45,12 +45,12 @@ public sealed class CiQualityReportBuilder
             OutputDirectory = Path.Combine(options.OutputDirectory, "authoring"),
             CoverageThreshold = options.Threshold
         });
-        AddCheck(report, "authoring", "Template authoring report", authoring.PublishReadiness != "notReady", authoring.PublishReadiness, ("authoringReport", Path.Combine(options.OutputDirectory, "template-authoring-report.json")));
+        AddCheck(report, "authoring", "Template authoring report", authoring.PublishReadiness != "notReady", authoring.PublishReadiness, ("authoringReport", ArtifactPath(options.OutputDirectory, "template-authoring-report.json")));
         report.VersionReport.MergeFrom(gate.VersionReport);
         report.VersionReport.MergeFrom(authoring.VersionReport);
 
         var negative = new NegativeFixtureRunner().Run(options.NegativeFixturesPath);
-        AddCheck(report, "negativeFixtures", "Negative fixtures", negative.Passed, $"{negative.Cases.Count} negative case(s)", ("negativeFixturesReport", Path.Combine(options.OutputDirectory, "negative-fixtures-report.json")));
+        AddCheck(report, "negativeFixtures", "Negative fixtures", negative.Passed, $"{negative.Cases.Count} negative case(s)", ("negativeFixturesReport", ArtifactPath(options.OutputDirectory, "negative-fixtures-report.json")));
 
         WriteJson(Path.Combine(options.OutputDirectory, "requirements-report.json"), requirements);
         WriteJson(Path.Combine(options.OutputDirectory, "baseline-compare-report.json"), baseline);
@@ -111,6 +111,13 @@ public sealed class CiQualityReportBuilder
     private static void WriteJson<T>(string path, T value)
     {
         File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(value, ThesisDocx.Core.Utilities.ThesisJson.Options));
+    }
+
+    private static string ArtifactPath(string outputDirectory, string fileName)
+    {
+        var fullPath = Path.Combine(outputDirectory, fileName);
+        var relative = Path.GetRelativePath(Path.GetFullPath(outputDirectory), Path.GetFullPath(fullPath));
+        return relative.Replace(Path.DirectorySeparatorChar, '/');
     }
 }
 

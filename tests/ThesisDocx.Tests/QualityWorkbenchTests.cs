@@ -400,6 +400,9 @@ public sealed class QualityWorkbenchTests
         var json = JsonNode.Parse(File.ReadAllText(output))!;
 
         Assert.True(json["relatedArtifacts"]!.AsObject().ContainsKey("docx"));
+        Assert.All(
+            json["relatedArtifacts"]!.AsObject().Select(pair => pair.Value!.GetValue<string>()),
+            artifact => Assert.False(Path.IsPathRooted(artifact)));
     }
 
     [Fact]

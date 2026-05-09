@@ -454,6 +454,7 @@ public sealed class CiQualityGateTests
 
         Assert.Contains("gateReport", report.Artifacts.Keys);
         Assert.Contains("negativeFixturesReport", report.Artifacts.Keys);
+        Assert.All(report.Artifacts.Values, artifact => Assert.False(Path.IsPathRooted(artifact)));
     }
 
     [Fact]

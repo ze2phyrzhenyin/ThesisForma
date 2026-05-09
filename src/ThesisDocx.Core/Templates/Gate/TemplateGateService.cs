@@ -31,7 +31,7 @@ public sealed class TemplateGateService
         var format = resolution.FormatSpec ?? new ThesisFormatSpec();
         var formatPath = Path.Combine(outputDirectory, "resolved-format-spec.json");
         File.WriteAllText(formatPath, JsonSerializer.Serialize(format, ThesisJson.Options));
-        report.Artifacts["resolvedFormatSpec"] = formatPath;
+        report.Artifacts["resolvedFormatSpec"] = ToArtifactPath(outputDirectory, formatPath);
 
         var formatSchema = new ThesisSchemaValidator().ValidateFormatFile(formatPath, LocateSchema("thesis-format-spec.schema.json"));
         report.VersionReport.MergeFrom(formatSchema.VersionReport);
@@ -55,7 +55,7 @@ public sealed class TemplateGateService
         try
         {
             new DocxRenderer().Render(document, format, docxPath, context);
-            report.Artifacts["docx"] = docxPath;
+            report.Artifacts["docx"] = ToArtifactPath(outputDirectory, docxPath);
             AddCheck(report, "render", "DOCX render", true, "rendered");
         }
         catch (Exception ex)
@@ -74,18 +74,18 @@ public sealed class TemplateGateService
             var inspect = new DocxInspector().Inspect(docxPath);
             var inspectPath = Path.Combine(outputDirectory, "template-gate.inspect.json");
             File.WriteAllText(inspectPath, JsonSerializer.Serialize(inspect, ThesisJson.Options));
-            report.Artifacts["inspect"] = inspectPath;
+            report.Artifacts["inspect"] = ToArtifactPath(outputDirectory, inspectPath);
             AddCheck(report, "customProperties", "Template custom properties", !string.IsNullOrWhiteSpace(inspect.TemplateRendering.TemplateId), "template id custom property");
 
             var signature = new DocxLayoutSignatureExtractor().Extract(docxPath);
             var signaturePath = Path.Combine(outputDirectory, "template-gate.layout.json");
             File.WriteAllText(signaturePath, JsonSerializer.Serialize(signature, ThesisJson.Options));
-            report.Artifacts["layoutSignature"] = signaturePath;
+            report.Artifacts["layoutSignature"] = ToArtifactPath(outputDirectory, signaturePath);
             AddCheck(report, "layout.signature", "Layout signature", signature.Sections.Count > 0, "layout signature extracted");
 
             var snapshotPath = Path.Combine(outputDirectory, "template-gate.snapshot.txt");
             File.WriteAllText(snapshotPath, new DocxSnapshotNormalizer().NormalizeToStableSnapshot(docxPath));
-            report.Artifacts["snapshot"] = snapshotPath;
+            report.Artifacts["snapshot"] = ToArtifactPath(outputDirectory, snapshotPath);
             AddCheck(report, "snapshot", "Normalized snapshot", File.Exists(snapshotPath), "snapshot generated");
         }
 
@@ -194,6 +194,12 @@ public sealed class TemplateGateService
                 .Order(StringComparer.Ordinal)
                 .Take(8)
                 .ToList();
+    }
+
+    private static string ToArtifactPath(string outputDirectory, string path)
+    {
+        var relative = Path.GetRelativePath(Path.GetFullPath(outputDirectory), Path.GetFullPath(path));
+        return relative.Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private static string Classify(string code)

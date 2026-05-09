@@ -383,7 +383,7 @@ public sealed class TemplateWorkflowService
                 requirements = new RequirementMappingReporter().Build(new RequirementCaptureLoader().Load(request.RequirementsPath), request.TemplatePath);
                 var requirementsReportPath = Path.Combine(request.OutputDirectory, "requirements-report.json");
                 File.WriteAllText(requirementsReportPath, JsonSerializer.Serialize(requirements, ThesisJson.Options));
-                gate.Artifacts["requirementsReport"] = requirementsReportPath;
+                gate.Artifacts["requirementsReport"] = ToArtifactPath(request.OutputDirectory, requirementsReportPath);
             }
 
             var report = new DiagnosticReportBuilder().Build(gate, regression, baseline, requirements, artifacts: gate.Artifacts);
@@ -469,6 +469,12 @@ public sealed class TemplateWorkflowService
         }
 
         return null;
+    }
+
+    private static string ToArtifactPath(string outputDirectory, string path)
+    {
+        var relative = Path.GetRelativePath(Path.GetFullPath(outputDirectory), Path.GetFullPath(path));
+        return relative.Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private sealed record PathValidationIssue(string Code, string Message);

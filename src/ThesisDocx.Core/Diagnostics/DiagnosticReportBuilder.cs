@@ -30,7 +30,7 @@ public sealed class DiagnosticReportBuilder
 
             foreach (var artifact in gate.Artifacts)
             {
-                report.RelatedArtifacts[$"gate.{artifact.Key}"] = artifact.Value;
+                report.RelatedArtifacts[$"gate.{artifact.Key}"] = NormalizeArtifactPath(artifact.Value);
             }
         }
 
@@ -86,7 +86,7 @@ public sealed class DiagnosticReportBuilder
         {
             foreach (var artifact in artifacts.OrderBy(a => a.Key, StringComparer.Ordinal))
             {
-                report.RelatedArtifacts[artifact.Key] = artifact.Value;
+                report.RelatedArtifacts[artifact.Key] = NormalizeArtifactPath(artifact.Value);
             }
         }
 
@@ -133,6 +133,31 @@ public sealed class DiagnosticReportBuilder
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         report.MarkdownSummary = new DiagnosticReportMarkdownRenderer().Render(report);
         return report;
+    }
+
+    private static string NormalizeArtifactPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        var normalized = path.Replace('\\', '/');
+        if (!Path.IsPathRooted(path) && !LooksLikeWindowsRootedPath(normalized))
+        {
+            return normalized;
+        }
+
+        var index = normalized.LastIndexOf('/');
+        return index >= 0 ? normalized[(index + 1)..] : normalized;
+    }
+
+    private static bool LooksLikeWindowsRootedPath(string path)
+    {
+        return path.Length >= 3
+            && char.IsLetter(path[0])
+            && path[1] == ':'
+            && path[2] == '/';
     }
 
     private static void AddIssue(

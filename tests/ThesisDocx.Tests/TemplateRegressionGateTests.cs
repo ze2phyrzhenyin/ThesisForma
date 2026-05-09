@@ -129,6 +129,7 @@ public sealed class TemplateRegressionGateTests
         Assert.Contains("docx", report.Artifacts.Keys);
         Assert.Contains("layoutSignature", report.Artifacts.Keys);
         Assert.Contains("snapshot", report.Artifacts.Keys);
+        Assert.All(report.Artifacts.Values, artifact => Assert.False(Path.IsPathRooted(artifact)));
     }
 
     [Fact]

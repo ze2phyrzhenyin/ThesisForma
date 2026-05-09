@@ -64,7 +64,7 @@ public sealed class TemplateRegressionRunner
 
             var docxPath = Path.Combine(outputDirectory, $"{regressionCase.Id}.docx");
             new DocxRenderer().Render(document, format, docxPath, context);
-            result.Artifacts["docx"] = docxPath;
+            result.Artifacts["docx"] = ToArtifactPath(outputDirectory, docxPath);
 
             var openXml = new OpenXmlPackageValidator().Validate(docxPath);
             result.OpenXmlErrorCount = openXml.Errors.Count;
@@ -79,19 +79,19 @@ public sealed class TemplateRegressionRunner
             var inspect = new DocxInspector().Inspect(docxPath);
             var inspectPath = Path.Combine(outputDirectory, $"{regressionCase.Id}.inspect.json");
             File.WriteAllText(inspectPath, JsonSerializer.Serialize(inspect, ThesisJson.Options));
-            result.Artifacts["inspect"] = inspectPath;
+            result.Artifacts["inspect"] = ToArtifactPath(outputDirectory, inspectPath);
 
             var signature = new DocxLayoutSignatureExtractor().Extract(docxPath);
             var signaturePath = Path.Combine(outputDirectory, $"{regressionCase.Id}.layout.json");
             File.WriteAllText(signaturePath, JsonSerializer.Serialize(signature, ThesisJson.Options));
-            result.Artifacts["layoutSignature"] = signaturePath;
+            result.Artifacts["layoutSignature"] = ToArtifactPath(outputDirectory, signaturePath);
 
             CompareLayout(regressionCase, suiteDirectory, result, signature);
 
             var snapshot = new DocxSnapshotNormalizer().NormalizeToStableSnapshot(docxPath);
             var snapshotPath = Path.Combine(outputDirectory, $"{regressionCase.Id}.snapshot.txt");
             File.WriteAllText(snapshotPath, snapshot);
-            result.Artifacts["snapshot"] = snapshotPath;
+            result.Artifacts["snapshot"] = ToArtifactPath(outputDirectory, snapshotPath);
             CompareSnapshot(regressionCase, suiteDirectory, result, snapshot);
 
             CheckRequiredCustomProperties(regressionCase, result, signature);
@@ -130,6 +130,12 @@ public sealed class TemplateRegressionRunner
         {
             result.Errors.Add($"layout.similarityBelowThreshold:{comparison.SimilarityScore}<={regressionCase.MinLayoutSimilarity}");
         }
+    }
+
+    private static string ToArtifactPath(string outputDirectory, string path)
+    {
+        var relative = Path.GetRelativePath(Path.GetFullPath(outputDirectory), Path.GetFullPath(path));
+        return relative.Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private static void CompareSnapshot(TemplateRegressionCase regressionCase, string suiteDirectory, TemplateRegressionCaseResult result, string snapshot)
