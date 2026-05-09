@@ -10,6 +10,7 @@ using ThesisDocx.Api;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Tests.Fixtures;
+using static ThesisDocx.Tests.Fixtures.ApiEndpointTestHelper;
 
 namespace ThesisDocx.Tests;
 
@@ -238,6 +239,49 @@ public sealed class WebEditorEndpointTests
     }
 
     [Fact]
+    public async Task Endpoint_ShouldReturnDocumentOperationFailures()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var document = LoadSimpleDocument();
+
+        var missingSave = await client.PutAsync("/api/documents/missing-doc", JsonContent(new SaveDocumentRequest(document, "example-university-engineering")));
+        var missingSaveError = await ReadJson<ApiError>(missingSave);
+        var missingValidate = await client.PostAsync("/api/documents/missing-doc/validate", JsonContent(new ValidateDocumentRequest(null)));
+        var missingValidateError = await ReadJson<ApiError>(missingValidate);
+        var missingRender = await client.PostAsync("/api/documents/missing-doc/render", JsonContent(new RenderDocumentRequest(null)));
+        var missingRenderError = await ReadJson<ApiError>(missingRender);
+        var missingSaveBody = await client.PutAsync("/api/documents/missing-doc", JsonContent(new SaveDocumentRequest(null, "example-university-engineering")));
+        var missingSaveBodyError = await ReadJson<ApiError>(missingSaveBody);
+
+        Assert.Equal(HttpStatusCode.NotFound, missingSave.StatusCode);
+        Assert.Equal("document.notFound", missingSaveError.Code);
+        Assert.Equal(HttpStatusCode.NotFound, missingValidate.StatusCode);
+        Assert.Equal("document.notFound", missingValidateError.Code);
+        Assert.Equal(HttpStatusCode.NotFound, missingRender.StatusCode);
+        Assert.Equal("document.notFound", missingRenderError.Code);
+        Assert.Equal(HttpStatusCode.BadRequest, missingSaveBody.StatusCode);
+        Assert.Equal("document.missing", missingSaveBodyError.Code);
+    }
+
+    [Fact]
+    public async Task Endpoint_ShouldReturnAssetLookupFailures()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        var missingAsset = await client.GetAsync("/api/assets/missing-asset");
+        var missingAssetError = await ReadJson<ApiError>(missingAsset);
+        var unsafeAsset = await client.GetAsync("/api/assets/bad$id");
+        var unsafeAssetError = await ReadJson<ApiError>(unsafeAsset);
+
+        Assert.Equal(HttpStatusCode.NotFound, missingAsset.StatusCode);
+        Assert.Equal("asset.notFound", missingAssetError.Code);
+        Assert.Equal(HttpStatusCode.NotFound, unsafeAsset.StatusCode);
+        Assert.Equal("asset.notFound", unsafeAssetError.Code);
+    }
+
+    [Fact]
     public async Task Endpoint_ErrorResponses_ShouldHaveStableMachineReadableShape()
     {
         using var factory = CreateFactory();
@@ -257,11 +301,17 @@ public sealed class WebEditorEndpointTests
             await client.PostAsync("/api/documents", JsonContent(new CreateDocumentRequest("missing-template", "Draft", null, null, null, null, null, null))),
             await client.GetAsync("/api/documents/missing-doc"),
             await client.PutAsync("/api/documents/bad$id", JsonContent(new SaveDocumentRequest(LoadSimpleDocument(), "example-university-engineering"))),
+            await client.PutAsync("/api/documents/missing-doc", JsonContent(new SaveDocumentRequest(LoadSimpleDocument(), "example-university-engineering"))),
+            await client.PutAsync("/api/documents/missing-doc", JsonContent(new SaveDocumentRequest(null, "example-university-engineering"))),
             await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(null, "example-university-engineering"))),
+            await client.PostAsync("/api/documents/missing-doc/validate", JsonContent(new ValidateDocumentRequest(null))),
+            await client.PostAsync("/api/documents/missing-doc/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{invalidEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync("/api/assets/images", textForm),
+            await client.GetAsync("/api/assets/missing-asset"),
+            await client.GetAsync("/api/assets/bad$id"),
             await client.GetAsync("/api/runs/missing-run"),
             await client.GetAsync("/api/runs/missing-run/download")
         };
@@ -322,97 +372,4 @@ public sealed class WebEditorEndpointTests
             });
     }
 
-    private static async Task<DocumentEnvelope> ImportDocument(HttpClient client, ThesisDocument document, string templateId)
-    {
-        var response = await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(document, templateId)));
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return await ReadJson<DocumentEnvelope>(response);
-    }
-
-    private static ThesisDocument LoadSimpleDocument()
-    {
-        var documentPath = Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "simple-thesis", "document.json");
-        return JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(documentPath), ThesisJson.Options)!;
-    }
-
-    private static StringContent JsonContent<T>(T value)
-    {
-        return new StringContent(JsonSerializer.Serialize(value, ThesisJson.Options), Encoding.UTF8, "application/json");
-    }
-
-    private static async Task<T> ReadJson<T>(HttpResponseMessage response)
-    {
-        var json = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<T>(json, ThesisJson.Options)
-            ?? throw new InvalidOperationException($"Could not deserialize response as {typeof(T).Name}: {json}");
-    }
-
-    private static async Task AssertErrorResponseContract(HttpResponseMessage response)
-    {
-        Assert.True(
-            response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.NotFound,
-            $"Expected a client error response, got {(int)response.StatusCode}.");
-        var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
-        AssertRequiredString(json, "code");
-        AssertRequiredString(json, "message");
-        AssertRequiredString(json, "path");
-        var issues = Assert.IsType<JsonArray>(json["issues"]);
-        foreach (var issue in issues)
-        {
-            AssertRequiredString(issue!, "code");
-            AssertRequiredString(issue!, "message");
-            AssertRequiredString(issue!, "path");
-            var severity = AssertRequiredString(issue!, "severity");
-            Assert.Contains(severity, new[] { "error", "warning", "info" });
-            AssertRequiredString(issue!, "suggestedAction");
-        }
-
-        AssertNoLocalAbsolutePaths(json);
-    }
-
-    private static string AssertRequiredString(JsonNode node, string propertyName)
-    {
-        var value = node[propertyName]?.GetValue<string>();
-        Assert.False(string.IsNullOrWhiteSpace(value), $"Missing or empty '{propertyName}' in {node.ToJsonString()}.");
-        return value!;
-    }
-
-    private static void AssertNoLocalAbsolutePaths(JsonNode? node)
-    {
-        switch (node)
-        {
-            case JsonValue value:
-                var text = value.TryGetValue<string>(out var stringValue) ? stringValue : null;
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    Assert.False(LooksLikeLocalAbsolutePath(text), $"Local absolute path leaked in API JSON: {text}");
-                }
-
-                break;
-            case JsonObject obj:
-                foreach (var child in obj)
-                {
-                    AssertNoLocalAbsolutePaths(child.Value);
-                }
-
-                break;
-            case JsonArray array:
-                foreach (var child in array)
-                {
-                    AssertNoLocalAbsolutePaths(child);
-                }
-
-                break;
-        }
-    }
-
-    private static bool LooksLikeLocalAbsolutePath(string value)
-    {
-        var normalized = value.Replace('\\', '/');
-        return normalized.StartsWith("/Users/", StringComparison.Ordinal)
-            || normalized.StartsWith("/tmp/", StringComparison.Ordinal)
-            || normalized.StartsWith("/var/", StringComparison.Ordinal)
-            || normalized.Contains("/Downloads/xmllunwen/", StringComparison.Ordinal)
-            || (normalized.Length >= 3 && char.IsLetter(normalized[0]) && normalized[1] == ':' && normalized[2] == '/');
-    }
 }
