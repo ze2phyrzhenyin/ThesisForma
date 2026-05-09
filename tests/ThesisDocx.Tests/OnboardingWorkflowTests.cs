@@ -279,6 +279,7 @@ public sealed class OnboardingWorkflowTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Equal(Path.GetFileName(package), json["packagePath"]!.GetValue<string>());
         Assert.True(json["isValid"]!.GetValue<bool>());
     }
 

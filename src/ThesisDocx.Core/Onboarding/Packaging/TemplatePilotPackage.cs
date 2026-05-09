@@ -236,7 +236,7 @@ public sealed class TemplatePilotPackageValidator
 
     public TemplatePilotPackageValidationResult Validate(string packagePath)
     {
-        var result = new TemplatePilotPackageValidationResult { PackagePath = packagePath };
+        var result = new TemplatePilotPackageValidationResult { PackagePath = Path.GetFileName(packagePath) };
         using var archive = ZipFile.OpenRead(packagePath);
         var entries = archive.Entries.Select(e => e.FullName.Replace('\\', '/')).Order(StringComparer.Ordinal).ToList();
         foreach (var entry in entries)

@@ -10,8 +10,8 @@ public sealed class DocxStructureDiffEngine
         options ??= new DocxStructureDiffOptions();
         var result = new DocxStructureDiffResult
         {
-            BasePath = baseDocxPath,
-            TargetPath = targetDocxPath
+            BasePath = RedactPath(baseDocxPath),
+            TargetPath = RedactPath(targetDocxPath)
         };
 
         var baseParts = _canonicalizer.ReadCanonicalParts(baseDocxPath, options);
@@ -68,6 +68,11 @@ public sealed class DocxStructureDiffEngine
             .ThenBy(change => change.ChangeType)
             .ToList();
         return result;
+    }
+
+    private static string RedactPath(string path)
+    {
+        return Path.GetFileName(path);
     }
 
     private void AddChange(DocxStructureDiffResult result, string path, string? partName, DocxStructureDiffChangeType type, string category, string message, string? baseValue, string? targetValue)

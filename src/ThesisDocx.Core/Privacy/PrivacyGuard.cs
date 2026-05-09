@@ -32,7 +32,7 @@ public sealed class PrivacyGuard
     public PrivacyGuardResult Scan(PrivacyGuardOptions options)
     {
         var root = Path.GetFullPath(options.Path);
-        var result = new PrivacyGuardResult { RootPath = root };
+        var result = new PrivacyGuardResult { RootPath = RedactRootPath(root) };
         if (!Directory.Exists(root) && !File.Exists(root))
         {
             Add(result, "privacy.path.missing", DiagnosticSeverity.Error, root, "Path does not exist.", "Check the workspace or package path.");
@@ -300,6 +300,12 @@ public sealed class PrivacyGuard
         var prefix = value[..Math.Min(4, value.Length)];
         var suffix = value[^Math.Min(4, value.Length)..];
         return $"{prefix}...{suffix}";
+    }
+
+    private static string RedactRootPath(string root)
+    {
+        var name = Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return string.IsNullOrWhiteSpace(name) ? "." : name;
     }
 }
 

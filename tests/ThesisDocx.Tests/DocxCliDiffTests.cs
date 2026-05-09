@@ -22,6 +22,8 @@ public sealed class DocxCliDiffTests
         Assert.Equal(0, result.ExitCode);
         var json = JsonNode.Parse(result.StandardOutput)!;
         Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Equal(Path.GetFileName(docx), json["basePath"]!.GetValue<string>());
+        Assert.Equal(Path.GetFileName(docx), json["targetPath"]!.GetValue<string>());
         Assert.True(json["isEqual"]!.GetValue<bool>());
     }
 
@@ -49,6 +51,7 @@ public sealed class DocxCliDiffTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.DoesNotContain(Path.DirectorySeparatorChar, json["sourcePath"]!.GetValue<string>());
         Assert.True(json["sections"]!.AsArray().Count >= 3);
     }
 

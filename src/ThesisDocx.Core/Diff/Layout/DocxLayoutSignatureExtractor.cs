@@ -19,7 +19,7 @@ public sealed class DocxLayoutSignatureExtractor
         var fieldInstructions = CollectFields(document).Order(StringComparer.Ordinal).ToList();
         return new DocxLayoutSignature
         {
-            SourcePath = docxPath,
+            SourcePath = Path.GetFileName(docxPath),
             Sections = ExtractSections(mainPart),
             Styles = ExtractStyles(mainPart),
             Tables = ExtractTables(mainPart),
