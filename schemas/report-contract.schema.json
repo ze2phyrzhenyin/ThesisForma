@@ -1,0 +1,199 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/report-contract.schema.json",
+  "title": "ThesisDocx Machine Report Contract",
+  "description": "Common additive contract for CLI/Core reports that expose root reportVersion.",
+  "anyOf": [
+    { "$ref": "#/definitions/serviceResult" },
+    { "$ref": "#/definitions/renderResult" },
+    { "$ref": "#/definitions/diagnosticReport" },
+    { "$ref": "#/definitions/privacyGuardResult" },
+    { "$ref": "#/definitions/docxStructureDiffResult" },
+    { "$ref": "#/definitions/docxLayoutSignature" },
+    { "$ref": "#/definitions/layoutSignatureCompareResult" },
+    { "$ref": "#/definitions/negativeFixtureRunResult" },
+    { "$ref": "#/definitions/onboardingPackageValidationResult" }
+  ],
+  "definitions": {
+    "reportVersion": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "serviceResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "success", "errorCount", "warningCount", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "success": { "type": "boolean" },
+        "errorCount": { "type": "integer", "minimum": 0 },
+        "warningCount": { "type": "integer", "minimum": 0 },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "versionReport": { "$ref": "#/definitions/versionReport" }
+      }
+    },
+    "renderResult": {
+      "allOf": [
+        { "$ref": "#/definitions/serviceResult" },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "artifact": { "$ref": "#/definitions/artifact" }
+          }
+        }
+      ]
+    },
+    "diagnosticReport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "status", "diagnostics", "versionReport"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "status": { "enum": ["pass", "passWithWarnings", "fail"] },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "versionReport": { "$ref": "#/definitions/versionReport" }
+      }
+    },
+    "privacyGuardResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "rootPath", "isValid", "breakingCount", "warningCount", "suppressedWarningCount", "findings", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "rootPath": { "type": "string" },
+        "isValid": { "type": "boolean" },
+        "breakingCount": { "type": "integer", "minimum": 0 },
+        "warningCount": { "type": "integer", "minimum": 0 },
+        "suppressedWarningCount": { "type": "integer", "minimum": 0 },
+        "findings": { "type": "array" },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } }
+      }
+    },
+    "docxStructureDiffResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "basePath", "targetPath", "changes"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "basePath": { "type": "string" },
+        "targetPath": { "type": "string" },
+        "changes": { "type": "array" }
+      }
+    },
+    "docxLayoutSignature": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "sourcePath", "sections", "tables", "fields", "footnotes", "endnotes", "customProperties"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "sourcePath": { "type": "string" },
+        "sections": { "type": "array" },
+        "tables": { "type": "array" },
+        "fields": { "type": "object" },
+        "footnotes": { "type": "object" },
+        "endnotes": { "type": "object" },
+        "customProperties": { "type": "object" }
+      }
+    },
+    "layoutSignatureCompareResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "similarityScore", "meetsThreshold", "threshold", "differences"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "similarityScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "meetsThreshold": { "type": "boolean" },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "differences": { "type": "array" }
+      }
+    },
+    "negativeFixtureRunResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "suiteId", "cases", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "suiteId": { "type": "string" },
+        "cases": { "type": "array" },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } }
+      }
+    },
+    "onboardingPackageValidationResult": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "packagePath", "isValid", "errors", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "packagePath": { "type": "string" },
+        "isValid": { "type": "boolean" },
+        "errors": { "type": "array", "items": { "type": "string" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "byteSize"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "byteSize": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "versionReport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "isValid", "checks", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "isValid": { "type": "boolean" },
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/versionCheck" }
+        },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } }
+      }
+    },
+    "versionCheck": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "version", "isSupported", "direction", "supportedVersions"],
+      "properties": {
+        "kind": {
+          "enum": ["thesisDocument", "thesisFormatSpec", "templatePackage"]
+        },
+        "version": { "type": "string" },
+        "isSupported": { "type": "boolean" },
+        "direction": {
+          "enum": ["current", "supported", "old", "future", "missing", "unsupported", "unknown"]
+        },
+        "supportedVersions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "diagnostic": { "$ref": "#/definitions/unifiedDiagnostic" }
+      }
+    },
+    "unifiedDiagnostic": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["code", "severity", "path", "message", "category", "source"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "path": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "fixHint": { "type": "string" },
+        "category": {
+          "enum": ["schema", "semantic", "template", "rendering", "openxml", "privacy", "requirement", "coverage", "regression", "baseline", "intake", "negativeFixture"]
+        },
+        "source": { "type": "string", "minLength": 1 },
+        "relatedPaths": { "type": "array", "items": { "type": "string" } },
+        "details": { "type": "object", "additionalProperties": { "type": "string" } },
+        "documentationRef": { "type": "string" }
+      }
+    }
+  }
+}

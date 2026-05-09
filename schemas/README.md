@@ -12,6 +12,7 @@ This directory contains the formal JSON Schema contract for Stage 1 structured i
 - `fix-hint-rules.schema.json`: validates the fix hint rule catalog.
 - `diagnostic-report.schema.json`: documents the machine-readable diagnostic report shape.
 - `version-report.schema.json`: validates the shared `versionReport` payload used by schema-aware CLI JSON and service facade results.
+- `report-contract.schema.json`: validates the additive root `reportVersion` family used by service results, render JSON, privacy reports, DOCX diff/layout reports, diagnostic reports, and negative fixture reports.
 - `onboarding-workspace.schema.json`: validates private or fictional onboarding workspace manifests.
 - `template-pilot-package-manifest.schema.json`: validates deterministic pilot package manifests.
 - `docx-extraction.schema.json`: validates OpenXML extraction evidence from uploaded DOCX files.
