@@ -1,7 +1,9 @@
 using System.Text.Json;
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Onboarding.Packaging;
 using ThesisDocx.Core.Privacy;
+using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Tests.Fixtures;
@@ -132,6 +134,46 @@ public sealed class CoreServiceFacadeTests
         Assert.NotNull(result.Resolution?.FormatSpec);
         Assert.Contains(result.VersionReport.Checks, check => check.Kind == "templatePackage");
         Assert.DoesNotContain(result.VersionReport.Checks, check => check.Direction == "unsupported");
+    }
+
+    [Fact]
+    public void FutureApiWrapper_ShouldResolveValidateAndRenderTemplateWithoutCliHandlers()
+    {
+        var (document, _, baseDirectory) = LoadSimple();
+        var template = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = TemplatePath(),
+            Document = document,
+            Variables = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["schoolName"] = "Example University"
+            }
+        });
+        Assert.True(template.Success, string.Join(Environment.NewLine, template.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(template.Resolution?.FormatSpec);
+
+        var validation = new ThesisValidateService().ValidateInput(new ValidateInputRequest
+        {
+            Document = document,
+            Format = template.Resolution!.FormatSpec!,
+            BaseDirectory = baseDirectory
+        });
+        var output = Path.Combine(NewTempDirectory(), "future-api-render.docx");
+        var render = new ThesisRenderService().Render(new RenderRequest
+        {
+            Document = document,
+            Format = template.Resolution.FormatSpec!,
+            BaseDirectory = baseDirectory,
+            OutputPath = output,
+            RenderContext = RenderContextFrom(template.Resolution)
+        });
+
+        Assert.True(validation.Success, string.Join(Environment.NewLine, validation.Diagnostics.Select(d => d.Message)));
+        Assert.True(render.Success, string.Join(Environment.NewLine, render.Diagnostics.Select(d => d.Message)));
+        Assert.Equal("future-api-render.docx", render.Artifact!.Path);
+        Assert.DoesNotContain(Path.GetTempPath(), JsonSerializer.Serialize(render, ThesisJson.Options));
+        Assert.Contains(render.VersionReport.Checks, check => check.Kind == "thesisDocument");
+        Assert.Contains(render.VersionReport.Checks, check => check.Kind == "thesisFormatSpec");
     }
 
     [Fact]
@@ -505,6 +547,23 @@ public sealed class CoreServiceFacadeTests
     private static string OnboardingWorkspacePath()
     {
         return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "onboarding", "example-engineering-pilot");
+    }
+
+    private static DocxRenderContext RenderContextFrom(TemplateResolutionResult resolution)
+    {
+        return new DocxRenderContext
+        {
+            TemplateId = resolution.Template?.Id,
+            TemplateVersion = resolution.Template?.Version,
+            TemplateSchool = resolution.Template?.School,
+            TemplateCollege = resolution.Template?.College,
+            ResolvedFormatSpecVersion = resolution.FormatSpec?.SchemaVersion,
+            PageTemplates = resolution.PageTemplates,
+            Variables = resolution.Variables
+                .Where(variable => variable.Value is not null)
+                .ToDictionary(variable => variable.Name, variable => variable.Value!, StringComparer.Ordinal),
+            Assets = resolution.Assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal)
+        };
     }
 
     private static string NewTempDirectory()
