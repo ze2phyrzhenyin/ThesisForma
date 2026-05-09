@@ -195,6 +195,64 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void TemplateResolveService_ShouldReturnMissingAssetDiagnostic()
+    {
+        var (document, _, _) = LoadSimple();
+
+        var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = NegativeTemplatePath("missing-asset"),
+            Document = document
+        });
+
+        Assert.False(result.Success);
+        Assert.NotNull(result.Resolution?.FormatSpec);
+        AssertFacadeDiagnostic(result, "template.asset.missing", "template", "TemplateResolveService");
+        Assert.DoesNotContain(NegativeTemplatePath("missing-asset"), JsonSerializer.Serialize(result.Diagnostics, ThesisJson.Options));
+    }
+
+    [Fact]
+    public void TemplateResolveService_ShouldReturnUnsupportedTemplateVersionDiagnostic()
+    {
+        var (document, _, _) = LoadSimple();
+
+        var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = NegativeTemplatePath("unsupported-template-schema-version"),
+            Document = document
+        });
+
+        Assert.False(result.Success);
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "templatePackage"
+            && check.Direction == "future");
+        AssertFacadeDiagnostic(result, "template.schemaVersion.unsupported", "template", "TemplateResolveService");
+    }
+
+    [Fact]
+    public void TemplateResolveService_ShouldReturnUnknownVariableWarning()
+    {
+        var (document, _, _) = LoadSimple();
+
+        var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = TemplatePath(),
+            Document = document,
+            Variables = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["variables.unknown"] = "value"
+            }
+        });
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.Equal(0, result.ErrorCount);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "template.variable.unknownSupplied"
+            && diagnostic.Severity == "warning"
+            && diagnostic.Source == "TemplateResolveService");
+    }
+
+    [Fact]
     public void FutureApiWrapper_ShouldReturnTemplateInvalidPathDiagnosticWithoutAbsolutePathLeak()
     {
         var missingTemplate = Path.Combine(NewTempDirectory(), "missing-template");
@@ -427,6 +485,45 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void TemplateWorkflowService_ShouldReturnValidateMissingAssetDiagnostic()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new TemplateWorkflowService().Validate(new TemplateValidateRequest
+        {
+            TemplatePath = NegativeTemplatePath("missing-asset"),
+            SchemaPath = Path.Combine(root, "schemas", "template-package.schema.json")
+        });
+
+        Assert.False(result.Success);
+        Assert.NotNull(result.Validation);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "template.asset.missing"
+            && diagnostic.Severity == "error");
+    }
+
+    [Fact]
+    public void TemplateWorkflowService_ShouldReturnValidateUnsupportedTemplateVersionDiagnostic()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+
+        var result = new TemplateWorkflowService().Validate(new TemplateValidateRequest
+        {
+            TemplatePath = NegativeTemplatePath("unsupported-template-schema-version"),
+            SchemaPath = Path.Combine(root, "schemas", "template-package.schema.json")
+        });
+
+        Assert.False(result.Success);
+        Assert.NotNull(result.Validation);
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "templatePackage"
+            && check.Direction == "future");
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "template.schemaVersion.unsupported"
+            && diagnostic.Severity == "error");
+    }
+
+    [Fact]
     public void CiQualityReportService_ShouldReturnReportForPassingGate()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
@@ -561,6 +658,17 @@ public sealed class CoreServiceFacadeTests
         Assert.False(string.IsNullOrWhiteSpace(diagnostic.FixHint));
     }
 
+    private static void AssertFacadeDiagnostic(ServiceResult result, string expectedCode, string expectedCategory, string expectedSource)
+    {
+        var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.Code == expectedCode);
+        Assert.Equal(expectedCode, diagnostic.Code);
+        Assert.Equal(expectedCategory, diagnostic.Category);
+        Assert.Equal(expectedSource, diagnostic.Source);
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic.Path));
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic.Message));
+        Assert.False(string.IsNullOrWhiteSpace(diagnostic.FixHint));
+    }
+
     private static (ThesisDocument Document, ThesisFormatSpec Format, string BaseDirectory) LoadSimple()
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
@@ -575,6 +683,11 @@ public sealed class CoreServiceFacadeTests
     private static string TemplatePath()
     {
         return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "templates", "example-university-engineering");
+    }
+
+    private static string NegativeTemplatePath(string name)
+    {
+        return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "negative-fixtures", "templates", name);
     }
 
     private static string RepoRoot()

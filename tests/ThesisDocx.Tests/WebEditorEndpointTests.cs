@@ -65,6 +65,27 @@ public sealed class WebEditorEndpointTests
     }
 
     [Fact]
+    public async Task Endpoint_ValidateInvalidDocument_ShouldReturnFacadeDiagnosticsInOkPayload()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var document = LoadSimpleDocument();
+        document.SchemaVersion = "9.9.9";
+        var envelope = await ImportDocument(client, document, "example-university-engineering");
+
+        var response = await client.PostAsync($"/api/documents/{envelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null)));
+        var validation = await ReadJson<DocumentValidationResponse>(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(validation.IsValid);
+        Assert.Contains(validation.Issues, issue =>
+            issue.Code == "thesis.schemaVersion.unsupported"
+            && issue.Severity == "error"
+            && issue.Path == "$.schemaVersion"
+            && !string.IsNullOrWhiteSpace(issue.SuggestedAction));
+    }
+
+    [Fact]
     public async Task Endpoint_ValidateMissingTemplate_ShouldReturnTemplateDiagnostics()
     {
         using var factory = CreateFactory();
@@ -77,6 +98,24 @@ public sealed class WebEditorEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("template.validationFailed", error.Code);
         Assert.Contains(error.Issues, issue => issue.Code == "template.notFound" && issue.Severity == "error");
+    }
+
+    [Fact]
+    public async Task Endpoint_RenderMissingTemplate_ShouldReturnTemplateDiagnostics()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var envelope = await ImportDocument(client, LoadSimpleDocument(), "missing-template");
+
+        var response = await client.PostAsync($"/api/documents/{envelope.Id}/render", JsonContent(new RenderDocumentRequest(null)));
+        var error = await ReadJson<ApiError>(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("template.validationFailed", error.Code);
+        Assert.Contains(error.Issues, issue =>
+            issue.Code == "template.notFound"
+            && issue.Severity == "error"
+            && !string.IsNullOrWhiteSpace(issue.SuggestedAction));
     }
 
     [Fact]
@@ -221,6 +260,7 @@ public sealed class WebEditorEndpointTests
             await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(null, "example-university-engineering"))),
             await client.PostAsync($"/api/documents/{invalidEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null))),
+            await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync("/api/assets/images", textForm),
             await client.GetAsync("/api/runs/missing-run"),
             await client.GetAsync("/api/runs/missing-run/download")
