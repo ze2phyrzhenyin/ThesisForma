@@ -228,9 +228,25 @@ public sealed class TemplateResolveService
             Severity = severity,
             Path = string.IsNullOrWhiteSpace(issue.Path) ? "$" : issue.Path,
             Message = issue.Message,
-            FixHint = null,
+            FixHint = FixHintForTemplateIssue(issue.Code),
             Category = DiagnosticCategory.Template,
             Source = "TemplateResolveService"
+        };
+    }
+
+    private static string? FixHintForTemplateIssue(string code)
+    {
+        return UnifiedDiagnosticMapper.CanonicalCode(code) switch
+        {
+            "template.variable.missing" => "Define the referenced variable or remove the reference.",
+            "template.variable.requiredMissing" => "Provide the required variable with --var, a defaultValue, or a metadata sourcePath.",
+            "template.variable.optionalMissing" => "Provide a defaultValue, metadata sourcePath, or --var override if this value should appear.",
+            "template.variable.unknownSupplied" => "Remove the unknown --var entry or declare it in the template variables list.",
+            "template.variable.defaultTypeMismatch" => "Make the variable defaultValue match its declared type.",
+            "template.asset.missing" => "Define the referenced asset and keep it inside the template package.",
+            "template.formatSpec.missing" => "Provide formatSpec or a relative formatSpecRef in the template package.",
+            "template.schemaVersion.unsupported" => "Use a supported templateSchemaVersion or add an explicit migration.",
+            _ => "Fix the template issue before resolving or rendering."
         };
     }
 }

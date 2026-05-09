@@ -88,13 +88,34 @@ internal static class ThesisDocxCli
         string formatPathForValidation;
         if (hasTemplate)
         {
-            var resolution = new TemplateResolver().Resolve(Required(options, "template"), document, ParseCliVariables(options));
-            if (!resolution.IsValid)
+            var templateResult = new TemplateResolveService().Resolve(new TemplateResolveRequest
             {
-                WriteTemplateErrors(resolution.Errors);
+                TemplatePath = Required(options, "template"),
+                Document = document,
+                Variables = ParseCliVariables(options)
+            });
+            if (!templateResult.Success || templateResult.Resolution is null)
+            {
+                if (options.ContainsKey("json"))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new RenderResult
+                    {
+                        Success = false,
+                        ErrorCount = templateResult.ErrorCount,
+                        WarningCount = templateResult.WarningCount,
+                        Diagnostics = templateResult.Diagnostics,
+                        VersionReport = templateResult.VersionReport
+                    }, ThesisJson.Options));
+                }
+                else
+                {
+                    WriteDiagnostics(templateResult.Diagnostics);
+                }
+
                 return 2;
             }
 
+            var resolution = templateResult.Resolution;
             format = resolution.FormatSpec ?? new ThesisFormatSpec();
             formatPathForValidation = WriteTempFormatSpec(format);
             renderContext = CreateRenderContext(resolution);

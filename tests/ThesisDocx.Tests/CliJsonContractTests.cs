@@ -182,6 +182,31 @@ public sealed class CliJsonContractTests
     }
 
     [Fact]
+    public void CliJson_RenderWithInvalidTemplate_ShouldReturnTemplateDiagnostics()
+    {
+        var root = RepoRoot();
+        var temp = NewTempDirectory();
+        var output = Path.Combine(temp, "should-not-render.docx");
+
+        var result = CliRunner.Run(
+            root,
+            "render",
+            "--document", Path.Combine(root, "examples", "simple-thesis", "document.json"),
+            "--template", Path.Combine(root, "examples", "negative-fixtures", "templates", "missing-required-variable"),
+            "--out", output,
+            "--json");
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(result.StandardError), result.StandardError);
+        Assert.False(File.Exists(output));
+        var json = ParseObject(result.StandardOutput);
+        AssertReportVersion(json);
+        Assert.False(json["success"]!.GetValue<bool>());
+        AssertDiagnosticContract(RequiredDiagnostic(json, "template.variable.requiredMissing"), "error", "template");
+        AssertVersionReport(json, expectedKinds: ["templatePackage", "thesisFormatSpec"]);
+    }
+
+    [Fact]
     public void CliJson_TemplateGateUnsupportedVersion_ShouldExposeVersionReport()
     {
         var root = RepoRoot();
