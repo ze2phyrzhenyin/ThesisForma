@@ -1,4 +1,5 @@
 using ThesisDocx.Core.Models.Requirements;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Templates;
 
 namespace ThesisDocx.Core.Requirements;
@@ -111,6 +112,11 @@ public sealed class RequirementMappingReport
     public List<RequirementCaptureValidationIssue> Errors { get; set; } = [];
 
     public List<RequirementCaptureValidationIssue> Warnings { get; set; } = [];
+
+    public List<UnifiedDiagnostic> Diagnostics => Errors
+        .Select(error => UnifiedDiagnosticMapper.FromRequirementIssue(error, DiagnosticSeverity.Error, "RequirementMappingReporter"))
+        .Concat(Warnings.Select(warning => UnifiedDiagnosticMapper.FromRequirementIssue(warning, DiagnosticSeverity.Warning, "RequirementMappingReporter")))
+        .ToList();
 
     public int TotalRequirements { get; set; }
 

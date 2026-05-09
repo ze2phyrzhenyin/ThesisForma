@@ -7,6 +7,9 @@
     { "$ref": "#/definitions/serviceResult" },
     { "$ref": "#/definitions/renderResult" },
     { "$ref": "#/definitions/diagnosticReport" },
+    { "$ref": "#/definitions/templateGateReport" },
+    { "$ref": "#/definitions/templateAuthoringReport" },
+    { "$ref": "#/definitions/requirementMappingReport" },
     { "$ref": "#/definitions/privacyGuardResult" },
     { "$ref": "#/definitions/docxStructureDiffResult" },
     { "$ref": "#/definitions/docxLayoutSignature" },
@@ -47,12 +50,68 @@
     "diagnosticReport": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["reportVersion", "status", "diagnostics", "versionReport"],
+      "required": ["reportVersion", "status", "summary", "issues", "diagnostics", "versionReport"],
       "properties": {
         "reportVersion": { "$ref": "#/definitions/reportVersion" },
         "status": { "enum": ["pass", "passWithWarnings", "fail"] },
+        "summary": { "type": "object" },
+        "issues": { "type": "array" },
         "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "topRecommendedActions": { "type": "array", "items": { "type": "string" } },
+        "relatedArtifacts": { "type": "object" },
         "versionReport": { "$ref": "#/definitions/versionReport" }
+      }
+    },
+    "templateGateReport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "templateId", "status", "checks", "machineDiagnostics", "versionReport"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "templateId": { "type": "string" },
+        "status": { "enum": ["pass", "passWithWarnings", "fail"] },
+        "checks": { "type": "array" },
+        "coverageRatio": { "type": "number", "minimum": 0 },
+        "machineDiagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "versionReport": { "$ref": "#/definitions/versionReport" },
+        "checklist": { "type": "array" },
+        "nextActions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "templateAuthoringReport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "templateId", "publishReadiness", "qualityScore", "diagnostics", "versionReport"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "templateId": { "type": "string" },
+        "templateVersion": { "type": "string" },
+        "publishReadiness": { "enum": ["ready", "notReady"] },
+        "qualityScore": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "versionReport": { "$ref": "#/definitions/versionReport" },
+        "checklist": { "type": "array" },
+        "recommendedNextActions": { "type": "array", "items": { "type": "string" } },
+        "suggestedMergeDecision": { "enum": ["approve", "reject"] }
+      }
+    },
+    "requirementMappingReport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["reportVersion", "isValid", "totalRequirements", "mappedRequirements", "partialRequirements", "unsupportedRequirements", "unmappedRequirements", "errors", "warnings", "diagnostics"],
+      "properties": {
+        "reportVersion": { "$ref": "#/definitions/reportVersion" },
+        "isValid": { "type": "boolean" },
+        "totalRequirements": { "type": "integer", "minimum": 0 },
+        "mappedRequirements": { "type": "integer", "minimum": 0 },
+        "partialRequirements": { "type": "integer", "minimum": 0 },
+        "unsupportedRequirements": { "type": "integer", "minimum": 0 },
+        "unmappedRequirements": { "type": "integer", "minimum": 0 },
+        "coverageByCategory": { "type": "array" },
+        "errors": { "type": "array" },
+        "warnings": { "type": "array" },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/unifiedDiagnostic" } },
+        "recommendedNextActions": { "type": "array", "items": { "type": "string" } }
       }
     },
     "privacyGuardResult": {

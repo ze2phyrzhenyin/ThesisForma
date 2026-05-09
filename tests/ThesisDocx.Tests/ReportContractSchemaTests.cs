@@ -3,6 +3,7 @@ using ThesisDocx.Core.Diff;
 using ThesisDocx.Core.Diff.Layout;
 using ThesisDocx.Core.Onboarding.Packaging;
 using ThesisDocx.Core.Privacy;
+using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Tests.Fixtures;
@@ -73,6 +74,66 @@ public sealed class ReportContractSchemaTests
 
         Assert.True(build.IsValid, string.Join(Environment.NewLine, build.Errors));
         AssertReportContractValid(report);
+    }
+
+    [Fact]
+    public void Schema_ShouldValidateTemplateQualityAndRequirementsReportContracts()
+    {
+        var root = RepoRoot();
+        var outputDirectory = NewTempDirectory();
+        var template = Path.Combine(root, "examples", "templates", "example-university-engineering");
+        var document = Path.Combine(root, "examples", "full-thesis", "document.json");
+        var requirements = Path.Combine(root, "examples", "requirements", "example-engineering-requirements.json");
+        var suite = Path.Combine(root, "examples", "template-regression", "template-regression-suite.json");
+        var gate = Path.Combine(outputDirectory, "gate.json");
+        var diagnose = Path.Combine(outputDirectory, "diagnose.json");
+        var authoring = Path.Combine(outputDirectory, "authoring.json");
+        var requirementReport = Path.Combine(outputDirectory, "requirements.json");
+
+        var workflow = new TemplateWorkflowService();
+        var gateResult = workflow.Gate(new TemplateGateRequest
+        {
+            TemplatePath = template,
+            DocumentPath = document,
+            OutputDirectory = Path.Combine(outputDirectory, "gate-artifacts"),
+            CoverageThreshold = 0.85
+        });
+        var diagnoseResult = workflow.Diagnose(new TemplateDiagnoseRequest
+        {
+            TemplatePath = template,
+            DocumentPath = document,
+            RequirementsPath = requirements,
+            SuitePath = suite,
+            OutputDirectory = Path.Combine(outputDirectory, "diagnose-artifacts")
+        });
+        var authoringResult = workflow.AuthoringReport(new TemplateAuthoringReportRequest
+        {
+            TemplatePath = template,
+            DocumentPath = document,
+            RequirementsPath = requirements,
+            SuitePath = suite,
+            OutputDirectory = Path.Combine(outputDirectory, "authoring-artifacts"),
+            CoverageThreshold = 0.85
+        });
+        var requirementsResult = new RequirementsWorkflowService().Report(new RequirementsReportRequest
+        {
+            RequirementsPath = requirements,
+            TemplatePath = template
+        });
+
+        Assert.True(gateResult.Success, string.Join(Environment.NewLine, gateResult.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(diagnoseResult.Success, string.Join(Environment.NewLine, diagnoseResult.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(authoringResult.Success, string.Join(Environment.NewLine, authoringResult.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(requirementsResult.Success, string.Join(Environment.NewLine, requirementsResult.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        File.WriteAllText(gate, JsonSerializer.Serialize(gateResult.Report, ThesisJson.Options));
+        File.WriteAllText(diagnose, JsonSerializer.Serialize(diagnoseResult.Report, ThesisJson.Options));
+        File.WriteAllText(authoring, JsonSerializer.Serialize(authoringResult.Report, ThesisJson.Options));
+        File.WriteAllText(requirementReport, JsonSerializer.Serialize(requirementsResult.Report, ThesisJson.Options));
+
+        AssertReportContractValid(gate);
+        AssertReportContractValid(diagnose);
+        AssertReportContractValid(authoring);
+        AssertReportContractValid(requirementReport);
     }
 
     [Fact]
@@ -153,8 +214,13 @@ public sealed class ReportContractSchemaTests
 
     private static string TempPath(string fileName)
     {
+        return Path.Combine(NewTempDirectory(), fileName);
+    }
+
+    private static string NewTempDirectory()
+    {
         var directory = Path.Combine(Path.GetTempPath(), "ThesisDocx.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        return Path.Combine(directory, fileName);
+        return directory;
     }
 }
