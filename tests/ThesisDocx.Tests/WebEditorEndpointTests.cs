@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -60,7 +61,7 @@ public sealed class WebEditorEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("document.validationFailed", error.Code);
-        Assert.Contains(error.Issues ?? [], issue => issue.Code == "thesis.schemaVersion.unsupported" && issue.Severity == "error");
+        Assert.Contains(error.Issues, issue => issue.Code == "thesis.schemaVersion.unsupported" && issue.Severity == "error");
     }
 
     [Fact]
@@ -75,7 +76,7 @@ public sealed class WebEditorEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("template.validationFailed", error.Code);
-        Assert.Contains(error.Issues ?? [], issue => issue.Code == "template.notFound" && issue.Severity == "error");
+        Assert.Contains(error.Issues, issue => issue.Code == "template.notFound" && issue.Severity == "error");
     }
 
     [Fact]
@@ -197,6 +198,72 @@ public sealed class WebEditorEndpointTests
         Assert.Equal("document.missing", importMissingDocumentError.Code);
     }
 
+    [Fact]
+    public async Task Endpoint_ErrorResponses_ShouldHaveStableMachineReadableShape()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var invalidDocument = LoadSimpleDocument();
+        invalidDocument.SchemaVersion = "9.9.9";
+        var invalidEnvelope = await ImportDocument(client, invalidDocument, "example-university-engineering");
+        var missingTemplateEnvelope = await ImportDocument(client, LoadSimpleDocument(), "missing-template");
+
+        using var textForm = new MultipartFormDataContent();
+        var textContent = new ByteArrayContent(Encoding.UTF8.GetBytes("not an image"));
+        textContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        textForm.Add(textContent, "file", "note.txt");
+
+        var responses = new[]
+        {
+            await client.PostAsync("/api/documents", JsonContent(new CreateDocumentRequest("missing-template", "Draft", null, null, null, null, null, null))),
+            await client.GetAsync("/api/documents/missing-doc"),
+            await client.PutAsync("/api/documents/bad$id", JsonContent(new SaveDocumentRequest(LoadSimpleDocument(), "example-university-engineering"))),
+            await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(null, "example-university-engineering"))),
+            await client.PostAsync($"/api/documents/{invalidEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
+            await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null))),
+            await client.PostAsync("/api/assets/images", textForm),
+            await client.GetAsync("/api/runs/missing-run"),
+            await client.GetAsync("/api/runs/missing-run/download")
+        };
+
+        foreach (var response in responses)
+        {
+            await AssertErrorResponseContract(response);
+        }
+    }
+
+    [Fact]
+    public async Task Endpoint_SuccessResponses_ShouldNotExposeLocalAbsolutePaths()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var envelope = await ImportDocument(client, LoadSimpleDocument(), "example-university-engineering");
+        var render = await client.PostAsync($"/api/documents/{envelope.Id}/render", JsonContent(new RenderDocumentRequest(null)));
+        var run = await ReadJson<RenderRunResponse>(render);
+
+        using var imageForm = new MultipartFormDataContent();
+        var imageContent = new ByteArrayContent(Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="));
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        imageForm.Add(imageContent, "file", "pixel.png");
+
+        var responses = new[]
+        {
+            await client.GetAsync("/api/templates"),
+            await client.GetAsync("/api/templates/example-university-engineering"),
+            await client.GetAsync($"/api/documents/{envelope.Id}"),
+            render,
+            await client.GetAsync($"/api/runs/{run.RunId}"),
+            await client.PostAsync("/api/assets/images", imageForm)
+        };
+
+        foreach (var response in responses)
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+            AssertNoLocalAbsolutePaths(json);
+        }
+    }
+
     private static WebApplicationFactory<Program> CreateFactory()
     {
         var repoRoot = TestRenderHelper.LocateRepoRootForTests();
@@ -238,5 +305,74 @@ public sealed class WebEditorEndpointTests
         var json = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<T>(json, ThesisJson.Options)
             ?? throw new InvalidOperationException($"Could not deserialize response as {typeof(T).Name}: {json}");
+    }
+
+    private static async Task AssertErrorResponseContract(HttpResponseMessage response)
+    {
+        Assert.True(
+            response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected a client error response, got {(int)response.StatusCode}.");
+        var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+        AssertRequiredString(json, "code");
+        AssertRequiredString(json, "message");
+        AssertRequiredString(json, "path");
+        var issues = Assert.IsType<JsonArray>(json["issues"]);
+        foreach (var issue in issues)
+        {
+            AssertRequiredString(issue!, "code");
+            AssertRequiredString(issue!, "message");
+            AssertRequiredString(issue!, "path");
+            var severity = AssertRequiredString(issue!, "severity");
+            Assert.Contains(severity, new[] { "error", "warning", "info" });
+            AssertRequiredString(issue!, "suggestedAction");
+        }
+
+        AssertNoLocalAbsolutePaths(json);
+    }
+
+    private static string AssertRequiredString(JsonNode node, string propertyName)
+    {
+        var value = node[propertyName]?.GetValue<string>();
+        Assert.False(string.IsNullOrWhiteSpace(value), $"Missing or empty '{propertyName}' in {node.ToJsonString()}.");
+        return value!;
+    }
+
+    private static void AssertNoLocalAbsolutePaths(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonValue value:
+                var text = value.TryGetValue<string>(out var stringValue) ? stringValue : null;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    Assert.False(LooksLikeLocalAbsolutePath(text), $"Local absolute path leaked in API JSON: {text}");
+                }
+
+                break;
+            case JsonObject obj:
+                foreach (var child in obj)
+                {
+                    AssertNoLocalAbsolutePaths(child.Value);
+                }
+
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                {
+                    AssertNoLocalAbsolutePaths(child);
+                }
+
+                break;
+        }
+    }
+
+    private static bool LooksLikeLocalAbsolutePath(string value)
+    {
+        var normalized = value.Replace('\\', '/');
+        return normalized.StartsWith("/Users/", StringComparison.Ordinal)
+            || normalized.StartsWith("/tmp/", StringComparison.Ordinal)
+            || normalized.StartsWith("/var/", StringComparison.Ordinal)
+            || normalized.Contains("/Downloads/xmllunwen/", StringComparison.Ordinal)
+            || (normalized.Length >= 3 && char.IsLetter(normalized[0]) && normalized[1] == ':' && normalized[2] == '/');
     }
 }

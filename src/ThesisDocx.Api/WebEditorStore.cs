@@ -75,6 +75,12 @@ public sealed class WebEditorStore
         return template.TemplateDirectory ?? Path.Combine(ProjectRoot, "examples", "templates", template.Id);
     }
 
+    public string PublicTemplatePath(TemplatePackage template)
+    {
+        var relative = Path.GetRelativePath(ProjectRoot, TemplatePath(template));
+        return relative.Replace(Path.DirectorySeparatorChar, '/');
+    }
+
     public DocumentEnvelope CreateDocument(ThesisDocument document, string? templateId)
     {
         var id = NewId("doc");

@@ -6,11 +6,11 @@ using ThesisDocx.Core.Validation;
 
 namespace ThesisDocx.Api;
 
-public sealed record ApiError(string Code, string Message, string? Path = null, IReadOnlyList<ApiIssue>? Issues = null)
+public sealed record ApiError(string Code, string Message, string Path, IReadOnlyList<ApiIssue> Issues)
 {
-    public static ApiError BadRequest(string code, string message, string? path = null) => new(code, message, path);
+    public static ApiError BadRequest(string code, string message, string? path = null) => new(code, message, NormalizePath(path), []);
 
-    public static ApiError NotFound(string code, string message) => new(code, message);
+    public static ApiError NotFound(string code, string message) => new(code, message, "$", []);
 
     public static ApiError FromInputValidation(ThesisInputValidationResult result)
     {
@@ -18,7 +18,7 @@ public sealed record ApiError(string Code, string Message, string? Path = null, 
             "document.validationFailed",
             "ThesisDocument failed input validation.",
             "$",
-            result.Errors.Select(error => new ApiIssue(error.Code, error.Message, error.Path, "error", error.Message)).ToList());
+            result.Errors.Select(error => ApiIssue.FromValidationError(error)).ToList());
     }
 
     public static ApiError FromTemplateIssues(IEnumerable<TemplateIssue> issues)
@@ -27,7 +27,7 @@ public sealed record ApiError(string Code, string Message, string? Path = null, 
             "template.validationFailed",
             "Template resolution failed.",
             "$",
-            issues.Select(issue => new ApiIssue(issue.Code, issue.Message, issue.Path, "error", issue.Message)).ToList());
+            issues.Select(issue => ApiIssue.FromTemplateIssue(issue)).ToList());
     }
 
     public static ApiError FromDiagnostics(string code, string message, IEnumerable<UnifiedDiagnostic> diagnostics)
@@ -38,19 +38,35 @@ public sealed record ApiError(string Code, string Message, string? Path = null, 
             "$",
             diagnostics.Select(ApiIssue.FromDiagnostic).ToList());
     }
+
+    private static string NormalizePath(string? path) => string.IsNullOrWhiteSpace(path) ? "$" : path;
 }
 
-public sealed record ApiIssue(string Code, string Message, string? Path, string Severity, string? SuggestedAction)
+public sealed record ApiIssue(string Code, string Message, string Path, string Severity, string SuggestedAction)
 {
     public static ApiIssue FromDiagnostic(UnifiedDiagnostic diagnostic)
     {
         return new ApiIssue(
             diagnostic.Code,
             diagnostic.Message,
-            diagnostic.Path,
+            NormalizePath(diagnostic.Path),
             diagnostic.Severity,
-            diagnostic.FixHint);
+            NormalizeSuggestedAction(diagnostic.FixHint, diagnostic.Message));
     }
+
+    public static ApiIssue FromValidationError(ThesisInputValidationError error)
+    {
+        return new ApiIssue(error.Code, error.Message, NormalizePath(error.Path), "error", NormalizeSuggestedAction(error.Message, error.Message));
+    }
+
+    public static ApiIssue FromTemplateIssue(TemplateIssue issue)
+    {
+        return new ApiIssue(issue.Code, issue.Message, NormalizePath(issue.Path), "error", NormalizeSuggestedAction(issue.Message, issue.Message));
+    }
+
+    private static string NormalizePath(string? path) => string.IsNullOrWhiteSpace(path) ? "$" : path;
+
+    private static string NormalizeSuggestedAction(string? action, string message) => string.IsNullOrWhiteSpace(action) ? message : action;
 }
 
 public sealed record CreateDocumentRequest(
@@ -79,7 +95,7 @@ public sealed record DocumentValidationResponse(bool IsValid, IReadOnlyList<ApiI
     {
         return new DocumentValidationResponse(
             result.IsValid,
-            result.Errors.Select(error => new ApiIssue(error.Code, error.Message, error.Path, "error", error.Message)).ToList());
+            result.Errors.Select(ApiIssue.FromValidationError).ToList());
     }
 
     public static DocumentValidationResponse FromServiceResult(ValidateInputResult result)

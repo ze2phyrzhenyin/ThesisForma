@@ -35,7 +35,7 @@ app.MapGet("/", () => Results.Json(new
 app.MapGet("/api/templates", (WebEditorStore store) =>
 {
     var templates = store.ListTemplates()
-        .Select(template => TemplateSummary.FromTemplate(template, store.TemplatePath(template)))
+        .Select(template => TemplateSummary.FromTemplate(template, store.PublicTemplatePath(template)))
         .ToList();
     return Results.Json(new { templates }, ThesisJson.Options);
 });
@@ -48,7 +48,7 @@ app.MapGet("/api/templates/{id}", Results<Ok<TemplateDetail>, NotFound<ApiError>
         return TypedResults.NotFound(ApiError.NotFound("template.notFound", $"Template '{id}' was not found."));
     }
 
-    return TypedResults.Ok(TemplateDetail.FromTemplate(template, store.TemplatePath(template)));
+    return TypedResults.Ok(TemplateDetail.FromTemplate(template, store.PublicTemplatePath(template)));
 });
 
 app.MapPost("/api/documents", Results<Created<DocumentEnvelope>, BadRequest<ApiError>> (CreateDocumentRequest request, WebEditorStore store) =>
