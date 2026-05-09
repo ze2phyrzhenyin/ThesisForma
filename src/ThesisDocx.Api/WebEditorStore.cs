@@ -2,9 +2,11 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.WebUtilities;
+using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.Rendering;
+using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
@@ -24,9 +26,10 @@ public sealed class WebEditorStore
     };
 
     private readonly IWebHostEnvironment _environment;
-    private readonly TemplateLoader _templateLoader = new();
-    private readonly TemplateResolver _templateResolver = new();
     private readonly TemplateRegistry _templateRegistry = new();
+    private readonly TemplateResolveService _templateResolveService = new();
+    private readonly ThesisValidateService _validateService = new();
+    private readonly ThesisRenderService _renderService = new();
 
     public WebEditorStore(IWebHostEnvironment environment, IConfiguration configuration)
     {
@@ -111,25 +114,70 @@ public sealed class WebEditorStore
 
     public TemplateResolutionResult ResolveTemplate(string? templateId, ThesisDocument document)
     {
+        var serviceResult = ResolveTemplateResult(templateId, document);
+        if (serviceResult.Resolution is not null)
+        {
+            return serviceResult.Resolution;
+        }
+
+        var result = new TemplateResolutionResult();
+        result.Errors.AddRange(serviceResult.Diagnostics.Select(diagnostic => new TemplateIssue
+        {
+            Code = diagnostic.Code,
+            Path = diagnostic.Path,
+            Message = diagnostic.Message
+        }));
+        return result;
+    }
+
+    public TemplateResolveServiceResult ResolveTemplateResult(string? templateId, ThesisDocument document)
+    {
         var template = FindTemplate(templateId);
         if (template is null)
         {
-            var result = new TemplateResolutionResult();
-            result.Errors.Add(new TemplateIssue
-            {
-                Code = "template.notFound",
-                Path = "$.templateId",
-                Message = $"Template '{templateId}' was not found."
-            });
-            return result;
+            return TemplateResolveServiceResult.Failure("template.notFound", $"Template '{templateId}' was not found.");
         }
 
-        return _templateResolver.Resolve(TemplatePath(template), document);
+        return _templateResolveService.Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = TemplatePath(template),
+            Document = document
+        });
     }
 
     public ThesisInputValidationResult ValidateDocument(ThesisDocument document, ThesisFormatSpec format, string documentBaseDirectory)
     {
-        return new ThesisInputValidator().Validate(document, format, documentBaseDirectory);
+        var serviceResult = ValidateDocumentResult(document, format, documentBaseDirectory);
+        var result = new ThesisInputValidationResult { Source = "ThesisValidateService", VersionReport = serviceResult.VersionReport };
+        foreach (var diagnostic in serviceResult.Diagnostics)
+        {
+            var issue = new ThesisInputValidationError
+            {
+                Code = diagnostic.Code,
+                Path = diagnostic.Path,
+                Message = diagnostic.Message
+            };
+            if (UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity))
+            {
+                result.Warnings.Add(issue);
+            }
+            else
+            {
+                result.Errors.Add(issue);
+            }
+        }
+
+        return result;
+    }
+
+    public ValidateInputResult ValidateDocumentResult(ThesisDocument document, ThesisFormatSpec format, string documentBaseDirectory)
+    {
+        return _validateService.ValidateInput(new ValidateInputRequest
+        {
+            Document = document,
+            Format = format,
+            BaseDirectory = documentBaseDirectory
+        });
     }
 
     public RenderRunResponse RenderDocument(
@@ -157,25 +205,36 @@ public sealed class WebEditorStore
             Assets = resolution.Assets.ToDictionary(asset => asset.Id, asset => asset, StringComparer.Ordinal)
         };
 
-        new DocxRenderer().Render(document, format, docxPath, context);
-        var openXml = new OpenXmlPackageValidator().Validate(docxPath);
-        var formatResult = new FormatConformanceValidator().Validate(docxPath, format);
-        var inspect = new DocxInspector().Inspect(docxPath);
+        var render = _renderService.Render(new RenderRequest
+        {
+            Document = document,
+            Format = format,
+            OutputPath = docxPath,
+            BaseDirectory = DocumentsDirectory,
+            ValidateInput = false,
+            RenderContext = context
+        });
+        var formatResult = render.Success
+            ? _validateService.ValidateDocx(new ValidateDocxRequest { DocxPath = docxPath, Format = format })
+            : ValidateDocxResult.Failure("render.failed", "DOCX render failed.");
+        object inspect = render.Success && File.Exists(docxPath)
+            ? new DocxInspector().Inspect(docxPath)
+            : new { status = "notRendered" };
 
         var issues = new List<ApiIssue>();
-        issues.AddRange(openXml.Errors.Select(error => new ApiIssue("openxml.invalid", error.ToString(), null, "error", "Inspect the generated DOCX package.")));
-        issues.AddRange(formatResult.Errors.Select(error => new ApiIssue(error.Code, error.Message, error.Path, "error", error.Expected)));
+        issues.AddRange(render.Diagnostics.Select(ApiIssue.FromDiagnostic));
+        issues.AddRange(formatResult.Diagnostics.Select(ApiIssue.FromDiagnostic));
 
         var run = new RenderRunResponse(
             runId,
             documentId,
             resolution.Template?.Id ?? templateId ?? string.Empty,
-            openXml.IsValid && formatResult.IsValid ? "valid" : "invalid",
-            openXml.IsValid,
+            render.Success && formatResult.IsValid ? "valid" : "invalid",
+            render.Success,
             formatResult.IsValid,
-            openXml.Errors.Count,
-            formatResult.Errors.Count,
-            docxPath,
+            render.ErrorCount,
+            formatResult.ErrorCount,
+            "document.docx",
             $"/api/runs/{runId}/download",
             inspect,
             issues,

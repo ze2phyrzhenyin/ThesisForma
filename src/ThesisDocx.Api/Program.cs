@@ -1,12 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Text.Json;
 using ThesisDocx.Api;
-using ThesisDocx.Core.Models;
-using ThesisDocx.Core.Models.Templates;
-using ThesisDocx.Core.Rendering;
-using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Utilities;
-using ThesisDocx.Core.Validation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,14 +98,14 @@ app.MapPost("/api/documents/{id}/validate", Results<Ok<DocumentValidationRespons
     }
 
     var templateId = request.TemplateId ?? envelope.TemplateId;
-    var resolved = store.ResolveTemplate(templateId, envelope.Document);
-    if (!resolved.IsValid)
+    var resolved = store.ResolveTemplateResult(templateId, envelope.Document);
+    if (!resolved.Success || resolved.Resolution is null)
     {
-        return TypedResults.BadRequest(ApiError.FromTemplateIssues(resolved.Errors));
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("template.validationFailed", "Template resolution failed.", resolved.Diagnostics));
     }
 
-    var result = store.ValidateDocument(envelope.Document, resolved.FormatSpec ?? new ThesisFormatSpec(), store.DocumentsDirectory);
-    return TypedResults.Ok(DocumentValidationResponse.FromResult(result));
+    var result = store.ValidateDocumentResult(envelope.Document, resolved.Resolution.FormatSpec!, store.DocumentsDirectory);
+    return TypedResults.Ok(DocumentValidationResponse.FromServiceResult(result));
 });
 
 app.MapPost("/api/documents/{id}/render", Results<Ok<RenderRunResponse>, NotFound<ApiError>, BadRequest<ApiError>> (string id, RenderDocumentRequest request, WebEditorStore store) =>
@@ -122,20 +117,20 @@ app.MapPost("/api/documents/{id}/render", Results<Ok<RenderRunResponse>, NotFoun
     }
 
     var templateId = request.TemplateId ?? envelope.TemplateId;
-    var resolved = store.ResolveTemplate(templateId, envelope.Document);
-    if (!resolved.IsValid)
+    var resolved = store.ResolveTemplateResult(templateId, envelope.Document);
+    if (!resolved.Success || resolved.Resolution is null)
     {
-        return TypedResults.BadRequest(ApiError.FromTemplateIssues(resolved.Errors));
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("template.validationFailed", "Template resolution failed.", resolved.Diagnostics));
     }
 
-    var format = resolved.FormatSpec ?? new ThesisFormatSpec();
-    var inputValidation = store.ValidateDocument(envelope.Document, format, store.DocumentsDirectory);
+    var format = resolved.Resolution.FormatSpec!;
+    var inputValidation = store.ValidateDocumentResult(envelope.Document, format, store.DocumentsDirectory);
     if (!inputValidation.IsValid)
     {
-        return TypedResults.BadRequest(ApiError.FromInputValidation(inputValidation));
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("document.validationFailed", "ThesisDocument failed input validation.", inputValidation.Diagnostics));
     }
 
-    var run = store.RenderDocument(id, envelope.Document, templateId, format, resolved);
+    var run = store.RenderDocument(id, envelope.Document, templateId, format, resolved.Resolution);
     return TypedResults.Ok(run);
 });
 

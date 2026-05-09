@@ -1,5 +1,7 @@
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
+using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Services;
 using ThesisDocx.Core.Validation;
 
 namespace ThesisDocx.Api;
@@ -27,9 +29,29 @@ public sealed record ApiError(string Code, string Message, string? Path = null, 
             "$",
             issues.Select(issue => new ApiIssue(issue.Code, issue.Message, issue.Path, "error", issue.Message)).ToList());
     }
+
+    public static ApiError FromDiagnostics(string code, string message, IEnumerable<UnifiedDiagnostic> diagnostics)
+    {
+        return new ApiError(
+            code,
+            message,
+            "$",
+            diagnostics.Select(ApiIssue.FromDiagnostic).ToList());
+    }
 }
 
-public sealed record ApiIssue(string Code, string Message, string? Path, string Severity, string? SuggestedAction);
+public sealed record ApiIssue(string Code, string Message, string? Path, string Severity, string? SuggestedAction)
+{
+    public static ApiIssue FromDiagnostic(UnifiedDiagnostic diagnostic)
+    {
+        return new ApiIssue(
+            diagnostic.Code,
+            diagnostic.Message,
+            diagnostic.Path,
+            diagnostic.Severity,
+            diagnostic.FixHint);
+    }
+}
 
 public sealed record CreateDocumentRequest(
     string? TemplateId,
@@ -58,6 +80,13 @@ public sealed record DocumentValidationResponse(bool IsValid, IReadOnlyList<ApiI
         return new DocumentValidationResponse(
             result.IsValid,
             result.Errors.Select(error => new ApiIssue(error.Code, error.Message, error.Path, "error", error.Message)).ToList());
+    }
+
+    public static DocumentValidationResponse FromServiceResult(ValidateInputResult result)
+    {
+        return new DocumentValidationResponse(
+            result.IsValid,
+            result.Diagnostics.Select(ApiIssue.FromDiagnostic).ToList());
     }
 }
 

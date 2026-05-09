@@ -78,7 +78,7 @@ public sealed class WebEditorApiTests
         var result = store.ValidateDocument(document, resolved.FormatSpec!, store.DocumentsDirectory);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, issue => issue.Code == "dangling.citation");
+        Assert.Contains(result.Errors, issue => issue.Code == "citation.targetMissing");
     }
 
     [Fact]
@@ -93,7 +93,36 @@ public sealed class WebEditorApiTests
         Assert.Equal("valid", run.Status);
         Assert.True(run.OpenXmlValid);
         Assert.True(run.FormatValid);
-        Assert.True(File.Exists(run.DocxPath));
+        Assert.Equal("document.docx", run.DocxPath);
+        Assert.False(Path.IsPathRooted(run.DocxPath));
+        Assert.True(File.Exists(store.GetRunDocxPath(run.RunId)));
+    }
+
+    [Fact]
+    public void Api_ShouldResolveTemplatesThroughFacadeDiagnostics()
+    {
+        var store = CreateStore();
+        var document = LoadSimpleDocument();
+
+        var result = store.ResolveTemplateResult("missing-template", document);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "template.notFound");
+        Assert.All(result.Diagnostics, diagnostic => Assert.Equal("template", diagnostic.Category));
+    }
+
+    [Fact]
+    public void Api_ShouldValidateThroughFacadeDiagnostics()
+    {
+        var store = CreateStore();
+        var document = LoadSimpleDocument();
+        document.SchemaVersion = "9.9.9";
+        var resolved = store.ResolveTemplate("example-university-engineering", document);
+
+        var result = store.ValidateDocumentResult(document, resolved.FormatSpec!, store.DocumentsDirectory);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "thesis.schemaVersion.unsupported");
     }
 
     [Fact]
