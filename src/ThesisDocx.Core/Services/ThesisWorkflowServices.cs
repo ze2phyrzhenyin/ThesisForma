@@ -186,6 +186,11 @@ public sealed class TemplateResolveService
             return TemplateResolveServiceResult.Failure("service.template.missing", "Template path is required.");
         }
 
+        if (!Directory.Exists(request.TemplatePath) && !File.Exists(request.TemplatePath))
+        {
+            return TemplateResolveServiceResult.Failure("service.template.pathMissing", "Template path does not exist.");
+        }
+
         try
         {
             var resolution = new TemplateResolver().Resolve(request.TemplatePath, request.Document, request.Variables);
@@ -769,7 +774,12 @@ public sealed class TemplateResolveServiceResult : ServiceResult
 
     public static TemplateResolveServiceResult Failure(string code, string message, string? detail = null)
     {
-        return new TemplateResolveServiceResult { Success = false, ErrorCount = 1, Diagnostics = [Diagnostic(code, message, detail)] };
+        return new TemplateResolveServiceResult
+        {
+            Success = false,
+            ErrorCount = 1,
+            Diagnostics = [Diagnostic(code, message, detail, DiagnosticCategory.Template, "TemplateResolveService")]
+        };
     }
 }
 

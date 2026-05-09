@@ -28,7 +28,7 @@ CI_OUT_DIR="$OUT_DIR" scripts/ci-negative-fixtures
 
 dotnet run --project src/ThesisDocx.Cli -- privacy scan \
   --path examples \
-  --suppress-warning-code privacy.generatedArtifact.forbidden \
+  --policy examples/onboarding/example-engineering-pilot/onboarding.json \
   --out "$OUT_DIR/privacy-scan-examples.json"
 
 dotnet run --project src/ThesisDocx.Cli -- onboarding validate \

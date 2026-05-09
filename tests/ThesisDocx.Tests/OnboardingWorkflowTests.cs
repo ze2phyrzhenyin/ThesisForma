@@ -522,6 +522,17 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void Cli_PrivacyScan_WithoutOut_ShouldKeepStdoutParseableJson()
+    {
+        var result = CliRunner.Run(RepoRoot(), "privacy", "scan", "--path", "examples");
+
+        Assert.Equal(0, result.ExitCode);
+        var json = JsonNode.Parse(result.StandardOutput)!;
+        Assert.Equal("1.0.0", json["reportVersion"]!.GetValue<string>());
+        Assert.Contains("Privacy scan:", result.StandardError);
+    }
+
+    [Fact]
     public void Cli_PrivacyScan_ShouldApplyWarningSuppressionOptions()
     {
         var workspace = CopyExampleWorkspace();
@@ -745,7 +756,10 @@ public sealed class OnboardingWorkflowTests
     [Fact]
     public void CiQualityGateScript_ShouldRunPrivacyScan()
     {
-        Assert.Contains("privacy scan", File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate")));
+        var script = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate"));
+
+        Assert.Contains("privacy scan", script);
+        Assert.Contains("--policy examples/onboarding/example-engineering-pilot/onboarding.json", script);
     }
 
     [Fact]
@@ -799,6 +813,8 @@ public sealed class OnboardingWorkflowTests
         var manifest = JsonNode.Parse(ExtractPackageEntry(package, "manifest.json"))!;
 
         Assert.Equal(240, manifest["privacyPolicySummary"]!["maxEvidenceExcerptLength"]!.GetValue<int>());
+        Assert.Equal(25, manifest["privacyPolicySummary"]!["maxWarningCount"]!.GetValue<int>());
+        Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningCodes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.generatedArtifact.forbidden");
         Assert.Contains(manifest["privacyPolicySummary"]!["nonSuppressibleWarningCodePrefixes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.personal.");
     }
 

@@ -77,6 +77,7 @@ Generated files belong under explicit output directories such as `/tmp`, ignored
 For successful commands, CLI output keeps the historical report shape:
 
 - `render --json` writes `RenderResult` to stdout and keeps the DOCX path in `artifact`.
+- `render --template ... --validate-template --json` runs the full `TemplateValidationService` before rendering. This catches template-authoring errors such as page-template variable references that plain template resolution does not need to evaluate.
 - `template gate` writes `TemplateGateReport`.
 - `template diagnose` writes `DiagnosticReport`.
 - `template authoring-report` writes `TemplateAuthoringReport`.
@@ -87,6 +88,8 @@ For successful commands, CLI output keeps the historical report shape:
 - `onboarding package-validate` writes `TemplatePilotPackageValidationResult`.
 
 The facade result wrapper is emitted only when a command cannot produce its normal report.
+
+When a command writes JSON to stdout, human summaries must go to stderr or be suppressed. This keeps CLI output parseable for CI and future API wrappers. Commands that write JSON to `--out` may still print a short human "Wrote ..." summary to stdout.
 
 ## Versioning Boundaries
 

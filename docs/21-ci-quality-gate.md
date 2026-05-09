@@ -37,3 +37,16 @@ The gate does not call Microsoft Word, does not do screenshot diff, and does not
 - `onboarding package-validate`
 
 The default CI artifact directory remains `out/ci`. The onboarding checks use the fictional `examples/onboarding/example-engineering-pilot` workspace and verify that the real-college pilot workflow remains executable without committing private source documents.
+
+## Privacy Policy
+
+The privacy scan in `scripts/ci-quality-gate` reads the onboarding workspace policy:
+
+```bash
+dotnet run --project src/ThesisDocx.Cli -- privacy scan \
+  --path examples \
+  --policy examples/onboarding/example-engineering-pilot/onboarding.json \
+  --out "$OUT_DIR/privacy-scan-examples.json"
+```
+
+The policy is the source of warning thresholds and narrow warning suppressions. The fictional example currently allows up to 25 warnings and suppresses known generated-artifact warnings while keeping personal-data warnings non-suppressible. Do not add broad suppressions for real pilot material; move source files into private onboarding workspaces instead.

@@ -177,6 +177,39 @@ public sealed class CoreServiceFacadeTests
     }
 
     [Fact]
+    public void FutureApiWrapper_ShouldReturnTemplateDiagnosticsWithoutRendering()
+    {
+        var (document, _, _) = LoadSimple();
+        var output = Path.Combine(NewTempDirectory(), "should-not-render.docx");
+
+        var template = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = Path.Combine(RepoRoot(), "examples", "negative-fixtures", "templates", "missing-required-variable"),
+            Document = document
+        });
+
+        Assert.False(template.Success);
+        Assert.Contains(template.Diagnostics, diagnostic => diagnostic.Code == "template.variable.requiredMissing");
+        Assert.False(File.Exists(output));
+        Assert.Contains(template.VersionReport.Checks, check => check.Kind == "templatePackage");
+    }
+
+    [Fact]
+    public void FutureApiWrapper_ShouldReturnTemplateInvalidPathDiagnosticWithoutAbsolutePathLeak()
+    {
+        var missingTemplate = Path.Combine(NewTempDirectory(), "missing-template");
+
+        var template = new TemplateResolveService().Resolve(new TemplateResolveRequest
+        {
+            TemplatePath = missingTemplate
+        });
+
+        Assert.False(template.Success);
+        Assert.Contains(template.Diagnostics, diagnostic => diagnostic.Code == "service.template.pathMissing");
+        Assert.DoesNotContain(missingTemplate, JsonSerializer.Serialize(template, ThesisJson.Options));
+    }
+
+    [Fact]
     public void TemplateResolveService_ShouldReturnDiagnosticForMissingPath()
     {
         var result = new TemplateResolveService().Resolve(new TemplateResolveRequest
@@ -185,7 +218,7 @@ public sealed class CoreServiceFacadeTests
         });
 
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.resolveFailed");
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "service.template.pathMissing");
     }
 
     [Fact]
@@ -542,6 +575,11 @@ public sealed class CoreServiceFacadeTests
     private static string TemplatePath()
     {
         return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "templates", "example-university-engineering");
+    }
+
+    private static string RepoRoot()
+    {
+        return TestRenderHelper.LocateRepoRootForTests();
     }
 
     private static string OnboardingWorkspacePath()

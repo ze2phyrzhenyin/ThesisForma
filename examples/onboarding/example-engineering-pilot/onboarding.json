@@ -24,7 +24,9 @@
     "allowSourceDocumentsInWorkspace": true,
     "prohibitSourceDocumentsInRelease": true,
     "prohibitPersonalDataInExamples": true,
-    "maxEvidenceExcerptLength": 240
+    "maxEvidenceExcerptLength": 240,
+    "maxWarningCount": 25,
+    "suppressedWarningCodes": ["privacy.generatedArtifact.forbidden"]
   },
   "quality": {
     "coverageThreshold": 0.85,

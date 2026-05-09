@@ -83,36 +83,40 @@ internal static class ThesisDocxCli
         }
 
         var document = ReadJson<ThesisDocument>(documentPath);
+        var schemaRoot = Path.Combine(LocateRepoRoot(), "schemas");
         ThesisFormatSpec format;
         DocxRenderContext? renderContext = null;
         string formatPathForValidation;
+        TemplateResolveServiceResult? templateResult = null;
+        ThesisInputValidationResult? templateValidation = null;
         if (hasTemplate)
         {
-            var templateResult = new TemplateResolveService().Resolve(new TemplateResolveRequest
+            var templatePath = Required(options, "template");
+            templateResult = new TemplateResolveService().Resolve(new TemplateResolveRequest
             {
-                TemplatePath = Required(options, "template"),
+                TemplatePath = templatePath,
                 Document = document,
                 Variables = ParseCliVariables(options)
             });
             if (!templateResult.Success || templateResult.Resolution is null)
             {
-                if (options.ContainsKey("json"))
+                return WriteRenderFailure(options, new RenderResult
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new RenderResult
-                    {
-                        Success = false,
-                        ErrorCount = templateResult.ErrorCount,
-                        WarningCount = templateResult.WarningCount,
-                        Diagnostics = templateResult.Diagnostics,
-                        VersionReport = templateResult.VersionReport
-                    }, ThesisJson.Options));
-                }
-                else
-                {
-                    WriteDiagnostics(templateResult.Diagnostics);
-                }
+                    Success = false,
+                    ErrorCount = templateResult.ErrorCount,
+                    WarningCount = templateResult.WarningCount,
+                    Diagnostics = templateResult.Diagnostics,
+                    VersionReport = templateResult.VersionReport
+                });
+            }
 
-                return 2;
+            if (options.ContainsKey("validate-template"))
+            {
+                templateValidation = new TemplateValidationService().Validate(templatePath, Path.Combine(schemaRoot, "template-package.schema.json"));
+                if (!templateValidation.IsValid)
+                {
+                    return WriteRenderFailure(options, RenderFailureFromTemplateValidation(templateValidation));
+                }
             }
 
             var resolution = templateResult.Resolution;
@@ -126,7 +130,6 @@ internal static class ThesisDocxCli
             format = ReadJson<ThesisFormatSpec>(formatPathForValidation);
         }
 
-        var schemaRoot = Path.Combine(LocateRepoRoot(), "schemas");
         ResolveRelativeImagePaths(document, Path.GetDirectoryName(Path.GetFullPath(documentPath))!);
         var render = new ThesisRenderService().Render(new RenderRequest
         {
@@ -141,6 +144,17 @@ internal static class ThesisDocxCli
             ValidateInput = !options.ContainsKey("skip-input-validation"),
             RenderContext = renderContext
         });
+        if (templateResult is not null)
+        {
+            render.VersionReport.MergeFrom(templateResult.VersionReport);
+            MergeRenderDiagnostics(render, templateResult.Diagnostics.Where(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity)));
+        }
+
+        if (templateValidation is not null)
+        {
+            render.VersionReport.MergeFrom(templateValidation.VersionReport);
+            MergeRenderDiagnostics(render, templateValidation.Diagnostics.Where(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity)));
+        }
 
         if (options.ContainsKey("json"))
         {
@@ -156,6 +170,55 @@ internal static class ThesisDocxCli
 
         Console.WriteLine($"Rendered {outputPath}");
         return 0;
+    }
+
+    private static int WriteRenderFailure(Dictionary<string, string> options, RenderResult failure)
+    {
+        if (options.ContainsKey("json"))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(failure, ThesisJson.Options));
+        }
+        else
+        {
+            WriteDiagnostics(failure.Diagnostics);
+        }
+
+        return 2;
+    }
+
+    private static RenderResult RenderFailureFromTemplateValidation(ThesisInputValidationResult validation)
+    {
+        var diagnostics = MergeDiagnostics(validation.Diagnostics, validation.VersionReport.Diagnostics);
+        return new RenderResult
+        {
+            Success = false,
+            ErrorCount = diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsError(diagnostic.Severity)),
+            WarningCount = diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity)),
+            Diagnostics = diagnostics,
+            VersionReport = validation.VersionReport
+        };
+    }
+
+    private static void MergeRenderDiagnostics(RenderResult result, IEnumerable<UnifiedDiagnostic> diagnostics)
+    {
+        result.Diagnostics = MergeDiagnostics(result.Diagnostics, diagnostics);
+        result.ErrorCount = result.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsError(diagnostic.Severity));
+        result.WarningCount = result.Diagnostics.Count(diagnostic => UnifiedDiagnosticMapper.IsWarning(diagnostic.Severity));
+        result.Success = result.Success && result.ErrorCount == 0;
+    }
+
+    private static List<UnifiedDiagnostic> MergeDiagnostics(IEnumerable<UnifiedDiagnostic> primary, IEnumerable<UnifiedDiagnostic> secondary)
+    {
+        var diagnostics = primary.ToList();
+        foreach (var diagnostic in secondary)
+        {
+            if (!diagnostics.Any(existing => existing.Code == diagnostic.Code && existing.Path == diagnostic.Path && existing.Source == diagnostic.Source))
+            {
+                diagnostics.Add(diagnostic);
+            }
+        }
+
+        return diagnostics;
     }
 
     private static int Validate(Dictionary<string, string> options)
@@ -1194,7 +1257,16 @@ internal static class ThesisDocxCli
         }
 
         WriteJsonOutput(options.GetValueOrDefault("out"), result);
-        Console.WriteLine($"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings, {result.SuppressedWarningCount} suppressed)");
+        var summary = $"Privacy scan: {(result.IsValid ? "pass" : "fail")} ({result.BreakingCount} errors, {result.WarningCount} warnings, {result.SuppressedWarningCount} suppressed)";
+        if (string.IsNullOrWhiteSpace(options.GetValueOrDefault("out")))
+        {
+            Console.Error.WriteLine(summary);
+        }
+        else
+        {
+            Console.WriteLine(summary);
+        }
+
         return serviceResult.Success ? 0 : 2;
     }
 
@@ -1733,6 +1805,7 @@ internal static class ThesisDocxCli
     {
         Console.WriteLine("""
         thesis-docx render --document examples/simple-thesis/document.json --format examples/format-specs/basic-cn-thesis.json --out out/simple.docx --json
+        thesis-docx render --document examples/simple-thesis/document.json --template examples/templates/example-university-engineering --validate-template --out out/template-render.docx --json
         thesis-docx validate-input --document examples/simple-thesis/document.json --format examples/format-specs/basic-cn-thesis.json
         thesis-docx validate --docx out/simple.docx --format examples/format-specs/basic-cn-thesis.json
         thesis-docx inspect --docx out/simple.docx --out out/simple.inspect.json
