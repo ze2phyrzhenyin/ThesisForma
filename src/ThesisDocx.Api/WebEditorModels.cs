@@ -77,17 +77,18 @@ public sealed record CreateDocumentRequest(
     string? Major,
     string? StudentId,
     string? Advisor,
-    string? Date);
+    string? Date,
+    DocumentOverrides? Overrides = null);
 
-public sealed record SaveDocumentRequest(ThesisDocument? Document, string? TemplateId);
+public sealed record SaveDocumentRequest(ThesisDocument? Document, string? TemplateId, DocumentOverrides? Overrides = null);
 
-public sealed record ImportDocumentRequest(ThesisDocument? Document, string? TemplateId);
+public sealed record ImportDocumentRequest(ThesisDocument? Document, string? TemplateId, DocumentOverrides? Overrides = null);
 
-public sealed record ValidateDocumentRequest(string? TemplateId);
+public sealed record ValidateDocumentRequest(string? TemplateId, DocumentOverrides? Overrides = null);
 
-public sealed record RenderDocumentRequest(string? TemplateId);
+public sealed record RenderDocumentRequest(string? TemplateId, DocumentOverrides? Overrides = null);
 
-public sealed record DocumentEnvelope(string Id, string? TemplateId, ThesisDocument Document, string UpdatedAt);
+public sealed record DocumentEnvelope(string Id, string? TemplateId, ThesisDocument Document, DocumentOverrides? Overrides, string UpdatedAt);
 
 public sealed record DocumentValidationResponse(bool IsValid, IReadOnlyList<ApiIssue> Issues)
 {

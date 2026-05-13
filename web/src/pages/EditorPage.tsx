@@ -47,7 +47,8 @@ function EditorInner() {
     const saved = await save.mutateAsync({
       id: envelope.id,
       document: cleaned,
-      templateId: envelope.templateId ?? null
+      templateId: envelope.templateId ?? null,
+      overrides: envelope.overrides ?? null
     });
     actions.markSaved(saved.updatedAt);
   };
@@ -99,13 +100,15 @@ function EditorInner() {
         const saved = await save.mutateAsync({
           id: envelope.id,
           document: envelope.document,
-          templateId: envelope.templateId ?? null
+          templateId: envelope.templateId ?? null,
+          overrides: envelope.overrides ?? null
         });
         actions.markSaved(saved.updatedAt);
       }
       const v = await validate.mutateAsync({
         id: envelope.id,
-        templateId: envelope.templateId ?? null
+        templateId: envelope.templateId ?? null,
+        overrides: envelope.overrides ?? null
       });
       setValidation({
         isValid: v.isValid,

@@ -1,7 +1,11 @@
+import type { ThesisDocument as GeneratedThesisDocument } from './generated';
+
 /**
- * TypeScript types mirroring schemas/thesis-document.schema.json.
- * Keep in sync manually — schema versions accepted: 1.0.0, 1.1.0.
+ * Editor adapter types for schemas/thesis-document.schema.json.
+ * The generated source-of-truth type is re-exported as ThesisDocumentSchema.
  */
+
+export type ThesisDocumentSchema = GeneratedThesisDocument;
 
 export type SchemaVersion = '1.0.0' | '1.1.0';
 
@@ -172,6 +176,7 @@ export interface TableCellFont {
 
 export interface TableCellParagraph {
   lineSpacingMultiple?: number;
+  lineSpacingExactPt?: number | null;
   spaceBeforePt?: number;
   spaceAfterPt?: number;
   firstLineIndentChars?: number;

@@ -27,16 +27,17 @@ export function useAutoSave() {
         const current = store.getState();
         if (!current.dirty) return;
         inflight.current = true;
-        const savedSnapshot = JSON.stringify(current.envelope.document);
+        const savedSnapshot = JSON.stringify({ document: current.envelope.document, overrides: current.envelope.overrides ?? null });
         try {
           const env = await saveRef.current.mutateAsync({
             id: current.envelope.id,
             document: current.envelope.document,
-            templateId: current.envelope.templateId ?? null
+            templateId: current.envelope.templateId ?? null,
+            overrides: current.envelope.overrides ?? null
           });
           const after = store.getState();
-          const stillDirty = JSON.stringify(after.envelope.document) !== savedSnapshot;
-          store.setState({ lastSavedAt: env.updatedAt, dirty: stillDirty });
+          const stillDirty = JSON.stringify({ document: after.envelope.document, overrides: after.envelope.overrides ?? null }) !== savedSnapshot;
+          store.setState({ envelope: { ...after.envelope, overrides: env.overrides ?? after.envelope.overrides ?? null }, lastSavedAt: env.updatedAt, dirty: stillDirty });
         } catch {
           // Leave dirty=true so the next debounce attempt retries.
         } finally {

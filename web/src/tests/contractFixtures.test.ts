@@ -73,7 +73,7 @@ describe('repository JSON fixtures through web contracts', () => {
     expect(engineering.variables?.some((variable) => variable.name === 'defenseDate')).toBe(true);
     expect(engineering.assets?.some((asset) => asset.id === 'collegeLogo')).toBe(true);
     expect(blockTypes).toEqual(
-      expect.arrayContaining(['spacer', 'text', 'metadataField', 'image', 'fieldTable', 'declarationText', 'pageBreak'])
+      expect.arrayContaining(['spacer', 'text', 'metadataField', 'image', 'fieldTable', 'declarationText', 'pageBreak', 'rule'])
     );
     expect(JSON.stringify(engineering)).not.toContain('uiExpanded');
   });

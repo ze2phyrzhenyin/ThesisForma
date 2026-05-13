@@ -3,7 +3,9 @@ import type {
   AssetUploadResponse,
   CreateDocumentRequest,
   DocumentEnvelope,
+  DocumentOverrides,
   DocumentValidationResponse,
+  FormatPreviewResponse,
   RenderRunResponse,
   TemplateDetail,
   TemplateSummary,
@@ -111,10 +113,11 @@ export async function getDocument(id: string): Promise<DocumentEnvelope> {
 export async function saveDocument(
   id: string,
   document: ThesisDocument,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): Promise<DocumentEnvelope> {
   if (!isApiBacked || isLocalDocumentId(id)) {
-    return saveLocalDocument(id, cleanThesisDocument(document), templateId ?? null);
+    return saveLocalDocument(id, cleanThesisDocument(document), templateId ?? null, overrides ?? null);
   }
   const cleaned = cleanThesisDocument(document);
   const issues = validateThesisDocument(cleaned).filter((item) => item.severity === 'error');
@@ -127,24 +130,58 @@ export async function saveDocument(
   }
   return request<DocumentEnvelope>(`/api/documents/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    body: JSON.stringify({ document: cleaned, templateId: templateId ?? null })
+    body: JSON.stringify({ document: cleaned, templateId: templateId ?? null, overrides: overrides ?? null })
   });
 }
 
 export async function validateDocument(
   id: string,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): Promise<DocumentValidationResponse> {
   if (!isApiBacked || isLocalDocumentId(id)) return validateLocalDocument(id);
   return request<DocumentValidationResponse>(`/api/documents/${encodeURIComponent(id)}/validate`, {
     method: 'POST',
-    body: JSON.stringify({ templateId: templateId ?? null })
+    body: JSON.stringify({ templateId: templateId ?? null, overrides: overrides ?? null })
+  });
+}
+
+export async function previewDocumentFormat(
+  id: string,
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
+): Promise<FormatPreviewResponse> {
+  if (!isApiBacked || isLocalDocumentId(id)) {
+    return {
+      documentId: id,
+      templateId: templateId ?? 'local-template',
+      templateName: 'Local template',
+      formatSpecName: 'Static local preview unavailable',
+      baseSchemaVersion: '',
+      effectiveSchemaVersion: '',
+      baseFormat: null,
+      effectiveFormat: null,
+      changes: [],
+      sections: [],
+      evidence: [
+        {
+          kind: 'apiUnavailable',
+          path: '$.api',
+          message: 'Format preview requires the API because TemplatePackage resolution runs in Core.'
+        }
+      ]
+    };
+  }
+  return request<FormatPreviewResponse>(`/api/documents/${encodeURIComponent(id)}/format-preview`, {
+    method: 'POST',
+    body: JSON.stringify({ templateId: templateId ?? null, overrides: overrides ?? null })
   });
 }
 
 export async function renderDocument(
   id: string,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): Promise<RenderRunResponse> {
   if (!isApiBacked || isLocalDocumentId(id)) {
     throw new ThesisApiError(
@@ -160,7 +197,7 @@ export async function renderDocument(
   }
   return request<RenderRunResponse>(`/api/documents/${encodeURIComponent(id)}/render`, {
     method: 'POST',
-    body: JSON.stringify({ templateId: templateId ?? null })
+    body: JSON.stringify({ templateId: templateId ?? null, overrides: overrides ?? null })
   });
 }
 
@@ -176,12 +213,13 @@ export function runDownloadUrl(runId: string): string {
 
 export async function importDocumentJson(
   document: ThesisDocument,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): Promise<DocumentEnvelope> {
-  if (!isApiBacked) return importLocalDocument(cleanThesisDocument(document), templateId ?? null);
+  if (!isApiBacked) return importLocalDocument(cleanThesisDocument(document), templateId ?? null, overrides ?? null);
   return request<DocumentEnvelope>('/api/documents/import-json', {
     method: 'POST',
-    body: JSON.stringify({ document: cleanThesisDocument(document), templateId: templateId ?? null })
+    body: JSON.stringify({ document: cleanThesisDocument(document), templateId: templateId ?? null, overrides: overrides ?? null })
   });
 }
 

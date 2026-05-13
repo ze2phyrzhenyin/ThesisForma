@@ -1,7 +1,15 @@
+import type {
+  TemplatePackage as GeneratedTemplatePackage,
+  ThesisFormatSpec as GeneratedThesisFormatSpec
+} from './generated';
+
 /**
- * Subset of TemplatePackage exposed by the API.
- * Only fields needed by the frontend are typed; the rest pass through as unknown.
+ * Editor adapter types for TemplatePackage / ThesisFormatSpec.
+ * Generated schema types remain available for drift checks and API contracts.
  */
+
+export type TemplatePackageSchema = GeneratedTemplatePackage;
+export type ThesisFormatSpecSchema = GeneratedThesisFormatSpec;
 
 export interface TemplateSummary {
   id: string;
@@ -105,6 +113,7 @@ export interface ThesisFormatSpecDraft {
   };
   bodyParagraph?: {
     lineSpacingMultiple?: number;
+    lineSpacingExactPt?: number | null;
     spaceBeforePt?: number;
     spaceAfterPt?: number;
     firstLineIndentChars?: number;
@@ -203,6 +212,15 @@ export interface TemplatePageBreakBlock {
   type: 'pageBreak';
 }
 
+export interface TemplateRuleBlock {
+  type: 'rule';
+  thicknessPt?: number;
+  color?: string;
+  alignment?: 'left' | 'center' | 'right' | 'both' | string;
+  spacingBeforePt?: number;
+  spacingAfterPt?: number;
+}
+
 export type TemplateLayoutBlock =
   | TemplateSpacerBlock
   | TemplateTextBlock
@@ -210,4 +228,5 @@ export type TemplateLayoutBlock =
   | TemplateImageBlock
   | TemplateFieldTableBlock
   | TemplateDeclarationTextBlock
-  | TemplatePageBreakBlock;
+  | TemplatePageBreakBlock
+  | TemplateRuleBlock;

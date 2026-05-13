@@ -354,6 +354,24 @@ function LayoutBlockFields({
       );
     case 'pageBreak':
       return <div className={styles.empty}>分页元素没有额外字段。</div>;
+    case 'rule':
+      return (
+        <div className={styles.blockFieldGrid}>
+          <Field label="thicknessPt">
+            <input type="number" min={0.25} max={12} step={0.25} value={block.thicknessPt ?? ''} onChange={(e) => onChange({ thicknessPt: numberOrUndefined(e.target.value) } as Partial<TemplateLayoutBlock>)} />
+          </Field>
+          <Field label="color">
+            <input value={block.color ?? ''} onChange={(e) => onChange({ color: e.target.value } as Partial<TemplateLayoutBlock>)} />
+          </Field>
+          <AlignmentField value={block.alignment} onChange={(alignment) => onChange({ alignment } as Partial<TemplateLayoutBlock>)} />
+          <Field label="spacingBeforePt">
+            <input type="number" min={0} step={1} value={block.spacingBeforePt ?? ''} onChange={(e) => onChange({ spacingBeforePt: numberOrUndefined(e.target.value) } as Partial<TemplateLayoutBlock>)} />
+          </Field>
+          <Field label="spacingAfterPt">
+            <input type="number" min={0} step={1} value={block.spacingAfterPt ?? ''} onChange={(e) => onChange({ spacingAfterPt: numberOrUndefined(e.target.value) } as Partial<TemplateLayoutBlock>)} />
+          </Field>
+        </div>
+      );
   }
 }
 

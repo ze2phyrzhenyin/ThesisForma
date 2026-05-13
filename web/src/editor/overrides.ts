@@ -1,4 +1,7 @@
 import type { SectionKind, TextAlignment } from '@/types';
+import type { DocumentOverrides as GeneratedDocumentOverrides } from '@/types/generated';
+
+export type DocumentOverridesSchema = GeneratedDocumentOverrides;
 
 export type PageNumberStyle = 'none' | 'decimal' | 'lowerRoman' | 'upperRoman';
 
@@ -14,6 +17,7 @@ export interface FontOverride {
 
 export interface ParagraphOverride {
   lineSpacingMultiple?: number;
+  lineSpacingExactPt?: number | null;
   spaceBeforePt?: number;
   spaceAfterPt?: number;
   firstLineIndentChars?: number;

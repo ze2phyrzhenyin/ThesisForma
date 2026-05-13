@@ -294,6 +294,15 @@ function normalizeLayoutBlock(value: unknown): TemplateLayoutBlock | null {
       };
     case 'pageBreak':
       return { type: value.type };
+    case 'rule':
+      return {
+        type: value.type,
+        ...(typeof value.thicknessPt === 'number' ? { thicknessPt: value.thicknessPt } : {}),
+        ...(typeof value.color === 'string' ? { color: value.color } : {}),
+        ...(typeof value.alignment === 'string' ? { alignment: value.alignment } : {}),
+        ...(typeof value.spacingBeforePt === 'number' ? { spacingBeforePt: value.spacingBeforePt } : {}),
+        ...(typeof value.spacingAfterPt === 'number' ? { spacingAfterPt: value.spacingAfterPt } : {})
+      };
   }
 }
 
@@ -458,6 +467,16 @@ function validateLayoutBlock(
       );
       return;
     case 'pageBreak':
+      return;
+    case 'rule':
+      if (block.thicknessPt !== undefined && (!Number.isFinite(block.thicknessPt) || block.thicknessPt <= 0 || block.thicknessPt > 12)) {
+        issues.push(issue('template.pageTemplate.rule.thickness.invalid', 'rule.thicknessPt 必须大于 0 且不超过 12。', 'error', `${path}.thicknessPt`));
+      }
+      if (block.color !== undefined && !/^[0-9A-Fa-f]{6}$/.test(block.color)) {
+        issues.push(issue('template.pageTemplate.rule.color.invalid', 'rule.color 必须是 6 位 RGB 十六进制颜色。', 'error', `${path}.color`));
+      }
+      validateNonNegative(block.spacingBeforePt, `${path}.spacingBeforePt`, 'template.pageTemplate.rule.spacing.invalid', issues);
+      validateNonNegative(block.spacingAfterPt, `${path}.spacingAfterPt`, 'template.pageTemplate.rule.spacing.invalid', issues);
       return;
   }
 }

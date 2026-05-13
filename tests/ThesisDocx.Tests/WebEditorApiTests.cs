@@ -50,6 +50,30 @@ public sealed class WebEditorApiTests
     }
 
     [Fact]
+    public void Api_ShouldRoundTripDocumentOverrides()
+    {
+        var store = CreateStore();
+        var overrides = new DocumentOverrides
+        {
+            Toc = new TocOverrideSpec { Title = "本文目录", MinLevel = 1, MaxLevel = 2 },
+            SectionFormats = new Dictionary<string, SectionFormatOverrideSpec>
+            {
+                ["body"] = new() { StartPageNumber = 3, RestartPageNumbering = true }
+            }
+        };
+        var envelope = store.CreateDocument(
+            WebEditorDocumentFactory.Create(new CreateDocumentRequest("example-university-engineering", "结构化论文", null, null, null, null, null, null)),
+            "example-university-engineering",
+            overrides);
+
+        var loaded = store.GetDocument(envelope.Id);
+
+        Assert.NotNull(loaded);
+        Assert.Equal("本文目录", loaded.Overrides?.Toc?.Title);
+        Assert.Equal(3, loaded.Overrides?.SectionFormats?["body"].StartPageNumber);
+    }
+
+    [Fact]
     public void Api_ShouldValidateDocument()
     {
         var store = CreateStore();
@@ -96,6 +120,45 @@ public sealed class WebEditorApiTests
         Assert.Equal("document.docx", run.DocxPath);
         Assert.False(Path.IsPathRooted(run.DocxPath));
         Assert.True(File.Exists(store.GetRunDocxPath(run.RunId)));
+    }
+
+    [Fact]
+    public void Api_ShouldRenderDocxWithOverrides()
+    {
+        var store = CreateStore();
+        var document = LoadSimpleDocument();
+        var resolved = store.ResolveTemplate("example-university-engineering", document);
+        var overrides = new DocumentOverrides
+        {
+            Toc = new TocOverrideSpec { Title = "本文目录", MinLevel = 1, MaxLevel = 2 },
+            SectionInstances = new Dictionary<string, SectionInstanceOverrideSpec>
+            {
+                ["body"] = new()
+                {
+                    HeaderText = "正文专用页眉",
+                    PageNumberStyle = PageNumberStyle.Decimal,
+                    RestartPageNumbering = true,
+                    StartPageNumber = 5
+                }
+            }
+        };
+
+        var run = store.RenderDocument("doc-test", document, "example-university-engineering", resolved.FormatSpec!, resolved, overrides);
+
+        Assert.Equal("valid", run.Status);
+        Assert.True(run.OpenXmlValid);
+        Assert.True(run.FormatValid);
+        Assert.True(File.Exists(store.GetRunDocxPath(run.RunId)));
+    }
+
+    [Fact]
+    public void Api_ShouldValidateDocumentOverrides()
+    {
+        var store = CreateStore();
+
+        var diagnostics = store.ValidateOverrides(new DocumentOverrides { Toc = new TocOverrideSpec { MinLevel = 4, MaxLevel = 2 } });
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Code == "overrides.toc.levelRange");
     }
 
     [Fact]

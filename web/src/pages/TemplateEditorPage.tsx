@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Brand } from '@/components/Brand';
 import type {
@@ -15,8 +15,11 @@ import {
   parseTemplatePackageJson,
   validateTemplatePackage
 } from '@/templates/templateContract';
-import { PageTemplatesPanel } from '@/templates/TemplatePageTemplatesPanel';
 import styles from './TemplateEditorPage.module.css';
+
+const PageTemplatesPanel = lazy(() =>
+  import('@/templates/TemplatePageTemplatesPanel').then((module) => ({ default: module.PageTemplatesPanel }))
+);
 
 const VARIABLE_TYPES: TemplateVariable['type'][] = [
   'string',
@@ -242,7 +245,16 @@ export function TemplateEditorPage() {
 
           <AssetsPanel template={template} update={update} />
           <FormatSpecPanel template={template} update={update} />
-          <PageTemplatesPanel template={template} update={update} />
+          <Suspense
+            fallback={
+              <section className={styles.panel}>
+                <h2>Page Templates</h2>
+                <div className={styles.empty}>正在加载页面模板编辑器…</div>
+              </section>
+            }
+          >
+            <PageTemplatesPanel template={template} update={update} />
+          </Suspense>
           <ValidationPanel issues={issues} />
         </div>
       </main>
@@ -356,6 +368,22 @@ function FormatSpecPanel({
                   t.formatSpec ??= createDefaultFormatSpec();
                   t.formatSpec.bodyParagraph ??= {};
                   t.formatSpec.bodyParagraph.lineSpacingMultiple = numberOrUndefined(e.target.value);
+                })
+              }
+            />
+          </Field>
+          <Field label="exactLineSpacing">
+            <input
+              type="number"
+              min={1}
+              max={120}
+              step={0.5}
+              value={formatSpec.bodyParagraph?.lineSpacingExactPt ?? ''}
+              onChange={(e) =>
+                update((t) => {
+                  t.formatSpec ??= createDefaultFormatSpec();
+                  t.formatSpec.bodyParagraph ??= {};
+                  t.formatSpec.bodyParagraph.lineSpacingExactPt = numberOrUndefined(e.target.value);
                 })
               }
             />

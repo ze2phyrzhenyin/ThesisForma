@@ -5,6 +5,7 @@ import type {
   Block,
   BlockType,
   DocumentEnvelope,
+  DocumentOverrides,
   Inline,
   Metadata,
   Section,
@@ -14,6 +15,7 @@ import type {
 import { SECTION_META } from './sectionMeta';
 import { plainTextToInlines } from './inlines';
 import { newBlockId } from './ids';
+import { loadOverrides } from './overrides';
 
 export type EditorView =
   | { kind: 'metadata' }
@@ -49,17 +51,24 @@ export interface EditorState {
   moveBlock(sectionIndex: number, from: number, to: number): void;
   updateBlock(sectionIndex: number, blockIndex: number, updater: (block: Block) => void): void;
   replaceInlines(sectionIndex: number, blockIndex: number, inlines: Inline[]): void;
+  updateOverrides(updater: (overrides: DocumentOverrides) => void): void;
 
   markDirty(): void;
   markSaved(at: string): void;
 }
 
-export const createEditorStore = (envelope: DocumentEnvelope) =>
+export const createEditorStore = (envelope: DocumentEnvelope) => {
+  const initialEnvelope: DocumentEnvelope = {
+    ...envelope,
+    overrides: envelope.overrides ?? loadOverrides(envelope.id)
+  };
+
+  return (
   create<EditorState>()(
     temporal(
       immer((set) => ({
-      envelope,
-      view: pickInitialView(envelope.document),
+      envelope: initialEnvelope,
+      view: pickInitialView(initialEnvelope.document),
       selectedBlock: null,
       dirty: false,
       lastSavedAt: envelope.updatedAt,
@@ -272,6 +281,14 @@ export const createEditorStore = (envelope: DocumentEnvelope) =>
           }
         }),
 
+      updateOverrides: (updater) =>
+        set((s) => {
+          const next = structuredClone(s.envelope.overrides ?? {}) as DocumentOverrides;
+          updater(next);
+          s.envelope.overrides = stripEmpty(next) ?? null;
+          s.dirty = true;
+        }),
+
       markDirty: () =>
         set((s) => {
           s.dirty = true;
@@ -294,7 +311,24 @@ export const createEditorStore = (envelope: DocumentEnvelope) =>
         JSON.stringify((b as { envelope?: { document?: unknown } })?.envelope?.document)
     }
     )
-  );
+  ));
+};
+
+function stripEmpty<T>(value: T): T | undefined {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value : undefined;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      const cleaned = stripEmpty(child);
+      if (cleaned !== undefined) result[key] = cleaned;
+    }
+    return Object.keys(result).length > 0 ? (result as T) : undefined;
+  }
+  if (value === '' || value === undefined || value === null) return undefined;
+  return value;
+}
 
 export type EditorStore = ReturnType<typeof createEditorStore>;
 

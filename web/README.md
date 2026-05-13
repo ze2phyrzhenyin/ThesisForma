@@ -49,7 +49,7 @@ src/
 │   ├─ store.ts            Zustand + immer + zundo
 │   ├─ EditorContext.tsx   Provider + hooks
 │   ├─ InlineEditor.tsx    每块独立的 TipTap 实例（IME 友好）
-│   ├─ documentContract.ts ThesisDocument 导入 / 清理 / 轻量校验
+│   ├─ documentContract*.ts ThesisDocument 导入 / 清理 / 轻量校验 / walker
 │   ├─ localDrafts.ts      本地草稿保存 / 打开 / 复制 / 删除
 │   ├─ tableOps.ts         表格网格、合并、拆分纯函数
 │   ├─ notes.ts            脚注 / 尾注收集与更新
@@ -63,7 +63,7 @@ src/
 │   └─ useShortcuts.ts     ⌘S 保存 / ⌘E 导出 / ⌘Z 撤销 / ⌘. 专注
 ├─ templates/         TemplatePackage 导入 / 清理 / Page Template helpers / 轻量校验
 ├─ api/                fetcher + TanStack Query hooks
-├─ types/              从 schemas/*.json 手写的 TS 类型
+├─ types/              generated schema types + editor adapter types
 └─ design/             tokens.css + global.css（CSS Modules + 设计令牌）
 ```
 
@@ -78,8 +78,10 @@ src/
 - 表格导入/导出保留后端 schema 支持的高级字段，包括 gridSpan、verticalMerge、width、borders、cellMargins、font 和 paragraph
 - 本地草稿：新建、打开、复制、删除、刷新后恢复最近草稿
 - TemplatePackage 编辑器：导入/导出模板 JSON、编辑基本信息、变量、assets、嵌入式 FormatSpec 基础字段、Page Template 元素
-- Page Template 元素表单：spacer / text / metadataField / image / fieldTable / declarationText / pageBreak，含变量、metadata 和 asset 引用校验
+- Page Template 元素表单：spacer / text / metadataField / image / fieldTable / declarationText / pageBreak / rule，含变量、metadata 和 asset 引用校验
 - 模板选择 + 变量查看
+- DocumentOverrides 覆盖随 DocumentEnvelope 保存，并进入 API 校验 / 渲染链路
+- 格式覆盖生效证据：通过 API 预览模板与 DocumentOverrides 合并后的 ThesisFormatSpec 变化
 - 校验（含 path 跳转）
 - JSON 导入 / 导出
 - 仓库 examples fixture round-trip 测试，防止合法后端字段在前端 clean/parse 时被误删
@@ -94,20 +96,38 @@ src/
 - AI 解析 / AI 改写不做
 - TemplatePackage 编辑器不导入目录或 zip，只导入核心 JSON 文件
 - Page Template 只做安全的 schema 表单和结构化预览，不做 Word 式任意版式设计器
-- 完整格式覆盖（需后端协作）
+- Word 式任意字体、字号、页边距、行距自由布局控件不做；格式仍由 TemplatePackage / ThesisFormatSpec / DocumentOverrides 控制
+
+## Schema Types
+
+`web/src/types/generated` is generated from `schemas/*.json`:
+
+```bash
+scripts/generate-web-types
+scripts/generate-web-types --check
+```
+
+Handwritten files in `web/src/types` and `web/src/editor/overrides.ts` are editor adapters. They may add UI conveniences, but they should keep exporting generated schema aliases such as `ThesisDocumentSchema`, `TemplatePackageSchema`, and `DocumentOverridesSchema`.
 
 ## 本地质量门禁
 
 ```bash
-dotnet build ThesisDocx.slnx
-dotnet test ThesisDocx.slnx
+dotnet build src/ThesisDocx.Cli/ThesisDocx.Cli.csproj
+dotnet test tests/ThesisDocx.Tests/ThesisDocx.Tests.csproj
 cd web
 npm run typecheck
 npm test
 npm run build
+npm run e2e
 ```
 
+仓库统一门禁会从根目录运行 `scripts/web-quality-gate`，并默认包含 Playwright e2e。快速本地迭代可用 `WEB_E2E=0 scripts/ci-quality-gate`，最终验收不要跳过 e2e。
+
 后端质量工具仍是权威门禁：`template validate --json`、`template coverage`、`negative-fixtures run` 和 `ci quality-report` 会输出结构化 JSON，适合 CI 和后续前端消费。
+
+## Bundle Shape
+
+生产构建按职责拆 chunk：`vendor-app`、`vendor-editor-stack`、`vendor-katex`、`editor`、`template-editor` 等。右侧抽屉面板和 Page Template 编辑器按需 lazy load。Vite chunk 预算是 650 KB minified；超过该阈值必须拆分或在 PR 中说明原因。
 
 ## 构建依赖
 

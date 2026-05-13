@@ -49,6 +49,113 @@ public sealed class WebEditorEndpointTests
     }
 
     [Fact]
+    public async Task Endpoint_ShouldPersistValidateAndRenderDocumentOverrides()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var document = LoadSimpleDocument();
+        var overrides = new DocumentOverrides
+        {
+            Toc = new TocOverrideSpec { Title = "本文目录", MinLevel = 1, MaxLevel = 2 },
+            SectionInstances = new Dictionary<string, SectionInstanceOverrideSpec>
+            {
+                ["body"] = new()
+                {
+                    HeaderText = "正文专用页眉",
+                    PageNumberStyle = PageNumberStyle.Decimal,
+                    RestartPageNumbering = true,
+                    StartPageNumber = 5
+                }
+            }
+        };
+
+        var import = await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(document, "example-university-engineering", overrides)));
+        var envelope = await ReadJson<DocumentEnvelope>(import);
+
+        Assert.Equal(HttpStatusCode.Created, import.StatusCode);
+        Assert.Equal("本文目录", envelope.Overrides?.Toc?.Title);
+
+        var loaded = await ReadJson<DocumentEnvelope>(await client.GetAsync($"/api/documents/{envelope.Id}"));
+        Assert.Equal("正文专用页眉", loaded.Overrides?.SectionInstances?["body"].HeaderText);
+
+        var validate = await client.PostAsync($"/api/documents/{envelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null)));
+        var validation = await ReadJson<DocumentValidationResponse>(validate);
+        Assert.Equal(HttpStatusCode.OK, validate.StatusCode);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Issues.Select(issue => $"{issue.Code}: {issue.Message}")));
+
+        var render = await client.PostAsync($"/api/documents/{envelope.Id}/render", JsonContent(new RenderDocumentRequest(null)));
+        var run = await ReadJson<RenderRunResponse>(render);
+
+        Assert.Equal(HttpStatusCode.OK, render.StatusCode);
+        Assert.Equal("valid", run.Status);
+    }
+
+    [Fact]
+    public async Task Endpoint_ShouldReturnResolvedFormatPreviewEvidence()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var document = LoadSimpleDocument();
+        var overrides = new DocumentOverrides
+        {
+            Toc = new TocOverrideSpec { Title = "本文目录", MinLevel = 1, MaxLevel = 2 },
+            DefaultFont = new FontOverrideSpec { EastAsia = "仿宋_GB2312", SizePt = 13 },
+            SectionInstances = new Dictionary<string, SectionInstanceOverrideSpec>
+            {
+                ["body"] = new() { HeaderText = "正文专用页眉" }
+            }
+        };
+        var envelope = await ImportDocument(client, document, "example-university-engineering", overrides);
+
+        var response = await client.PostAsync($"/api/documents/{envelope.Id}/format-preview", JsonContent(new FormatPreviewRequest(null)));
+        var preview = await ReadJson<FormatPreviewResponse>(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(envelope.Id, preview.DocumentId);
+        Assert.Equal("example-university-engineering", preview.TemplateId);
+        Assert.Contains(preview.Changes, change => change.Path == "$.toc.title" && change.After == "本文目录");
+        Assert.Contains(preview.Changes, change => change.Path == "$.defaultFont.eastAsia" && change.After == "仿宋_GB2312");
+        Assert.Contains(preview.Sections, section =>
+            section.SectionId == "body"
+            && section.Changes.Any(change => change.Path == "$.sectionInstances.body.headerText"));
+        Assert.Contains(preview.Evidence, evidence => evidence.Kind == "formatChange");
+    }
+
+    [Fact]
+    public async Task Endpoint_FormatPreview_ShouldRejectInvalidOverrides()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var envelope = await ImportDocument(client, LoadSimpleDocument(), "example-university-engineering");
+
+        var response = await client.PostAsync($"/api/documents/{envelope.Id}/format-preview", JsonContent(new FormatPreviewRequest(
+            null,
+            new DocumentOverrides { Toc = new TocOverrideSpec { MinLevel = 5, MaxLevel = 2 } })));
+        var error = await ReadJson<ApiError>(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("overrides.validationFailed", error.Code);
+        Assert.Contains(error.Issues, issue => issue.Code == "overrides.toc.levelRange");
+    }
+
+    [Fact]
+    public async Task Endpoint_ShouldRejectInvalidDocumentOverrides()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(
+            LoadSimpleDocument(),
+            "example-university-engineering",
+            new DocumentOverrides { Toc = new TocOverrideSpec { MinLevel = 4, MaxLevel = 2 } })));
+        var error = await ReadJson<ApiError>(response);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("overrides.validationFailed", error.Code);
+        Assert.Contains(error.Issues, issue => issue.Code == "overrides.toc.levelRange");
+    }
+
+    [Fact]
     public async Task Endpoint_RenderInvalidDocument_ShouldReturnFacadeDiagnostics()
     {
         using var factory = CreateFactory();
@@ -305,6 +412,7 @@ public sealed class WebEditorEndpointTests
             await client.PutAsync("/api/documents/missing-doc", JsonContent(new SaveDocumentRequest(null, "example-university-engineering"))),
             await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(null, "example-university-engineering"))),
             await client.PostAsync("/api/documents/missing-doc/validate", JsonContent(new ValidateDocumentRequest(null))),
+            await client.PostAsync("/api/documents/missing-doc/format-preview", JsonContent(new FormatPreviewRequest(null))),
             await client.PostAsync("/api/documents/missing-doc/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{invalidEnvelope.Id}/render", JsonContent(new RenderDocumentRequest(null))),
             await client.PostAsync($"/api/documents/{missingTemplateEnvelope.Id}/validate", JsonContent(new ValidateDocumentRequest(null))),
@@ -330,6 +438,7 @@ public sealed class WebEditorEndpointTests
         var envelope = await ImportDocument(client, LoadSimpleDocument(), "example-university-engineering");
         var render = await client.PostAsync($"/api/documents/{envelope.Id}/render", JsonContent(new RenderDocumentRequest(null)));
         var run = await ReadJson<RenderRunResponse>(render);
+        var preview = await client.PostAsync($"/api/documents/{envelope.Id}/format-preview", JsonContent(new FormatPreviewRequest(null)));
 
         using var imageForm = new MultipartFormDataContent();
         var imageContent = new ByteArrayContent(Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="));
@@ -341,6 +450,7 @@ public sealed class WebEditorEndpointTests
             await client.GetAsync("/api/templates"),
             await client.GetAsync("/api/templates/example-university-engineering"),
             await client.GetAsync($"/api/documents/{envelope.Id}"),
+            preview,
             render,
             await client.GetAsync($"/api/runs/{run.RunId}"),
             await client.PostAsync("/api/assets/images", imageForm)

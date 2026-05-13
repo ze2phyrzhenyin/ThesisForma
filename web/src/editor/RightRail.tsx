@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
-import { BibliographyPanel } from './panels/BibliographyPanel';
-import { NotesPanel } from './panels/NotesPanel';
-import { ValidationPanel } from './panels/ValidationPanel';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import type { ApiIssue } from '@/types';
 import styles from './RightRail.module.css';
 
 export type DrawerKey = 'bibliography' | 'notes' | 'validation' | null;
+
+const BibliographyPanel = lazy(() =>
+  import('./panels/BibliographyPanel').then((module) => ({ default: module.BibliographyPanel }))
+);
+const NotesPanel = lazy(() => import('./panels/NotesPanel').then((module) => ({ default: module.NotesPanel })));
+const ValidationPanel = lazy(() =>
+  import('./panels/ValidationPanel').then((module) => ({ default: module.ValidationPanel }))
+);
 
 const DRAWERS: { key: NonNullable<DrawerKey>; label: string; icon: string }[] = [
   { key: 'bibliography', label: '参考文献', icon: '文' },
@@ -71,19 +76,29 @@ export function RightRail({ open, onChange, validation, onRunValidation }: Props
       </nav>
       {open !== null && (
         <div className={styles.drawer} role="region" aria-label="右侧抽屉">
-          {open === 'bibliography' && <BibliographyPanel />}
-          {open === 'notes' && <NotesPanel />}
-          {open === 'validation' && (
-            <ValidationPanel
-              issues={validation.issues}
-              isValid={validation.isValid}
-              isRunning={validation.isRunning}
-              lastCheckedAt={validation.lastCheckedAt}
-              onRun={onRunValidation}
-            />
-          )}
+          <Suspense fallback={<DrawerFallback label={DRAWERS.find((drawer) => drawer.key === open)?.label ?? '面板'} />}>
+            {open === 'bibliography' && <BibliographyPanel />}
+            {open === 'notes' && <NotesPanel />}
+            {open === 'validation' && (
+              <ValidationPanel
+                issues={validation.issues}
+                isValid={validation.isValid}
+                isRunning={validation.isRunning}
+                lastCheckedAt={validation.lastCheckedAt}
+                onRun={onRunValidation}
+              />
+            )}
+          </Suspense>
         </div>
       )}
     </aside>
+  );
+}
+
+function DrawerFallback({ label }: { label: string }) {
+  return (
+    <div className={styles.drawerFallback} role="status">
+      正在加载{label}…
+    </div>
   );
 }

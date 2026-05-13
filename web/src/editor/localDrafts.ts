@@ -1,6 +1,7 @@
 import type {
   CreateDocumentRequest,
   DocumentEnvelope,
+  DocumentOverrides,
   DocumentValidationResponse,
   TemplateSummary,
   ThesisDocument
@@ -71,7 +72,7 @@ export function createLocalDocument(req: CreateDocumentRequest = {}): DocumentEn
   const now = new Date().toISOString();
   const document = createBlankThesisDocument(req);
   const record: LocalDraftRecord = {
-    ...makeDocumentEnvelope(newDraftId('local-doc'), document, req.templateId ?? null, now),
+    ...makeDocumentEnvelope(newDraftId('local-doc'), document, req.templateId ?? null, now, req.overrides ?? null),
     createdAt: now
   };
   upsertDraft(record);
@@ -81,11 +82,12 @@ export function createLocalDocument(req: CreateDocumentRequest = {}): DocumentEn
 
 export function importLocalDocument(
   document: ThesisDocument,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): DocumentEnvelope {
   const now = new Date().toISOString();
   const record: LocalDraftRecord = {
-    ...makeDocumentEnvelope(newDraftId('local-doc'), document, templateId ?? null, now),
+    ...makeDocumentEnvelope(newDraftId('local-doc'), document, templateId ?? null, now, overrides ?? null),
     createdAt: now
   };
   upsertDraft(record);
@@ -105,13 +107,14 @@ export function getLocalDocument(id: string): DocumentEnvelope {
 export function saveLocalDocument(
   id: string,
   document: ThesisDocument,
-  templateId?: string | null
+  templateId?: string | null,
+  overrides?: DocumentOverrides | null
 ): DocumentEnvelope {
   const drafts = readDrafts();
   const existing = drafts.find((draft) => draft.id === id);
   const now = new Date().toISOString();
   const record: LocalDraftRecord = {
-    ...makeDocumentEnvelope(id, document, templateId ?? existing?.templateId ?? null, now),
+    ...makeDocumentEnvelope(id, document, templateId ?? existing?.templateId ?? null, now, overrides ?? existing?.overrides ?? null),
     createdAt: existing?.createdAt ?? now
   };
   writeDrafts([record, ...drafts.filter((draft) => draft.id !== id)]);
@@ -130,7 +133,7 @@ export function duplicateLocalDraft(id: string): DocumentEnvelope {
     }
   };
   const copy: LocalDraftRecord = {
-    ...makeDocumentEnvelope(newDraftId('local-doc'), document, source.templateId ?? null, now),
+    ...makeDocumentEnvelope(newDraftId('local-doc'), document, source.templateId ?? null, now, source.overrides ?? null),
     createdAt: now
   };
   upsertDraft(copy);

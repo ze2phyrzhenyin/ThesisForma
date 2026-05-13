@@ -7,6 +7,7 @@ import type {
   TemplateLayoutBlock,
   TemplateMetadataFieldBlock,
   TemplatePageBreakBlock,
+  TemplateRuleBlock,
   TemplateSpacerBlock,
   TemplateTextBlock
 } from '@/types';
@@ -18,7 +19,8 @@ export const PAGE_TEMPLATE_BLOCK_TYPES = [
   'image',
   'fieldTable',
   'declarationText',
-  'pageBreak'
+  'pageBreak',
+  'rule'
 ] as const;
 
 export type PageTemplateBlockType = (typeof PAGE_TEMPLATE_BLOCK_TYPES)[number];
@@ -56,6 +58,8 @@ export function createLayoutBlock(type: PageTemplateBlockType): TemplateLayoutBl
       return { type, paragraphs: ['声明正文'], signatureFields: [] };
     case 'pageBreak':
       return { type };
+    case 'rule':
+      return { type, thicknessPt: 1, color: '000000', alignment: 'center', spacingAfterPt: 8 };
   }
 }
 
@@ -104,6 +108,15 @@ export function cleanLayoutBlock(block: TemplateLayoutBlock): TemplateLayoutBloc
       }) as TemplateDeclarationTextBlock;
     case 'pageBreak':
       return { type: block.type } as TemplatePageBreakBlock;
+    case 'rule':
+      return stripNulls({
+        type: block.type,
+        thicknessPt: block.thicknessPt,
+        color: block.color,
+        alignment: block.alignment,
+        spacingBeforePt: block.spacingBeforePt,
+        spacingAfterPt: block.spacingAfterPt
+      }) as TemplateRuleBlock;
   }
 }
 
@@ -147,6 +160,8 @@ export function layoutBlockSummary(block: TemplateLayoutBlock): string {
       return `declarationText · ${block.paragraphs.length} 段`;
     case 'pageBreak':
       return 'pageBreak';
+    case 'rule':
+      return `rule · ${block.thicknessPt ?? 1} pt`;
   }
 }
 
@@ -168,6 +183,8 @@ export function layoutBlockPreview(block: TemplateLayoutBlock, variableDefaults:
       return block.paragraphs.join('\n');
     case 'pageBreak':
       return '[分页]';
+    case 'rule':
+      return '[分隔线]';
   }
 }
 

@@ -10,6 +10,7 @@
 - `GET /api/documents/{id}`
 - `PUT /api/documents/{id}`
 - `POST /api/documents/{id}/validate`
+- `POST /api/documents/{id}/format-preview`
 - `POST /api/documents/{id}/render`
 - `GET /api/runs/{runId}`
 - `GET /api/runs/{runId}/download`
@@ -54,3 +55,38 @@ API errors are structured JSON with stable machine-readable fields:
 `issues` is always present; simple errors use an empty array. Diagnostic issues always include `code`, `message`, `path`, `severity`, and `suggestedAction`. Successful JSON responses must not expose local absolute filesystem paths. Template paths are returned as repository-relative public paths, rendered run metadata uses relative artifact names such as `document.docx`, and downloads use API URLs.
 
 The API must not write user content into `examples/` and must not bypass schema or semantic validation.
+
+## Document Overrides
+
+Document envelopes can include optional `overrides`. This is an envelope-level `DocumentOverrides` payload, not part of `ThesisDocument`.
+
+Accepted request bodies for create/save/import/validate/render may include:
+
+```json
+{
+  "document": {},
+  "templateId": "example-university-engineering",
+  "overrides": {
+    "toc": { "title": "本文目录", "minLevel": 1, "maxLevel": 2 },
+    "sectionInstances": {
+      "body": {
+        "headerText": "正文专用页眉",
+        "pageNumberStyle": "decimal",
+        "restartPageNumbering": true,
+        "startPageNumber": 1
+      }
+    }
+  }
+}
+```
+
+The API persists overrides with document metadata, validates ranges before validation/rendering, merges them over the resolved template format spec, and validates the resulting DOCX against the effective spec. Invalid overrides return `overrides.validationFailed`.
+
+`POST /api/documents/{id}/format-preview` resolves the selected template, applies the supplied or saved overrides, and returns:
+
+- the base resolved `ThesisFormatSpec`;
+- the effective `ThesisFormatSpec`;
+- field-level changes with source override paths;
+- per-section effective page/header/footer format evidence.
+
+This endpoint does not render DOCX. It is for Web-side review evidence before validation/rendering.

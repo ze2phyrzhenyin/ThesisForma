@@ -84,17 +84,28 @@ public sealed class WebEditorStore
     public DocumentEnvelope CreateDocument(ThesisDocument document, string? templateId)
     {
         var id = NewId("doc");
-        return WriteDocument(id, document, templateId);
+        return WriteDocument(id, document, templateId, null);
+    }
+
+    public DocumentEnvelope CreateDocument(ThesisDocument document, string? templateId, DocumentOverrides? overrides)
+    {
+        var id = NewId("doc");
+        return WriteDocument(id, document, templateId, overrides);
     }
 
     public DocumentEnvelope? SaveDocument(string id, ThesisDocument document, string? templateId)
+    {
+        return SaveDocument(id, document, templateId, null);
+    }
+
+    public DocumentEnvelope? SaveDocument(string id, ThesisDocument document, string? templateId, DocumentOverrides? overrides)
     {
         if (!IsSafeId(id) || !File.Exists(DocumentPath(id)))
         {
             return null;
         }
 
-        return WriteDocument(id, document, templateId);
+        return WriteDocument(id, document, templateId, overrides);
     }
 
     public DocumentEnvelope? GetDocument(string id)
@@ -111,11 +122,11 @@ public sealed class WebEditorStore
         }
 
         var document = JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(documentPath), ThesisJson.Options) ?? new ThesisDocument();
-        var templateId = File.Exists(DocumentMetaPath(id))
-            ? JsonSerializer.Deserialize<DocumentMeta>(File.ReadAllText(DocumentMetaPath(id)), ThesisJson.Options)?.TemplateId
+        DocumentMeta? meta = File.Exists(DocumentMetaPath(id))
+            ? JsonSerializer.Deserialize<DocumentMeta>(File.ReadAllText(DocumentMetaPath(id)), ThesisJson.Options)
             : null;
 
-        return new DocumentEnvelope(id, templateId, document, File.GetLastWriteTimeUtc(documentPath).ToString("O"));
+        return new DocumentEnvelope(id, meta?.TemplateId, document, meta?.Overrides, File.GetLastWriteTimeUtc(documentPath).ToString("O"));
     }
 
     public TemplateResolutionResult ResolveTemplate(string? templateId, ThesisDocument document)
@@ -193,6 +204,17 @@ public sealed class WebEditorStore
         ThesisFormatSpec format,
         TemplateResolutionResult resolution)
     {
+        return RenderDocument(documentId, document, templateId, format, resolution, null);
+    }
+
+    public RenderRunResponse RenderDocument(
+        string documentId,
+        ThesisDocument document,
+        string? templateId,
+        ThesisFormatSpec format,
+        TemplateResolutionResult resolution,
+        DocumentOverrides? overrides)
+    {
         ResolveRelativeImagePaths(document, DocumentsDirectory);
 
         var runId = NewId("run");
@@ -208,8 +230,10 @@ public sealed class WebEditorStore
             RendererVersion = "1.0.0",
             PageTemplates = resolution.PageTemplates,
             Variables = resolution.Variables.ToDictionary(variable => variable.Name, variable => variable.Value ?? string.Empty, StringComparer.Ordinal),
-            Assets = resolution.Assets.ToDictionary(asset => asset.Id, asset => asset, StringComparer.Ordinal)
+            Assets = resolution.Assets.ToDictionary(asset => asset.Id, asset => asset, StringComparer.Ordinal),
+            Overrides = overrides
         };
+        var effectiveFormat = new DocumentOverridesFormatMerger().Merge(format, overrides);
 
         var render = _renderService.Render(new RenderRequest
         {
@@ -221,7 +245,7 @@ public sealed class WebEditorStore
             RenderContext = context
         });
         var formatResult = render.Success
-            ? _validateService.ValidateDocx(new ValidateDocxRequest { DocxPath = docxPath, Format = format })
+            ? _validateService.ValidateDocx(new ValidateDocxRequest { DocxPath = docxPath, Format = effectiveFormat })
             : ValidateDocxResult.Failure("render.failed", "DOCX render failed.");
         object inspect = render.Success && File.Exists(docxPath)
             ? new DocxInspector().Inspect(docxPath)
@@ -340,12 +364,22 @@ public sealed class WebEditorStore
 
     public static bool IsSafeId(string value) => SafeIdPattern.IsMatch(value);
 
-    private DocumentEnvelope WriteDocument(string id, ThesisDocument document, string? templateId)
+    public IReadOnlyList<UnifiedDiagnostic> ValidateOverrides(DocumentOverrides? overrides)
+    {
+        return new DocumentOverridesValidator().Validate(overrides);
+    }
+
+    public ThesisFormatSpec ApplyOverrides(ThesisFormatSpec format, DocumentOverrides? overrides)
+    {
+        return new DocumentOverridesFormatMerger().Merge(format, overrides);
+    }
+
+    private DocumentEnvelope WriteDocument(string id, ThesisDocument document, string? templateId, DocumentOverrides? overrides)
     {
         Directory.CreateDirectory(DocumentsDirectory);
         File.WriteAllText(DocumentPath(id), JsonSerializer.Serialize(document, ThesisJson.Options));
-        File.WriteAllText(DocumentMetaPath(id), JsonSerializer.Serialize(new DocumentMeta(templateId), ThesisJson.Options));
-        return new DocumentEnvelope(id, templateId, document, DateTimeOffset.UtcNow.ToString("O"));
+        File.WriteAllText(DocumentMetaPath(id), JsonSerializer.Serialize(new DocumentMeta(templateId, overrides), ThesisJson.Options));
+        return new DocumentEnvelope(id, templateId, document, overrides, DateTimeOffset.UtcNow.ToString("O"));
     }
 
     private string DocumentPath(string id) => Path.Combine(DocumentsDirectory, id + ".json");
@@ -397,7 +431,7 @@ public sealed class WebEditorStore
         }
     }
 
-    private sealed record DocumentMeta(string? TemplateId);
+    private sealed record DocumentMeta(string? TemplateId, DocumentOverrides? Overrides = null);
 
     private sealed record AssetMeta(string AssetId, string FileName, string ContentType, long Size);
 }

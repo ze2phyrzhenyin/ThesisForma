@@ -63,6 +63,7 @@ export function useEditorActions() {
       moveBlock: s.moveBlock,
       updateBlock: s.updateBlock,
       replaceInlines: s.replaceInlines,
+      updateOverrides: s.updateOverrides,
       markDirty: s.markDirty,
       markSaved: s.markSaved
     }))

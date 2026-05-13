@@ -21,7 +21,33 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    sourcemap: true
+    sourcemap: true,
+    chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.split(path.sep).join('/');
+          if (normalized.includes('/node_modules/')) {
+            if (normalized.includes('/@tiptap/') || normalized.includes('/prosemirror-')) {
+              return 'vendor-editor-stack';
+            }
+            if (normalized.includes('/katex/')) {
+              return 'vendor-katex';
+            }
+            if (normalized.includes('/@dnd-kit/')) {
+              return 'vendor-dnd';
+            }
+            return 'vendor-app';
+          }
+          if (normalized.includes('/src/editor/')) {
+            return 'editor';
+          }
+          if (normalized.includes('/src/templates/')) {
+            return 'template-editor';
+          }
+        }
+      }
+    }
   },
   test: {
     environment: 'jsdom',

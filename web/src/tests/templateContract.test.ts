@@ -94,6 +94,7 @@ describe('TemplatePackage contract helpers', () => {
                 paragraphs: ['声明 {{variables.defenseDate}}'],
                 signatureFields: [{ type: 'metadataField', label: '日期', variableName: 'defenseDate' }]
               },
+              { type: 'rule', thicknessPt: 1, color: '333333', alignment: 'center', spacingAfterPt: 6 },
               { type: 'pageBreak' }
             ]
           }
@@ -109,6 +110,7 @@ describe('TemplatePackage contract helpers', () => {
       'text',
       'fieldTable',
       'declarationText',
+      'rule',
       'pageBreak'
     ]);
     expect(cleaned.pageTemplates?.[0].blocks[2]).toMatchObject({
@@ -142,7 +144,8 @@ describe('TemplatePackage contract helpers', () => {
           { type: 'image', assetId: 'missingLogo', widthCm: -1 },
           { type: 'spacer', heightCm: 24 },
           { type: 'text', value: 'Title', fontOverride: { sizePt: 0 }, spacingBeforePt: -1 },
-          { type: 'fieldTable', columns: 8, rows: [] }
+          { type: 'fieldTable', columns: 8, rows: [] },
+          { type: 'rule', thicknessPt: 0, color: 'bad' }
         ]
       }
     ];
@@ -152,6 +155,8 @@ describe('TemplatePackage contract helpers', () => {
     expect(issues.some((issue) => issue.code === 'template.pageTemplate.spacer.height.invalid')).toBe(true);
     expect(issues.some((issue) => issue.code === 'template.pageTemplate.fontSize.invalid')).toBe(true);
     expect(issues.some((issue) => issue.code === 'template.pageTemplate.fieldTable.columns.invalid')).toBe(true);
+    expect(issues.some((issue) => issue.code === 'template.pageTemplate.rule.thickness.invalid')).toBe(true);
+    expect(issues.some((issue) => issue.code === 'template.pageTemplate.rule.color.invalid')).toBe(true);
   });
 
   it('cleans UI-only fields without dropping valid page template structure', () => {

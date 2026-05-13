@@ -43,3 +43,14 @@
   justify-content: center;
   color: var(--color-text-soft);
 }
+
+@media (max-width: 760px) {
+  .layout {
+    position: relative;
+    grid-template-columns: 1fr var(--layout-rail-right);
+  }
+
+  .leftRail {
+    display: none;
+  }
+}

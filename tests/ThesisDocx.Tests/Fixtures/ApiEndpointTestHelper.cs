@@ -17,6 +17,13 @@ internal static class ApiEndpointTestHelper
         return await ReadJson<DocumentEnvelope>(response);
     }
 
+    public static async Task<DocumentEnvelope> ImportDocument(HttpClient client, ThesisDocument document, string templateId, DocumentOverrides overrides)
+    {
+        var response = await client.PostAsync("/api/documents/import-json", JsonContent(new ImportDocumentRequest(document, templateId, overrides)));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return await ReadJson<DocumentEnvelope>(response);
+    }
+
     public static ThesisDocument LoadSimpleDocument()
     {
         var documentPath = Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "simple-thesis", "document.json");

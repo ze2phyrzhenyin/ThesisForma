@@ -40,7 +40,8 @@ export function ExportModal({ open, onClose }: Props) {
           const saved = await save.mutateAsync({
             id: envelope.id,
             document: envelope.document,
-            templateId: envelope.templateId ?? null
+            templateId: envelope.templateId ?? null,
+            overrides: envelope.overrides ?? null
           });
           actions.markSaved(saved.updatedAt);
         }
@@ -49,7 +50,8 @@ export function ExportModal({ open, onClose }: Props) {
         setPhase('validating');
         const v = await validate.mutateAsync({
           id: envelope.id,
-          templateId: envelope.templateId ?? null
+          templateId: envelope.templateId ?? null,
+          overrides: envelope.overrides ?? null
         });
         if (cancelled) return;
         if (!v.isValid) {
@@ -61,7 +63,8 @@ export function ExportModal({ open, onClose }: Props) {
         setPhase('rendering');
         const r = await render.mutateAsync({
           id: envelope.id,
-          templateId: envelope.templateId ?? null
+          templateId: envelope.templateId ?? null,
+          overrides: envelope.overrides ?? null
         });
         if (cancelled) return;
         setRun(r);

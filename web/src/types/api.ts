@@ -1,4 +1,5 @@
 import type { ThesisDocument } from './document';
+import type { DocumentOverrides } from '@/editor/overrides';
 
 export interface ApiIssue {
   code: string;
@@ -19,12 +20,51 @@ export interface DocumentEnvelope {
   id: string;
   templateId?: string | null;
   document: ThesisDocument;
+  overrides?: DocumentOverrides | null;
   updatedAt: string;
 }
 
 export interface DocumentValidationResponse {
   isValid: boolean;
   issues: ApiIssue[];
+}
+
+export interface FormatPreviewChange {
+  path: string;
+  label: string;
+  source: string;
+  before?: string | null;
+  after?: string | null;
+}
+
+export interface FormatPreviewEvidence {
+  kind: string;
+  path: string;
+  message: string;
+}
+
+export interface SectionFormatPreview {
+  sectionId: string;
+  sectionKind: string;
+  title: string;
+  bucket: string;
+  baseFormat: unknown;
+  effectiveFormat: unknown;
+  changes: FormatPreviewChange[];
+}
+
+export interface FormatPreviewResponse {
+  documentId: string;
+  templateId: string;
+  templateName: string;
+  formatSpecName: string;
+  baseSchemaVersion: string;
+  effectiveSchemaVersion: string;
+  baseFormat: unknown;
+  effectiveFormat: unknown;
+  changes: FormatPreviewChange[];
+  sections: SectionFormatPreview[];
+  evidence: FormatPreviewEvidence[];
 }
 
 export interface RenderRunResponse {
@@ -54,6 +94,7 @@ export interface AssetUploadResponse {
 
 export interface CreateDocumentRequest {
   templateId?: string | null;
+  overrides?: DocumentOverrides | null;
   title?: string;
   author?: string;
   college?: string;

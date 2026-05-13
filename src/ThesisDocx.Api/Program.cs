@@ -58,8 +58,14 @@ app.MapPost("/api/documents", Results<Created<DocumentEnvelope>, BadRequest<ApiE
         return TypedResults.BadRequest(ApiError.BadRequest("template.notFound", $"Template '{request.TemplateId}' was not found."));
     }
 
+    var overrideDiagnostics = store.ValidateOverrides(request.Overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
     var document = WebEditorDocumentFactory.Create(request);
-    var envelope = store.CreateDocument(document, request.TemplateId);
+    var envelope = store.CreateDocument(document, request.TemplateId, request.Overrides);
     return TypedResults.Created($"/api/documents/{envelope.Id}", envelope);
 });
 
@@ -83,7 +89,13 @@ app.MapPut("/api/documents/{id}", Results<Ok<DocumentEnvelope>, BadRequest<ApiEr
         return TypedResults.BadRequest(ApiError.BadRequest("document.missing", "Request must include a ThesisDocument."));
     }
 
-    var saved = store.SaveDocument(id, request.Document, request.TemplateId);
+    var overrideDiagnostics = store.ValidateOverrides(request.Overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
+    var saved = store.SaveDocument(id, request.Document, request.TemplateId, request.Overrides);
     return saved is null
         ? TypedResults.NotFound(ApiError.NotFound("document.notFound", $"Document '{id}' was not found."))
         : TypedResults.Ok(saved);
@@ -97,6 +109,13 @@ app.MapPost("/api/documents/{id}/validate", Results<Ok<DocumentValidationRespons
         return TypedResults.NotFound(ApiError.NotFound("document.notFound", $"Document '{id}' was not found."));
     }
 
+    var overrides = request.Overrides ?? envelope.Overrides;
+    var overrideDiagnostics = store.ValidateOverrides(overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
     var templateId = request.TemplateId ?? envelope.TemplateId;
     var resolved = store.ResolveTemplateResult(templateId, envelope.Document);
     if (!resolved.Success || resolved.Resolution is null)
@@ -104,8 +123,34 @@ app.MapPost("/api/documents/{id}/validate", Results<Ok<DocumentValidationRespons
         return TypedResults.BadRequest(ApiError.FromDiagnostics("template.validationFailed", "Template resolution failed.", resolved.Diagnostics));
     }
 
-    var result = store.ValidateDocumentResult(envelope.Document, resolved.Resolution.FormatSpec!, store.DocumentsDirectory);
+    var effectiveFormat = store.ApplyOverrides(resolved.Resolution.FormatSpec!, overrides);
+    var result = store.ValidateDocumentResult(envelope.Document, effectiveFormat, store.DocumentsDirectory);
     return TypedResults.Ok(DocumentValidationResponse.FromServiceResult(result));
+});
+
+app.MapPost("/api/documents/{id}/format-preview", Results<Ok<FormatPreviewResponse>, NotFound<ApiError>, BadRequest<ApiError>> (string id, FormatPreviewRequest request, WebEditorStore store) =>
+{
+    var envelope = store.GetDocument(id);
+    if (envelope is null)
+    {
+        return TypedResults.NotFound(ApiError.NotFound("document.notFound", $"Document '{id}' was not found."));
+    }
+
+    var overrides = request.Overrides ?? envelope.Overrides;
+    var overrideDiagnostics = store.ValidateOverrides(overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
+    var templateId = request.TemplateId ?? envelope.TemplateId;
+    var resolved = store.ResolveTemplateResult(templateId, envelope.Document);
+    if (!resolved.Success || resolved.Resolution is null)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("template.validationFailed", "Template resolution failed.", resolved.Diagnostics));
+    }
+
+    return TypedResults.Ok(FormatPreviewBuilder.Build(id, envelope.Document, resolved.Resolution, overrides));
 });
 
 app.MapPost("/api/documents/{id}/render", Results<Ok<RenderRunResponse>, NotFound<ApiError>, BadRequest<ApiError>> (string id, RenderDocumentRequest request, WebEditorStore store) =>
@@ -116,6 +161,13 @@ app.MapPost("/api/documents/{id}/render", Results<Ok<RenderRunResponse>, NotFoun
         return TypedResults.NotFound(ApiError.NotFound("document.notFound", $"Document '{id}' was not found."));
     }
 
+    var overrides = request.Overrides ?? envelope.Overrides;
+    var overrideDiagnostics = store.ValidateOverrides(overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
     var templateId = request.TemplateId ?? envelope.TemplateId;
     var resolved = store.ResolveTemplateResult(templateId, envelope.Document);
     if (!resolved.Success || resolved.Resolution is null)
@@ -124,13 +176,14 @@ app.MapPost("/api/documents/{id}/render", Results<Ok<RenderRunResponse>, NotFoun
     }
 
     var format = resolved.Resolution.FormatSpec!;
-    var inputValidation = store.ValidateDocumentResult(envelope.Document, format, store.DocumentsDirectory);
+    var effectiveFormat = store.ApplyOverrides(format, overrides);
+    var inputValidation = store.ValidateDocumentResult(envelope.Document, effectiveFormat, store.DocumentsDirectory);
     if (!inputValidation.IsValid)
     {
         return TypedResults.BadRequest(ApiError.FromDiagnostics("document.validationFailed", "ThesisDocument failed input validation.", inputValidation.Diagnostics));
     }
 
-    var run = store.RenderDocument(id, envelope.Document, templateId, format, resolved.Resolution);
+    var run = store.RenderDocument(id, envelope.Document, templateId, format, resolved.Resolution, overrides);
     return TypedResults.Ok(run);
 });
 
@@ -196,7 +249,13 @@ app.MapPost("/api/documents/import-json", Results<Created<DocumentEnvelope>, Bad
         return TypedResults.BadRequest(ApiError.BadRequest("document.missing", "Request must include a ThesisDocument."));
     }
 
-    var envelope = store.CreateDocument(request.Document, request.TemplateId);
+    var overrideDiagnostics = store.ValidateOverrides(request.Overrides);
+    if (overrideDiagnostics.Count > 0)
+    {
+        return TypedResults.BadRequest(ApiError.FromDiagnostics("overrides.validationFailed", "DocumentOverrides failed validation.", overrideDiagnostics));
+    }
+
+    var envelope = store.CreateDocument(request.Document, request.TemplateId, request.Overrides);
     return TypedResults.Created($"/api/documents/{envelope.Id}", envelope);
 });
 
