@@ -62,7 +62,7 @@
     "paragraph": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "index", "text", "runSummary", "effectiveFormat", "possibleRole", "runs", "evidencePath"],
+      "required": ["id", "index", "text", "runSummary", "effectiveFormat", "possibleRole", "footnoteReferenceIds", "endnoteReferenceIds", "runs", "evidencePath"],
       "properties": {
         "id": { "$ref": "#/definitions/id" },
         "index": { "type": "integer", "minimum": 0 },
@@ -90,6 +90,8 @@
         },
         "effectiveFormat": { "$ref": "#/definitions/effectiveFormat" },
         "possibleRole": { "type": "string" },
+        "footnoteReferenceIds": { "type": "array", "items": { "type": "string" } },
+        "endnoteReferenceIds": { "type": "array", "items": { "type": "string" } },
         "runs": { "type": "array", "items": { "$ref": "#/definitions/run" } },
         "evidencePath": { "$ref": "#/definitions/evidencePath" }
       }

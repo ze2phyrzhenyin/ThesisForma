@@ -107,6 +107,8 @@ public sealed class ExtractedParagraph
     public ExtractedRunSummary RunSummary { get; set; } = new();
     public ExtractedEffectiveFormat EffectiveFormat { get; set; } = new();
     public string PossibleRole { get; set; } = "body";
+    public List<string> FootnoteReferenceIds { get; set; } = [];
+    public List<string> EndnoteReferenceIds { get; set; } = [];
     public List<ExtractedRun> Runs { get; set; } = [];
     public string EvidencePath { get; set; } = string.Empty;
 }

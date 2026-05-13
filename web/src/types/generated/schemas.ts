@@ -291,7 +291,9 @@ export namespace DocxExtractionResultSchema {
   export interface Paragraph {
     alignment?: string | null;
     effectiveFormat: EffectiveFormat;
+    endnoteReferenceIds: string[];
     evidencePath: EvidencePath;
+    footnoteReferenceIds: string[];
     id: Id;
     indent?: string | null;
     index: number;

@@ -211,7 +211,9 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | --- | --- | --- | --- | --- |
 | `alignment` | string \| null | no |  |  |
 | `effectiveFormat` | EffectiveFormat | yes |  |  |
+| `endnoteReferenceIds` | string[] | yes |  |  |
 | `evidencePath` | EvidencePath | yes |  |  |
+| `footnoteReferenceIds` | string[] | yes |  |  |
 | `id` | Id | yes |  |  |
 | `indent` | string \| null | no |  |  |
 | `index` | integer | yes |  |  |

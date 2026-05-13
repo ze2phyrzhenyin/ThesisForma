@@ -364,15 +364,40 @@ public sealed class DocxExtractionService
     {
         var pPr = paragraph.ParagraphProperties;
         var styleId = pPr?.ParagraphStyleId?.Val?.Value;
-        var runs = paragraph.Elements<Run>().Select((run, runIndex) => ExtractRun(run, $"p{index}-r{runIndex}")).ToList();
-        foreach (var reference in paragraph.Descendants<FootnoteReference>())
+        var runs = new List<ExtractedRun>();
+        var footnoteReferenceIds = new List<string>();
+        var endnoteReferenceIds = new List<string>();
+        foreach (var (run, runIndex) in paragraph.Elements<Run>().Select((run, runIndex) => (run, runIndex)))
         {
-            runs.Add(new ExtractedRun { Id = $"p{index}-fn{reference.Id?.Value}", Text = $"[^fn{reference.Id?.Value}]" });
-        }
+            var extractedRun = ExtractRun(run, $"p{index}-r{runIndex}");
+            if (!string.IsNullOrEmpty(extractedRun.Text))
+            {
+                runs.Add(extractedRun);
+            }
 
-        foreach (var reference in paragraph.Descendants<EndnoteReference>())
-        {
-            runs.Add(new ExtractedRun { Id = $"p{index}-en{reference.Id?.Value}", Text = $"[^en{reference.Id?.Value}]" });
+            foreach (var reference in run.Descendants<FootnoteReference>())
+            {
+                var noteId = reference.Id?.Value.ToString();
+                if (string.IsNullOrWhiteSpace(noteId))
+                {
+                    continue;
+                }
+
+                footnoteReferenceIds.Add(noteId);
+                runs.Add(new ExtractedRun { Id = $"p{index}-fn{noteId}", Text = $"[^fn{noteId}]", Superscript = true });
+            }
+
+            foreach (var reference in run.Descendants<EndnoteReference>())
+            {
+                var noteId = reference.Id?.Value.ToString();
+                if (string.IsNullOrWhiteSpace(noteId))
+                {
+                    continue;
+                }
+
+                endnoteReferenceIds.Add(noteId);
+                runs.Add(new ExtractedRun { Id = $"p{index}-en{noteId}", Text = $"[^en{noteId}]", Superscript = true });
+            }
         }
 
         var text = string.Concat(runs.Select(r => r.Text));
@@ -402,6 +427,8 @@ public sealed class DocxExtractionService
                 HasSuperscript = runs.Any(r => r.Superscript),
                 HasSubscript = runs.Any(r => r.Subscript)
             },
+            FootnoteReferenceIds = footnoteReferenceIds,
+            EndnoteReferenceIds = endnoteReferenceIds,
             EvidencePath = $"paragraphs[{index}]"
         };
         extracted.EffectiveFormat = formatResolver.Resolve(paragraph, extracted);

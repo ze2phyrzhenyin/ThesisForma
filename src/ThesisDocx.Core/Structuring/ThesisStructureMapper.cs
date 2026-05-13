@@ -10,6 +10,9 @@ namespace ThesisDocx.Core.Structuring;
 
 public sealed class ThesisStructureMapper
 {
+    private static readonly Regex FootnoteMarkerPattern = new(@"^\[\^fn(?<id>[^\]]+)\]$", RegexOptions.CultureInvariant);
+    private static readonly Regex EndnoteMarkerPattern = new(@"^\[\^en(?<id>[^\]]+)\]$", RegexOptions.CultureInvariant);
+
     public ThesisStructuringResult Map(DocxExtractionResult extraction, string sourceExtraction = "")
     {
         var result = new ThesisStructuringResult();
@@ -23,6 +26,7 @@ public sealed class ThesisStructureMapper
         var current = NewSection(ThesisSectionKind.Body, "正文", "body");
         var bibliographyEntries = new List<BibliographyEntryNode>();
         var mappedFigureIds = new HashSet<string>(StringComparer.Ordinal);
+        var noteContext = BuildNoteContext(extraction);
         var figuresByEvidencePath = extraction.Figures
             .GroupBy(figure => figure.EvidencePath, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
@@ -34,42 +38,42 @@ public sealed class ThesisStructureMapper
             {
                 case "cover":
                     current = AddSection(result, ThesisSectionKind.Cover, "封面", "cover", paragraph);
-                    AddParagraph(current, paragraph, result, role, 0.75);
+                    AddParagraph(current, paragraph, result, noteContext, role, 0.75);
                     break;
                 case "declaration":
                     current = AddSection(result, ThesisSectionKind.OriginalityStatement, text, "declaration", paragraph);
-                    AddHeading(current, paragraph, result, 1, 0.85);
+                    AddHeading(current, paragraph, result, noteContext, 1, 0.85);
                     break;
                 case "abstractZh":
                 case "abstractEn":
                     current = AddSection(result, ThesisSectionKind.Abstract, text, $"abstract-{result.Document.Sections.Count}", paragraph);
-                    AddHeading(current, paragraph, result, 1, 0.9);
+                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "toc":
                     current = AddSection(result, ThesisSectionKind.Toc, text, "toc", paragraph);
-                    AddHeading(current, paragraph, result, 1, 0.9);
+                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "bibliography":
                     if (current.Kind != ThesisSectionKind.Bibliography)
                     {
                         current = AddSection(result, ThesisSectionKind.Bibliography, text, "bibliography", paragraph);
-                        AddHeading(current, paragraph, result, 1, 0.9);
+                        AddHeading(current, paragraph, result, noteContext, 1, 0.9);
                     }
                     break;
                 case "acknowledgements":
                     current = AddSection(result, ThesisSectionKind.Acknowledgements, text, "acknowledgements", paragraph);
-                    AddHeading(current, paragraph, result, 1, 0.9);
+                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "appendix":
                     current = AddSection(result, ThesisSectionKind.Appendix, text, "appendix", paragraph);
-                    AddHeading(current, paragraph, result, 1, 0.9);
+                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "heading":
                     if (!result.Document.Sections.Contains(current))
                     {
                         result.Document.Sections.Add(current);
                     }
-                    AddHeading(current, paragraph, result, GuessHeadingLevel(paragraph, text), 0.8);
+                    AddHeading(current, paragraph, result, noteContext, GuessHeadingLevel(paragraph, text), 0.8);
                     break;
                 case "bibliographyItem":
                     if (current.Kind != ThesisSectionKind.Bibliography)
@@ -84,7 +88,7 @@ public sealed class ThesisStructureMapper
                     {
                         result.Document.Sections.Add(current);
                     }
-                    AddParagraph(current, paragraph, result, "body paragraph", 0.7);
+                    AddParagraph(current, paragraph, result, noteContext, "body paragraph", 0.7);
                     if (paragraph.PossibleRole == "headingCandidate")
                     {
                         AddUnresolved(result, "structure.headingLevel.unconfirmed", "Possible heading requires review.", paragraph.EvidencePath, "Confirm heading level and section boundary.");
@@ -160,6 +164,19 @@ public sealed class ThesisStructureMapper
         result.Report.Warnings.AddRange(contentPreservation.Warnings.Select(issue => $"{issue.Code}: {issue.Message}").Order(StringComparer.Ordinal));
         result.Report.BlockingIssues.AddRange(contentPreservation.BlockingIssues.Select(issue => $"{issue.Code}: {issue.Message}").Order(StringComparer.Ordinal));
         return result;
+    }
+
+    private static NoteReferenceContext BuildNoteContext(DocxExtractionResult extraction)
+    {
+        return new NoteReferenceContext(
+            extraction.Footnotes
+                .Where(note => !string.IsNullOrWhiteSpace(note.NoteId))
+                .GroupBy(note => note.NoteId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal),
+            extraction.Endnotes
+                .Where(note => !string.IsNullOrWhiteSpace(note.NoteId))
+                .GroupBy(note => note.NoteId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal));
     }
 
     private static void EnsureRendererScaffoldSections(ThesisStructuringResult result)
@@ -290,24 +307,24 @@ public sealed class ThesisStructureMapper
         return new ThesisSection { Id = SafeId(id), Kind = kind, Title = title, StartOnNewPage = kind != ThesisSectionKind.Body };
     }
 
-    private static void AddHeading(ThesisSection section, ExtractedParagraph paragraph, ThesisStructuringResult result, int level, double confidence)
+    private static void AddHeading(ThesisSection section, ExtractedParagraph paragraph, ThesisStructuringResult result, NoteReferenceContext noteContext, int level, double confidence)
     {
         section.Blocks.Add(new HeadingBlock
         {
             Id = SafeId($"heading{paragraph.Index}"),
             Level = Math.Clamp(level, 1, 6),
-            Inlines = ToInlines(paragraph),
+            Inlines = ToInlines(paragraph, noteContext, result),
             Numbered = Regex.IsMatch(paragraph.Text, @"^(第|[0-9])", RegexOptions.CultureInvariant)
         });
         AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", paragraph.EvidencePath, "heading mapped", confidence);
     }
 
-    private static void AddParagraph(ThesisSection section, ExtractedParagraph paragraph, ThesisStructuringResult result, string reason, double confidence)
+    private static void AddParagraph(ThesisSection section, ExtractedParagraph paragraph, ThesisStructuringResult result, NoteReferenceContext noteContext, string reason, double confidence)
     {
         section.Blocks.Add(new ParagraphBlock
         {
             Id = SafeId($"paragraph{paragraph.Index}"),
-            Inlines = ToInlines(paragraph)
+            Inlines = ToInlines(paragraph, noteContext, result)
         });
         AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", paragraph.EvidencePath, reason, confidence);
     }
@@ -357,7 +374,7 @@ public sealed class ThesisStructureMapper
         }
     }
 
-    private static List<InlineNode> ToInlines(ExtractedParagraph paragraph)
+    private static List<InlineNode> ToInlines(ExtractedParagraph paragraph, NoteReferenceContext noteContext, ThesisStructuringResult result)
     {
         var runs = paragraph.Runs.Where(r => !string.IsNullOrEmpty(r.Text)).ToList();
         if (runs.Count == 0)
@@ -365,14 +382,58 @@ public sealed class ThesisStructureMapper
             return [new TextInline { Text = paragraph.Text }];
         }
 
-        return runs.Select(run => (InlineNode)new TextInline
+        return runs.Select(run => ToInline(run, paragraph, noteContext, result)).ToList();
+    }
+
+    private static InlineNode ToInline(ExtractedRun run, ExtractedParagraph paragraph, NoteReferenceContext noteContext, ThesisStructuringResult result)
+    {
+        var footnoteMarker = FootnoteMarkerPattern.Match(run.Text);
+        if (footnoteMarker.Success)
+        {
+            var noteId = footnoteMarker.Groups["id"].Value;
+            if (noteContext.FootnotesById.TryGetValue(noteId, out var note) && !string.IsNullOrWhiteSpace(note.Text))
+            {
+                return new FootnoteInline
+                {
+                    NoteId = SafeId($"fn{noteId}"),
+                    Inlines = [new TextInline { Text = note.Text }]
+                };
+            }
+
+            AddUnresolved(result, "note.footnote.contentMissing", $"Footnote reference '{noteId}' has no extracted note content.", paragraph.EvidencePath, "Review the source note part and attach the note content manually if needed.");
+            return TextFromRun(run);
+        }
+
+        var endnoteMarker = EndnoteMarkerPattern.Match(run.Text);
+        if (endnoteMarker.Success)
+        {
+            var noteId = endnoteMarker.Groups["id"].Value;
+            if (noteContext.EndnotesById.TryGetValue(noteId, out var note) && !string.IsNullOrWhiteSpace(note.Text))
+            {
+                return new EndnoteInline
+                {
+                    NoteId = SafeId($"en{noteId}"),
+                    Inlines = [new TextInline { Text = note.Text }]
+                };
+            }
+
+            AddUnresolved(result, "note.endnote.contentMissing", $"Endnote reference '{noteId}' has no extracted note content.", paragraph.EvidencePath, "Review the source note part and attach the note content manually if needed.");
+            return TextFromRun(run);
+        }
+
+        return TextFromRun(run);
+    }
+
+    private static TextInline TextFromRun(ExtractedRun run)
+    {
+        return new TextInline
         {
             Text = run.Text,
             Bold = run.Bold,
             Italic = run.Italic,
             Underline = run.Underline,
             VerticalAlignment = run.Superscript ? VerticalAlignment.Superscript : run.Subscript ? VerticalAlignment.Subscript : VerticalAlignment.Baseline
-        }).ToList();
+        };
     }
 
     private static void AddEvidence(ThesisStructuringResult result, string structuredPath, string evidencePath, string reason, double confidence)
@@ -425,6 +486,10 @@ public sealed class ThesisStructureMapper
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)) ?? Directory.GetCurrentDirectory());
         File.WriteAllText(path, JsonSerializer.Serialize(value, ThesisJson.Options));
     }
+
+    private sealed record NoteReferenceContext(
+        IReadOnlyDictionary<string, ExtractedFootnote> FootnotesById,
+        IReadOnlyDictionary<string, ExtractedEndnote> EndnotesById);
 }
 
 public sealed class ThesisDocumentDraftValidator

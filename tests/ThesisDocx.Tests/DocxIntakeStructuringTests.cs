@@ -92,8 +92,12 @@ public sealed class DocxIntakeStructuringTests
     public void DocxExtraction_ShouldKeepFootnoteReferenceInBody()
     {
         var result = ExtractSynthetic();
+        var paragraph = result.Paragraphs.Single(p => p.Text.Contains("正文引用", StringComparison.Ordinal));
 
-        Assert.Contains(result.Paragraphs, p => p.Text.Contains("[^fn2]", StringComparison.Ordinal));
+        Assert.Contains("[^fn2]", paragraph.Text, StringComparison.Ordinal);
+        Assert.Contains("[^en3]", paragraph.Text, StringComparison.Ordinal);
+        Assert.Equal(["2"], paragraph.FootnoteReferenceIds);
+        Assert.Equal(["3"], paragraph.EndnoteReferenceIds);
     }
 
     [Fact]
@@ -472,6 +476,26 @@ public sealed class DocxIntakeStructuringTests
         var draft = MapSynthetic();
 
         Assert.Contains(draft.Document.Sections.SelectMany(s => s.Blocks).OfType<ParagraphBlock>(), p => p.Inlines.OfType<TextInline>().Any(i => i.Text.Contains("中文摘要正文", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void StructureDraft_ShouldMapFootnoteAndEndnoteReferencesIntoInlineNodes()
+    {
+        var draft = MapSynthetic();
+        var paragraph = draft.Document.Sections
+            .SelectMany(s => s.Blocks)
+            .OfType<ParagraphBlock>()
+            .Single(p => p.Inlines.OfType<TextInline>().Any(i => i.Text.Contains("正文引用", StringComparison.Ordinal)));
+
+        Assert.Contains(paragraph.Inlines, inline => inline is FootnoteInline footnote
+            && footnote.NoteId == "fn2"
+            && footnote.Inlines.OfType<TextInline>().Any(text => text.Text == "脚注内容"));
+        Assert.Contains(paragraph.Inlines, inline => inline is EndnoteInline endnote
+            && endnote.NoteId == "en3"
+            && endnote.Inlines.OfType<TextInline>().Any(text => text.Text == "尾注内容"));
+        Assert.DoesNotContain(paragraph.Inlines.OfType<TextInline>(), inline => inline.Text.Contains("[^fn2]", StringComparison.Ordinal));
+        Assert.Equal("match", draft.Report.ContentPreservation.FootnoteComparison.Status);
+        Assert.Equal("match", draft.Report.ContentPreservation.EndnoteComparison.Status);
     }
 
     [Fact]

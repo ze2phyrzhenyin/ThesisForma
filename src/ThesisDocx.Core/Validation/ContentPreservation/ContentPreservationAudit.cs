@@ -436,10 +436,18 @@ public sealed class ContentPreservationAuditor
             CitationInline citation => citation.DisplayText,
             BookmarkInline bookmark => InlinesText(bookmark.Inlines),
             ReferenceInline reference => reference.FallbackText ?? reference.BookmarkName,
-            FootnoteInline footnote => InlinesText(footnote.Inlines),
-            EndnoteInline endnote => InlinesText(endnote.Inlines),
+            FootnoteInline footnote => NoteReferenceMarker("fn", footnote.NoteId),
+            EndnoteInline endnote => NoteReferenceMarker("en", endnote.NoteId),
             _ => string.Empty
         };
+    }
+
+    private static string NoteReferenceMarker(string prefix, string noteId)
+    {
+        var markerId = noteId.StartsWith(prefix, StringComparison.Ordinal) && noteId.Length > prefix.Length
+            ? noteId[prefix.Length..]
+            : noteId;
+        return $"[^{prefix}{markerId}]";
     }
 
     private static List<SourceSegment> ExtractSegments(DocxExtractionResult extraction)
