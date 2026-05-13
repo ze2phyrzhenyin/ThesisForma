@@ -38,7 +38,7 @@ public sealed class DocxExtractionService
             switch (element)
             {
                 case Paragraph paragraph:
-                    var extracted = ExtractParagraph(paragraph, paragraphIndex, styleNames, formatResolver);
+                    var extracted = ExtractParagraph(paragraph, paragraphIndex, styleNames, formatResolver, main);
                     result.Paragraphs.Add(extracted);
                     result.Blocks.Add(new ExtractedBlock
                     {
@@ -360,43 +360,31 @@ public sealed class DocxExtractionService
         return new DocxExtractionException(code, path, message, fixHint, innerException);
     }
 
-    private static ExtractedParagraph ExtractParagraph(Paragraph paragraph, int index, Dictionary<string, string> styleNames, DocxEffectiveFormatResolver formatResolver)
+    private static ExtractedParagraph ExtractParagraph(Paragraph paragraph, int index, Dictionary<string, string> styleNames, DocxEffectiveFormatResolver formatResolver, MainDocumentPart main)
     {
         var pPr = paragraph.ParagraphProperties;
         var styleId = pPr?.ParagraphStyleId?.Val?.Value;
         var runs = new List<ExtractedRun>();
         var footnoteReferenceIds = new List<string>();
         var endnoteReferenceIds = new List<string>();
-        foreach (var (run, runIndex) in paragraph.Elements<Run>().Select((run, runIndex) => (run, runIndex)))
+        var runIndex = 0;
+        foreach (var child in paragraph.ChildElements)
         {
-            var extractedRun = ExtractRun(run, $"p{index}-r{runIndex}");
-            if (!string.IsNullOrEmpty(extractedRun.Text))
+            switch (child)
             {
-                runs.Add(extractedRun);
-            }
-
-            foreach (var reference in run.Descendants<FootnoteReference>())
-            {
-                var noteId = reference.Id?.Value.ToString();
-                if (string.IsNullOrWhiteSpace(noteId))
-                {
-                    continue;
-                }
-
-                footnoteReferenceIds.Add(noteId);
-                runs.Add(new ExtractedRun { Id = $"p{index}-fn{noteId}", Text = $"[^fn{noteId}]", Superscript = true });
-            }
-
-            foreach (var reference in run.Descendants<EndnoteReference>())
-            {
-                var noteId = reference.Id?.Value.ToString();
-                if (string.IsNullOrWhiteSpace(noteId))
-                {
-                    continue;
-                }
-
-                endnoteReferenceIds.Add(noteId);
-                runs.Add(new ExtractedRun { Id = $"p{index}-en{noteId}", Text = $"[^en{noteId}]", Superscript = true });
+                case Run run:
+                    AddRunWithReferences(run, $"p{index}-r{runIndex}", runs, footnoteReferenceIds, endnoteReferenceIds);
+                    runIndex++;
+                    break;
+                case Hyperlink hyperlink:
+                    var relId = hyperlink.Id?.Value;
+                    var uri = ResolveHyperlinkUri(main, relId);
+                    foreach (var linkedRun in hyperlink.Elements<Run>())
+                    {
+                        AddRunWithReferences(linkedRun, $"p{index}-h{runIndex}", runs, footnoteReferenceIds, endnoteReferenceIds, relId, uri);
+                        runIndex++;
+                    }
+                    break;
             }
         }
 
@@ -433,6 +421,53 @@ public sealed class DocxExtractionService
         };
         extracted.EffectiveFormat = formatResolver.Resolve(paragraph, extracted);
         return extracted;
+    }
+
+    private static void AddRunWithReferences(
+        Run run,
+        string id,
+        List<ExtractedRun> runs,
+        List<string> footnoteReferenceIds,
+        List<string> endnoteReferenceIds,
+        string? hyperlinkRelationshipId = null,
+        string? hyperlinkUri = null)
+    {
+        var extractedRun = ExtractRun(run, id);
+        extractedRun.HyperlinkRelationshipId = hyperlinkRelationshipId;
+        extractedRun.HyperlinkUri = hyperlinkUri;
+        if (!string.IsNullOrEmpty(extractedRun.Text))
+        {
+            runs.Add(extractedRun);
+        }
+
+        foreach (var reference in run.Descendants<FootnoteReference>())
+        {
+            var noteId = reference.Id?.Value.ToString();
+            if (string.IsNullOrWhiteSpace(noteId))
+            {
+                continue;
+            }
+
+            footnoteReferenceIds.Add(noteId);
+            runs.Add(new ExtractedRun { Id = $"{id}-fn{noteId}", Text = $"[^fn{noteId}]", Superscript = true });
+        }
+
+        foreach (var reference in run.Descendants<EndnoteReference>())
+        {
+            var noteId = reference.Id?.Value.ToString();
+            if (string.IsNullOrWhiteSpace(noteId))
+            {
+                continue;
+            }
+
+            endnoteReferenceIds.Add(noteId);
+            runs.Add(new ExtractedRun { Id = $"{id}-en{noteId}", Text = $"[^en{noteId}]", Superscript = true });
+        }
+    }
+
+    private static string? ResolveHyperlinkUri(MainDocumentPart main, string? relId)
+    {
+        return relId is null ? null : main.HyperlinkRelationships.FirstOrDefault(r => r.Id == relId)?.Uri.ToString();
     }
 
     private static ExtractedRun ExtractRun(Run run, string id)
@@ -482,7 +517,7 @@ public sealed class DocxExtractionService
             {
                 Id = $"hyperlink-{result.Hyperlinks.Count}",
                 Text = NormalizeText(hyperlink.InnerText),
-                Uri = relId is not null ? main.HyperlinkRelationships.FirstOrDefault(r => r.Id == relId)?.Uri.ToString() : null,
+                Uri = ResolveHyperlinkUri(main, relId),
                 EvidencePath = extracted.EvidencePath
             });
         }

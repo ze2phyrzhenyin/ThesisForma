@@ -134,6 +134,8 @@ public sealed class ExtractedRun
     public double? FontSizePt { get; set; }
     public string? EastAsiaFont { get; set; }
     public string? Color { get; set; }
+    public string? HyperlinkRelationshipId { get; set; }
+    public string? HyperlinkUri { get; set; }
     public bool Superscript { get; set; }
     public bool Subscript { get; set; }
 }

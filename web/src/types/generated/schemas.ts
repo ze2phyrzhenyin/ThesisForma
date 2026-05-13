@@ -322,6 +322,8 @@ export namespace DocxExtractionResultSchema {
     eastAsiaFont?: string | null;
     font?: string | null;
     fontSizePt?: number | null;
+    hyperlinkRelationshipId?: string | null;
+    hyperlinkUri?: string | null;
     id: Id;
     italic: boolean;
     subscript: boolean;

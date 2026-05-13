@@ -39,6 +39,8 @@ Extracted table evidence preserves cell text, horizontal grid spans, and vertica
 
 Footnote and endnote references are preserved as explicit paragraph reference ids in `extraction.json` and mapped into `FootnoteInline` / `EndnoteInline` nodes in the draft when matching note content is available. Missing note content is kept as the original reference marker and reported as an unresolved review item rather than guessed.
 
+External hyperlink runs retain their relationship id and URI in `extraction.json`, remain part of paragraph text for content preservation, and map into `HyperlinkInline` nodes in the structured draft.
+
 Codex or another LLM may review `extraction.json` and `extracted.md`, but it should not read or modify `input.docx` directly. The LLM output must include evidence links and must preserve original body text.
 
 Why not ask an LLM to output DOCX directly:

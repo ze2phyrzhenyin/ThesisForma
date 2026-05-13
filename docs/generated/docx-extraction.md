@@ -237,6 +237,8 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | `eastAsiaFont` | string \| null | no |  |  |
 | `font` | string \| null | no |  |  |
 | `fontSizePt` | number \| null | no |  |  |
+| `hyperlinkRelationshipId` | string \| null | no |  |  |
+| `hyperlinkUri` | string \| null | no |  |  |
 | `id` | Id | yes |  |  |
 | `italic` | boolean | yes |  |  |
 | `subscript` | boolean | yes |  |  |

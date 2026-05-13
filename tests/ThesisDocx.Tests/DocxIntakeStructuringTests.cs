@@ -133,8 +133,13 @@ public sealed class DocxIntakeStructuringTests
     public void DocxExtraction_ShouldExtractHyperlinks()
     {
         var result = ExtractSynthetic();
+        var paragraph = result.Paragraphs.Single(p => p.Text == "OpenAI");
+        var run = paragraph.Runs.Single();
 
         Assert.Contains(result.Hyperlinks, h => h.Text == "OpenAI" && h.Uri!.Contains("example.com", StringComparison.Ordinal));
+        Assert.Equal("OpenAI", run.Text);
+        Assert.False(string.IsNullOrWhiteSpace(run.HyperlinkRelationshipId));
+        Assert.Contains("example.com", run.HyperlinkUri!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -507,6 +512,21 @@ public sealed class DocxIntakeStructuringTests
         Assert.DoesNotContain(paragraph.Inlines.OfType<TextInline>(), inline => inline.Text.Contains("[^fn2]", StringComparison.Ordinal));
         Assert.Equal("match", draft.Report.ContentPreservation.FootnoteComparison.Status);
         Assert.Equal("match", draft.Report.ContentPreservation.EndnoteComparison.Status);
+    }
+
+    [Fact]
+    public void StructureDraft_ShouldMapHyperlinksIntoInlineNodes()
+    {
+        var draft = MapSynthetic();
+        var paragraph = draft.Document.Sections
+            .SelectMany(s => s.Blocks)
+            .OfType<ParagraphBlock>()
+            .Single(p => p.Inlines.OfType<HyperlinkInline>().Any(i => i.Text == "OpenAI"));
+
+        var hyperlink = paragraph.Inlines.OfType<HyperlinkInline>().Single();
+        Assert.Contains("example.com", hyperlink.Uri, StringComparison.Ordinal);
+        Assert.DoesNotContain(paragraph.Inlines.OfType<TextInline>(), inline => inline.Text == "OpenAI");
+        Assert.NotEqual("fail", draft.Report.ContentPreservation.Status);
     }
 
     [Fact]

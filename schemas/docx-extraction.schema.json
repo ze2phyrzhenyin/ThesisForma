@@ -110,6 +110,8 @@
         "fontSizePt": { "type": ["number", "null"], "minimum": 0 },
         "eastAsiaFont": { "type": ["string", "null"] },
         "color": { "type": ["string", "null"] },
+        "hyperlinkRelationshipId": { "type": ["string", "null"] },
+        "hyperlinkUri": { "type": ["string", "null"] },
         "superscript": { "type": "boolean" },
         "subscript": { "type": "boolean" }
       }

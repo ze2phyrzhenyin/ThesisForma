@@ -439,8 +439,17 @@ public sealed class ThesisStructureMapper
         };
     }
 
-    private static TextInline TextFromRun(ExtractedRun run)
+    private static InlineNode TextFromRun(ExtractedRun run)
     {
+        if (!string.IsNullOrWhiteSpace(run.HyperlinkUri) && Uri.TryCreate(run.HyperlinkUri, UriKind.Absolute, out _))
+        {
+            return new HyperlinkInline
+            {
+                Text = run.Text,
+                Uri = run.HyperlinkUri
+            };
+        }
+
         return new TextInline
         {
             Text = run.Text,
