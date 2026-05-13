@@ -816,7 +816,9 @@ internal static partial class ThesisDocxCli
         {
             var extraction = ReadJson<DocxExtractionResult>(extractionPath);
             var result = new ThesisStructureMapper().Map(extraction, extractionPath);
-            new ThesisStructureMapper().WriteOutputs(result, Required(options, "out"), reportPath, Required(options, "unresolved"), options.GetValueOrDefault("evidence"));
+            var draftPath = Required(options, "out");
+            NormalizeDraftImagePaths(result.Document, extractionPath, draftPath);
+            new ThesisStructureMapper().WriteOutputs(result, draftPath, reportPath, Required(options, "unresolved"), options.GetValueOrDefault("evidence"));
             Console.WriteLine($"Structured draft with {result.Report.RuleBasedMappedCount} mapped items, {result.UnresolvedItems.Count} unresolved items, content preservation: {result.Report.ContentPreservation.Status}");
             return result.Report.ContentPreservation.Status == "fail" ? 2 : 0;
         }
@@ -951,6 +953,7 @@ internal static partial class ThesisDocxCli
                 .Select(i => $"{i.Code}: {i.Message}"));
 
             var structured = new ThesisStructureMapper().Map(extraction, extractionPath);
+            NormalizeDraftImagePaths(structured.Document, extractionPath, draftPath);
             new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
             report.StructuringStatus = "pass";
             report.DraftContentPreservationStatus = structured.Report.ContentPreservation.Status;
@@ -1621,6 +1624,32 @@ internal static partial class ThesisDocxCli
             if (!string.IsNullOrWhiteSpace(figure.ImagePath) && !Path.IsPathRooted(figure.ImagePath))
             {
                 figure.ImagePath = Path.GetFullPath(Path.Combine(baseDirectory, figure.ImagePath));
+            }
+        }
+    }
+
+    private static void NormalizeDraftImagePaths(ThesisDocument document, string sourceExtractionPath, string draftDocumentPath)
+    {
+        var extractionDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceExtractionPath));
+        var workspaceDirectory = extractionDirectory is null ? null : Directory.GetParent(extractionDirectory)?.FullName;
+        if (workspaceDirectory is null)
+        {
+            return;
+        }
+
+        var artifactsDirectory = Path.Combine(workspaceDirectory, "artifacts");
+        var draftDirectory = Path.GetDirectoryName(Path.GetFullPath(draftDocumentPath)) ?? Directory.GetCurrentDirectory();
+        foreach (var figure in document.Sections.SelectMany(s => s.Blocks).OfType<FigureBlock>())
+        {
+            if (string.IsNullOrWhiteSpace(figure.ImagePath) || Path.IsPathRooted(figure.ImagePath))
+            {
+                continue;
+            }
+
+            var artifactPath = Path.GetFullPath(Path.Combine(artifactsDirectory, figure.ImagePath));
+            if (File.Exists(artifactPath))
+            {
+                figure.ImagePath = Path.GetRelativePath(draftDirectory, artifactPath).Replace('\\', '/');
             }
         }
     }

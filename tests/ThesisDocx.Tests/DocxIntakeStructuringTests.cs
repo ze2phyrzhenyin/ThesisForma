@@ -567,6 +567,46 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void StructureMapper_ShouldMapExtractedFiguresIntoFigureBlocks()
+    {
+        var extraction = FigureExtraction();
+
+        var result = new ThesisStructureMapper().Map(extraction, "extraction/extraction.json");
+        var figure = result.Document.Sections.SelectMany(section => section.Blocks).OfType<FigureBlock>().Single();
+
+        Assert.Equal("图1 系统架构示意图展示模块关系。", figure.Caption);
+        Assert.Equal("images/image-0.png", figure.ImagePath);
+        Assert.Equal("image/png", figure.ImageContentType);
+        Assert.Contains(result.EvidenceLinks, link => link.EvidencePath == "paragraphs[0]" && link.Reason.Contains("figure", StringComparison.Ordinal));
+        Assert.NotEqual("fail", result.Report.ContentPreservation.Status);
+    }
+
+    [Fact]
+    public void Cli_StructureDraft_ShouldRewriteFigureArtifactPathRelativeToDraft()
+    {
+        var workspace = NewTempDirectory();
+        var extractionDirectory = Path.Combine(workspace, "extraction");
+        var artifactsDirectory = Path.Combine(workspace, "artifacts", "images");
+        var structuredDirectory = Path.Combine(workspace, "structured");
+        Directory.CreateDirectory(extractionDirectory);
+        Directory.CreateDirectory(artifactsDirectory);
+        Directory.CreateDirectory(structuredDirectory);
+        File.WriteAllBytes(Path.Combine(artifactsDirectory, "image-0.png"), [137, 80, 78, 71]);
+        var extractionPath = Path.Combine(extractionDirectory, "extraction.json");
+        File.WriteAllText(extractionPath, JsonSerializer.Serialize(FigureExtraction(), ThesisJson.Options));
+        var documentPath = Path.Combine(structuredDirectory, "thesis-document.draft.json");
+        var reportPath = Path.Combine(structuredDirectory, "mapping.json");
+        var unresolvedPath = Path.Combine(structuredDirectory, "unresolved.json");
+
+        var result = CliRunner.Run(RepoRoot(), "structure", "draft", "--extraction", extractionPath, "--out", documentPath, "--report", reportPath, "--unresolved", unresolvedPath);
+        var document = JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(documentPath), ThesisJson.Options)!;
+        var figure = document.Sections.SelectMany(section => section.Blocks).OfType<FigureBlock>().Single();
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("../artifacts/images/image-0.png", figure.ImagePath);
+    }
+
+    [Fact]
     public void Cli_StructureDraft_ShouldWriteFailureReportVersion()
     {
         var directory = NewTempDirectory();
@@ -969,6 +1009,39 @@ public sealed class DocxIntakeStructuringTests
         var directory = NewTempDirectory();
         var docx = CreateChaoticDocx(directory);
         return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+    }
+
+    private static DocxExtractionResult FigureExtraction()
+    {
+        const string caption = "图1 系统架构示意图展示模块关系。";
+        return new DocxExtractionResult
+        {
+            InputFileName = "figure-source.docx",
+            PlainText = caption,
+            Paragraphs =
+            [
+                new ExtractedParagraph
+                {
+                    Id = "paragraph-0",
+                    Index = 0,
+                    Text = caption,
+                    EvidencePath = "paragraphs[0]",
+                    PossibleRole = "body"
+                }
+            ],
+            Figures =
+            [
+                new ExtractedFigure
+                {
+                    Id = "figure-0",
+                    Index = 0,
+                    ContentType = "image/png",
+                    ArtifactPath = "images/image-0.png",
+                    SuggestedCaption = caption,
+                    EvidencePath = "paragraphs[0]"
+                }
+            ]
+        };
     }
 
     private static DocxExtractionException AssertExtractionError(DocxExtractionOptions options)

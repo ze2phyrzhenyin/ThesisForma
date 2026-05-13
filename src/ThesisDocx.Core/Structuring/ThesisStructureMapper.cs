@@ -22,6 +22,10 @@ public sealed class ThesisStructureMapper
 
         var current = NewSection(ThesisSectionKind.Body, "正文", "body");
         var bibliographyEntries = new List<BibliographyEntryNode>();
+        var mappedFigureIds = new HashSet<string>(StringComparer.Ordinal);
+        var figuresByEvidencePath = extraction.Figures
+            .GroupBy(figure => figure.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
         foreach (var paragraph in extraction.Paragraphs.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
         {
             var text = paragraph.Text.Trim();
@@ -87,6 +91,18 @@ public sealed class ThesisStructureMapper
                     }
                     break;
             }
+
+            AddFiguresForEvidence(result, current, figuresByEvidencePath, mappedFigureIds, paragraph.EvidencePath);
+        }
+
+        foreach (var figure in extraction.Figures.Where(figure => !mappedFigureIds.Contains(figure.Id)))
+        {
+            if (!result.Document.Sections.Contains(current))
+            {
+                result.Document.Sections.Add(current);
+            }
+
+            AddFigure(current, figure, result, mappedFigureIds, "figure extracted from drawing evidence without a nearby non-empty paragraph", 0.65);
         }
 
         foreach (var table in extraction.Tables)
@@ -296,6 +312,51 @@ public sealed class ThesisStructureMapper
         AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", paragraph.EvidencePath, reason, confidence);
     }
 
+    private static void AddFiguresForEvidence(
+        ThesisStructuringResult result,
+        ThesisSection current,
+        IReadOnlyDictionary<string, List<ExtractedFigure>> figuresByEvidencePath,
+        HashSet<string> mappedFigureIds,
+        string evidencePath)
+    {
+        if (!figuresByEvidencePath.TryGetValue(evidencePath, out var figures))
+        {
+            return;
+        }
+
+        foreach (var figure in figures)
+        {
+            AddFigure(current, figure, result, mappedFigureIds, "figure mapped from paragraph drawing evidence", 0.8);
+        }
+    }
+
+    private static void AddFigure(
+        ThesisSection section,
+        ExtractedFigure figure,
+        ThesisStructuringResult result,
+        HashSet<string> mappedFigureIds,
+        string reason,
+        double confidence)
+    {
+        if (!mappedFigureIds.Add(figure.Id))
+        {
+            return;
+        }
+
+        section.Blocks.Add(new FigureBlock
+        {
+            Id = SafeId($"figure{figure.Index + 1}"),
+            Caption = string.IsNullOrWhiteSpace(figure.SuggestedCaption) ? $"图 {figure.Index + 1}" : figure.SuggestedCaption!,
+            ImagePath = figure.ArtifactPath,
+            ImageContentType = SupportedImageContentType(figure.ContentType) ? figure.ContentType! : "image/png"
+        });
+        AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", figure.EvidencePath, reason, confidence);
+        if (string.IsNullOrWhiteSpace(figure.ArtifactPath))
+        {
+            AddUnresolved(result, "figure.artifact.missing", "Figure drawing was extracted but no image artifact path was available.", figure.EvidencePath, "Review the source DOCX image relationship and decide whether to attach an image manually.");
+        }
+    }
+
     private static List<InlineNode> ToInlines(ExtractedParagraph paragraph)
     {
         var runs = paragraph.Runs.Where(r => !string.IsNullOrEmpty(r.Text)).ToList();
@@ -341,6 +402,11 @@ public sealed class ThesisStructureMapper
             EvidencePath = evidencePath,
             RecommendedAction = action
         });
+    }
+
+    private static bool SupportedImageContentType(string? contentType)
+    {
+        return contentType is "image/png" or "image/jpeg" or "image/jpg" or "image/gif" or "image/bmp" or "image/tiff";
     }
 
     private static string SafeId(string value)

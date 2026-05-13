@@ -33,6 +33,8 @@ Structuring is interpretive. It classifies sections and blocks, but it must not 
 
 `structure draft` now writes a draft-level content preservation audit into `structure-mapping-report.json` under `contentPreservation`. The audit compares source extraction text, notes, and table text against the generated `ThesisDocument` draft text view, records normalized SHA-256 hashes, reports missing segments, and turns long missing source text into blocking issues. `intake docx` summarizes this as `draftContentPreservationStatus`, `draftContentMissingSegments`, and `draftContentBlockingIssues` in `reports/intake-report.json`.
 
+Extracted image evidence is mapped into `FigureBlock` nodes when an image artifact is available. In an intake workspace, artifact paths are rewritten relative to `structured/thesis-document.draft.json` so the normal render path can resolve copied images from `artifacts/images/`. Missing image artifacts are recorded as unresolved review items instead of silently dropping the figure.
+
 Codex or another LLM may review `extraction.json` and `extracted.md`, but it should not read or modify `input.docx` directly. The LLM output must include evidence links and must preserve original body text.
 
 Why not ask an LLM to output DOCX directly:
