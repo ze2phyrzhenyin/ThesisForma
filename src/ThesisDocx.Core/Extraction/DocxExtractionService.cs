@@ -569,7 +569,7 @@ public sealed class DocxExtractionService
                     CellIndex = cellIndex,
                     Text = NormalizeText(string.Join(Environment.NewLine, cell.Descendants<Paragraph>().Select(p => p.InnerText).Where(t => !string.IsNullOrWhiteSpace(t)))),
                     GridSpan = gridSpan.HasValue ? Math.Max(1, gridSpan.Value) : 1,
-                    VerticalMerge = cell.TableCellProperties?.VerticalMerge?.Val?.Value.ToString(),
+                    VerticalMerge = VerticalMergeValue(cell),
                     Borders = cell.TableCellProperties?.TableCellBorders?.OuterXml,
                     EvidencePath = $"tables[{index}].rows[{rowIndex}].cells[{cellIndex}]"
                 };
@@ -584,6 +584,17 @@ public sealed class DocxExtractionService
             Borders = table.GetFirstChild<TableProperties>()?.TableBorders?.OuterXml,
             EvidencePath = $"tables[{index}]"
         };
+    }
+
+    private static string? VerticalMergeValue(TableCell cell)
+    {
+        var merge = cell.TableCellProperties?.VerticalMerge;
+        if (merge is null)
+        {
+            return null;
+        }
+
+        return merge.Val?.Value == MergedCellValues.Restart ? "restart" : "continue";
     }
 
     private static ExtractedSection ExtractSection(SectionProperties section, int index)

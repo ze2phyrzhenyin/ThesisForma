@@ -73,6 +73,17 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void DocxExtraction_ShouldExtractMergedTableCellMetadata()
+    {
+        var table = ExtractMergedTable().Tables.Single();
+
+        Assert.Equal(2, table.Rows[0].Cells[0].GridSpan);
+        Assert.Equal("restart", table.Rows[0].Cells[0].VerticalMerge);
+        Assert.Equal(2, table.Rows[1].Cells[0].GridSpan);
+        Assert.Equal("continue", table.Rows[1].Cells[0].VerticalMerge);
+    }
+
+    [Fact]
     public void DocxExtraction_ShouldExtractFootnotes()
     {
         var result = ExtractSynthetic();
@@ -606,6 +617,19 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void StructureMapper_ShouldPreserveTableMergeMetadata()
+    {
+        var result = new ThesisStructureMapper().Map(ExtractMergedTable(), "merged-table-extraction.json");
+        var table = result.Document.Sections.SelectMany(section => section.Blocks).OfType<TableBlock>().Single();
+
+        Assert.Equal(2, table.Rows[0].Cells[0].GridSpan);
+        Assert.Equal(VerticalMergeKind.Restart, table.Rows[0].Cells[0].VerticalMerge);
+        Assert.Equal(2, table.Rows[1].Cells[0].GridSpan);
+        Assert.Equal(VerticalMergeKind.Continue, table.Rows[1].Cells[0].VerticalMerge);
+        Assert.NotEqual("fail", result.Report.ContentPreservation.Status);
+    }
+
+    [Fact]
     public void Cli_StructureDraft_ShouldRewriteFigureArtifactPathRelativeToDraft()
     {
         var workspace = NewTempDirectory();
@@ -1028,6 +1052,13 @@ public sealed class DocxIntakeStructuringTests
         return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
     }
 
+    private static DocxExtractionResult ExtractMergedTable()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateMergedTableDocx(directory);
+        return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+    }
+
     private static DocxExtractionResult ExtractChaotic()
     {
         var directory = NewTempDirectory();
@@ -1115,6 +1146,35 @@ public sealed class DocxIntakeStructuringTests
             new W.Paragraph(new W.SimpleField { Instruction = "REF bmIntro \\h" }),
             new W.Paragraph(new W.BookmarkStart { Name = "bmIntro", Id = "9" }, new W.Run(new W.Text("书签内容")), new W.BookmarkEnd { Id = "9" }),
             new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }, new W.PageMargin { Top = 1440, Bottom = 1440, Left = 1440, Right = 1440 }));
+        main.Document.Save();
+        return path;
+    }
+
+    private static string CreateMergedTableDocx(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "merged-table.docx");
+        using var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new W.Document(new W.Body());
+        AddStyles(main);
+        main.Document.Body!.Append(
+            new W.Table(
+                new W.TableRow(
+                    new W.TableCell(
+                        new W.TableCellProperties(
+                            new W.GridSpan { Val = 2 },
+                            new W.VerticalMerge { Val = W.MergedCellValues.Restart }),
+                        new W.Paragraph(new W.Run(new W.Text("合并项")))),
+                    new W.TableCell(new W.Paragraph(new W.Run(new W.Text("说明"))))),
+                new W.TableRow(
+                    new W.TableCell(
+                        new W.TableCellProperties(
+                            new W.GridSpan { Val = 2 },
+                            new W.VerticalMerge()),
+                        new W.Paragraph()),
+                    new W.TableCell(new W.Paragraph(new W.Run(new W.Text("延续说明")))))),
+            new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
         main.Document.Save();
         return path;
     }

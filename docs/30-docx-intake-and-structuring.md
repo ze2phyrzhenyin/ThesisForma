@@ -35,6 +35,8 @@ Structuring is interpretive. It classifies sections and blocks, but it must not 
 
 Extracted image evidence is mapped into `FigureBlock` nodes when an image artifact is available. In an intake workspace, artifact paths are rewritten relative to `structured/thesis-document.draft.json` so the normal render path can resolve copied images from `artifacts/images/`. Missing image artifacts are recorded as unresolved review items instead of silently dropping the figure.
 
+Extracted table evidence preserves cell text, horizontal grid spans, and vertical merge chains when building draft `TableBlock` nodes. A `<w:vMerge/>` cell with no explicit value is treated as `continue`, matching WordprocessingML semantics instead of dropping the continuation.
+
 Footnote and endnote references are preserved as explicit paragraph reference ids in `extraction.json` and mapped into `FootnoteInline` / `EndnoteInline` nodes in the draft when matching note content is available. Missing note content is kept as the original reference marker and reported as an unresolved review item rather than guessed.
 
 Codex or another LLM may review `extraction.json` and `extracted.md`, but it should not read or modify `input.docx` directly. The LLM output must include evidence links and must preserve original body text.

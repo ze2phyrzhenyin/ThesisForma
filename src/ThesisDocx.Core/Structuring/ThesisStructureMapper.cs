@@ -123,7 +123,12 @@ public sealed class ThesisStructureMapper
                 CaptionPosition = CaptionPosition.Before,
                 Rows = table.Rows.Select(row => new TableRowNode
                 {
-                    Cells = row.Cells.Select(cell => new TableCellNode { Text = cell.Text, GridSpan = Math.Max(1, cell.GridSpan) }).ToList()
+                    Cells = row.Cells.Select(cell => new TableCellNode
+                    {
+                        Text = cell.Text,
+                        GridSpan = Math.Max(1, cell.GridSpan),
+                        VerticalMerge = ToVerticalMerge(cell.VerticalMerge)
+                    }).ToList()
                 }).ToList()
             });
             AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(current)}].blocks[{current.Blocks.Count - 1}]", table.EvidencePath, "table structure copied", 0.8);
@@ -422,6 +427,16 @@ public sealed class ThesisStructureMapper
         }
 
         return TextFromRun(run);
+    }
+
+    private static VerticalMergeKind ToVerticalMerge(string? value)
+    {
+        return value?.ToLowerInvariant() switch
+        {
+            "restart" => VerticalMergeKind.Restart,
+            "continue" => VerticalMergeKind.Continue,
+            _ => VerticalMergeKind.None
+        };
     }
 
     private static TextInline TextFromRun(ExtractedRun run)
