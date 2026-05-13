@@ -1,4 +1,5 @@
 using ThesisDocx.Core.Models.Templates;
+using ThesisDocx.Core.Models;
 
 namespace ThesisDocx.Core.Rendering;
 
@@ -21,6 +22,8 @@ public sealed class DocxRenderContext
     public IReadOnlyDictionary<string, string> Variables { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, ResolvedTemplateAsset> Assets { get; set; } = new Dictionary<string, ResolvedTemplateAsset>(StringComparer.Ordinal);
+
+    public DocumentOverrides? Overrides { get; set; }
 
     public List<string> RenderedPageTemplates { get; } = [];
 

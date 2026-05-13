@@ -9,47 +9,61 @@ public sealed class HeaderFooterBuilder
 {
     private readonly MainDocumentPart _mainPart;
     private readonly ThesisFormatSpec _format;
-    private readonly Dictionary<SectionProfile, (string? HeaderId, string? FooterId)> _cache = [];
+    private readonly DocumentOverrides? _overrides;
+    private readonly Dictionary<string, (string? HeaderId, string? FooterId)> _cache = [];
 
-    public HeaderFooterBuilder(MainDocumentPart mainPart, ThesisFormatSpec format)
+    public HeaderFooterBuilder(MainDocumentPart mainPart, ThesisFormatSpec format, DocumentOverrides? overrides = null)
     {
         _mainPart = mainPart;
         _format = format;
+        _overrides = overrides;
     }
 
-    public (string? HeaderId, string? FooterId) EnsureReferences(SectionProfile profile)
+    public (string? HeaderId, string? FooterId) EnsureReferences(SectionProfile profile, ThesisSection? section = null)
     {
-        if (_cache.TryGetValue(profile, out var cached))
+        var cacheKey = CacheKey(profile, section);
+        if (_cache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
 
-        var sectionFormat = GetSectionFormat(profile);
+        var instance = FindInstance(section);
+        var sectionFormat = GetEffectiveSectionFormat(profile, section);
+        var headerText = instance?.HeaderText ?? _format.HeaderFooter.HeaderText;
+        var footerText = instance?.FooterText;
         string? headerId = null;
         string? footerId = null;
 
-        if (sectionFormat.IncludeHeader && !string.IsNullOrWhiteSpace(_format.HeaderFooter.HeaderText))
+        if (sectionFormat.IncludeHeader && !string.IsNullOrWhiteSpace(headerText))
         {
-            headerId = $"rIdHeader{profile}";
+            headerId = SafeRelationshipId($"rIdHeader{cacheKey}");
             var headerPart = _mainPart.AddNewPart<HeaderPart>(headerId);
-            headerPart.Header = CreateHeader();
+            headerPart.Header = CreateHeader(headerText);
             headerPart.Header.Save();
         }
 
         if (sectionFormat.IncludeFooter && sectionFormat.PageNumberStyle != PageNumberStyle.None)
         {
-            footerId = $"rIdFooter{profile}";
+            footerId = SafeRelationshipId($"rIdFooter{cacheKey}");
             var footerPart = _mainPart.AddNewPart<FooterPart>(footerId);
-            footerPart.Footer = CreateFooter();
+            footerPart.Footer = CreateFooter(footerText);
             footerPart.Footer.Save();
         }
 
         var refs = (headerId, footerId);
-        _cache[profile] = refs;
+        _cache[cacheKey] = refs;
         return refs;
     }
 
-    private W.Header CreateHeader()
+    public SectionFormatSpec GetEffectiveSectionFormat(SectionProfile profile, ThesisSection? section = null)
+    {
+        var sectionFormat = _format.Sections.TryGetValue(profile.SpecKey(), out var configured)
+            ? configured
+            : new SectionFormatSpec();
+        return new DocumentOverridesFormatMerger().MergeSectionFormat(sectionFormat, FindInstance(section));
+    }
+
+    private W.Header CreateHeader(string headerText)
     {
         var paragraphProperties = new W.ParagraphProperties(
             new W.ParagraphStyleId { Val = StyleIds.ThesisBody });
@@ -70,25 +84,51 @@ public sealed class HeaderFooterBuilder
 
         return new W.Header(new W.Paragraph(
             paragraphProperties,
-            new W.Run(new W.Text(_format.HeaderFooter.HeaderText))));
+            new W.Run(new W.Text(headerText))));
     }
 
-    private W.Footer CreateFooter()
+    private W.Footer CreateFooter(string? footerText)
     {
-        return new W.Footer(new W.Paragraph(
+        var paragraph = new W.Paragraph(
             new W.ParagraphProperties(
                 new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
-                new W.Justification { Val = StyleBuilder.ToJustification(_format.HeaderFooter.PageNumberAlignment) }),
-            new W.SimpleField
-            {
-                Instruction = "PAGE \\* MERGEFORMAT"
-            }));
+                new W.Justification { Val = StyleBuilder.ToJustification(_format.HeaderFooter.PageNumberAlignment) }));
+        if (!string.IsNullOrWhiteSpace(footerText))
+        {
+            paragraph.AppendChild(new W.Run(new W.Text(footerText + " ") { Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve }));
+        }
+
+        paragraph.AppendChild(new W.SimpleField
+        {
+            Instruction = "PAGE \\* MERGEFORMAT"
+        });
+
+        return new W.Footer(paragraph);
     }
 
-    private SectionFormatSpec GetSectionFormat(SectionProfile profile)
+    private SectionInstanceOverrideSpec? FindInstance(ThesisSection? section)
     {
-        return _format.Sections.TryGetValue(profile.SpecKey(), out var configured)
-            ? configured
-            : new SectionFormatSpec();
+        if (section?.Id is null || _overrides?.SectionInstances is null)
+        {
+            return null;
+        }
+
+        return _overrides.SectionInstances.TryGetValue(section.Id, out var instance)
+            ? instance
+            : null;
+    }
+
+    private string CacheKey(SectionProfile profile, ThesisSection? section)
+    {
+        var instance = FindInstance(section);
+        return instance is null || string.IsNullOrWhiteSpace(section?.Id)
+            ? profile.ToString()
+            : $"{profile}_{section.Id}";
+    }
+
+    private static string SafeRelationshipId(string value)
+    {
+        var chars = value.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_').ToArray();
+        return new string(chars);
     }
 }

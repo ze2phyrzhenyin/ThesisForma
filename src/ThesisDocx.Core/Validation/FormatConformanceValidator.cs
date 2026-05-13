@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.OpenXml;
+using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
 using ThesisDocx.Core.Utilities;
 using M = DocumentFormat.OpenXml.Math;
@@ -36,7 +37,7 @@ public sealed class FormatConformanceValidator
         ValidateHeadingNumbering(mainPart, format, result);
         ValidateToc(mainPart, result);
         ValidateHeaderFooter(mainPart, format, result);
-        ValidateNotes(mainPart, result);
+        ValidateNotes(mainPart, format, result);
         ValidateBibliography(mainPart, format, result);
         ValidateReferences(mainPart, result);
         ValidateEquations(mainPart, format, result);
@@ -130,10 +131,27 @@ public sealed class FormatConformanceValidator
             .Select(pn => pn!.Format!.Value)
             .ToList();
 
-        if (!pageNumberFormats.Any(formatValue => formatValue == W.NumberFormatValues.LowerRoman)
-            || !pageNumberFormats.Any(formatValue => formatValue == W.NumberFormatValues.Decimal))
+        var expectedPageNumberFormats = format.Sections.Values
+            .Where(section => section.PageNumberStyle != PageNumberStyle.None)
+            .Select(section => ToNumberFormat(section.PageNumberStyle))
+            .Distinct()
+            .ToList();
+        var missingPageNumberFormats = expectedPageNumberFormats
+            .Where(expected => !pageNumberFormats.Any(actual => actual == expected))
+            .Select(expected => expected.ToString())
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        if (missingPageNumberFormats.Count > 0)
         {
-            AddError(result, "page.numbering.missingProfiles", "Expected lowerRoman and decimal page numbering sections.", "/word/document.xml", "//w:sectPr/w:pgNumType", "lowerRoman and decimal", string.Join(",", pageNumberFormats));
+            AddError(
+                result,
+                "page.numbering.missingProfiles",
+                "Expected configured page numbering section profiles.",
+                "/word/document.xml",
+                "//w:sectPr/w:pgNumType",
+                string.Join(",", expectedPageNumberFormats.Select(value => value.ToString()).Order(StringComparer.Ordinal)),
+                string.Join(",", pageNumberFormats));
         }
     }
 
@@ -151,7 +169,18 @@ public sealed class FormatConformanceValidator
             .ToHashSet(StringComparer.Ordinal)
             ?? [];
 
-        foreach (var required in new[] { StyleIds.ThesisBody, StyleIds.Heading1, StyleIds.Heading2, StyleIds.Heading3, StyleIds.Caption, StyleIds.Bibliography })
+        var requiredStyles = new[]
+        {
+            StyleIds.ThesisBody,
+            StyleIds.Heading1,
+            StyleIds.Heading2,
+            StyleIds.Heading3,
+            StyleIds.Caption,
+            StyleIds.Bibliography,
+            StyleBuilder.NoteStyleId(format.Notes.Footnote, StyleIds.FootnoteText),
+            StyleBuilder.NoteStyleId(format.Notes.Endnote, StyleIds.EndnoteText)
+        };
+        foreach (var required in requiredStyles.Distinct(StringComparer.Ordinal))
         {
             if (!styleIds.Contains(required))
             {
@@ -165,8 +194,15 @@ public sealed class FormatConformanceValidator
         Compare(result, "styles.defaultFonts.latin", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.ThesisBody}']//w:rFonts/@w:ascii", format.DefaultFont.Latin, runFonts?.Ascii?.Value);
 
         var spacing = bodyStyle?.GetFirstChild<W.StyleParagraphProperties>()?.GetFirstChild<W.SpacingBetweenLines>();
-        var expectedLine = ((int)Math.Round(format.BodyParagraph.LineSpacingMultiple * 240)).ToString();
+        var expectedLine = ExpectedLineSpacing(format.BodyParagraph);
+        var expectedLineRule = ExpectedLineSpacingRule(format.BodyParagraph);
         Compare(result, "styles.body.lineSpacing", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.ThesisBody}']//w:spacing/@w:line", expectedLine, spacing?.Line?.Value);
+        Compare(result, "styles.body.lineSpacingRule", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.ThesisBody}']//w:spacing/@w:lineRule", expectedLineRule, ActualLineRule(spacing));
+
+        var bibliographyStyle = styles?.Elements<W.Style>().FirstOrDefault(s => s.StyleId?.Value == StyleIds.Bibliography);
+        var bibliographySpacing = bibliographyStyle?.GetFirstChild<W.StyleParagraphProperties>()?.GetFirstChild<W.SpacingBetweenLines>();
+        Compare(result, "styles.bibliography.lineSpacing", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.Bibliography}']//w:spacing/@w:line", ExpectedLineSpacing(format.Bibliography.EntryParagraph), bibliographySpacing?.Line?.Value);
+        Compare(result, "styles.bibliography.lineSpacingRule", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.Bibliography}']//w:spacing/@w:lineRule", ExpectedLineSpacingRule(format.Bibliography.EntryParagraph), ActualLineRule(bibliographySpacing));
 
         foreach (var styleId in new[] { StyleIds.Heading1, StyleIds.Heading2, StyleIds.Heading3 })
         {
@@ -176,6 +212,54 @@ public sealed class FormatConformanceValidator
                 AddError(result, "styles.heading.outlineMissing", $"Heading style '{styleId}' is missing outline level.", "/word/styles.xml", $"//w:style[@w:styleId='{styleId}']//w:outlineLvl", "outline level", "missing");
             }
         }
+
+        ValidateNoteStyle(styles, format.Notes.Footnote, StyleIds.FootnoteText, "footnote", result);
+        ValidateNoteStyle(styles, format.Notes.Endnote, StyleIds.EndnoteText, "endnote", result);
+    }
+
+    private static void ValidateNoteStyle(W.Styles? styles, NoteFormatSpec note, string defaultStyleId, string kind, OpenXmlValidationResult result)
+    {
+        result.CheckedRules.Add($"styles.{kind}");
+        var styleId = StyleBuilder.NoteStyleId(note, defaultStyleId);
+        var style = styles?.Elements<W.Style>().FirstOrDefault(s => s.StyleId?.Value == styleId);
+        if (style is null)
+        {
+            return;
+        }
+
+        var runProperties = style.GetFirstChild<W.StyleRunProperties>();
+        Compare(result, $"styles.{kind}.fontSize", "/word/styles.xml", $"//w:style[@w:styleId='{styleId}']//w:sz/@w:val", UnitConverter.PointsToHalfPoints(note.Font.SizePt).ToString(), runProperties?.GetFirstChild<W.FontSize>()?.Val?.Value);
+        Compare(result, $"styles.{kind}.fontEastAsia", "/word/styles.xml", $"//w:style[@w:styleId='{styleId}']//w:rFonts/@w:eastAsia", note.Font.EastAsia, runProperties?.GetFirstChild<W.RunFonts>()?.EastAsia?.Value);
+
+        var spacing = style.GetFirstChild<W.StyleParagraphProperties>()?.GetFirstChild<W.SpacingBetweenLines>();
+        Compare(result, $"styles.{kind}.lineSpacing", "/word/styles.xml", $"//w:style[@w:styleId='{styleId}']//w:spacing/@w:line", ExpectedLineSpacing(note.Paragraph), spacing?.Line?.Value);
+        Compare(result, $"styles.{kind}.lineSpacingRule", "/word/styles.xml", $"//w:style[@w:styleId='{styleId}']//w:spacing/@w:lineRule", ExpectedLineSpacingRule(note.Paragraph), ActualLineRule(spacing));
+    }
+
+    private static string ExpectedLineSpacing(ParagraphFormatSpec paragraph)
+    {
+        return paragraph.LineSpacingExactPt.HasValue
+            ? UnitConverter.PointsToTwips(paragraph.LineSpacingExactPt.Value).ToString()
+            : ((int)Math.Round(paragraph.LineSpacingMultiple * 240)).ToString();
+    }
+
+    private static string ExpectedLineSpacingRule(ParagraphFormatSpec paragraph)
+    {
+        return paragraph.LineSpacingExactPt.HasValue ? "exact" : "auto";
+    }
+
+    private static string? ActualLineRule(W.SpacingBetweenLines? spacing)
+    {
+        var value = spacing?.LineRule?.Value;
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value == W.LineSpacingRuleValues.Exact) return "exact";
+        if (value == W.LineSpacingRuleValues.Auto) return "auto";
+        if (value == W.LineSpacingRuleValues.AtLeast) return "atLeast";
+        return value.ToString();
     }
 
     private static void ValidateHeadingNumbering(MainDocumentPart mainPart, ThesisFormatSpec format, OpenXmlValidationResult result)
@@ -225,18 +309,21 @@ public sealed class FormatConformanceValidator
         }
     }
 
-    private static void ValidateNotes(MainDocumentPart mainPart, OpenXmlValidationResult result)
+    private static void ValidateNotes(MainDocumentPart mainPart, ThesisFormatSpec format, OpenXmlValidationResult result)
     {
         result.CheckedRules.Add("notes.footnotes");
         result.CheckedRules.Add("notes.endnotes");
+        result.CheckedRules.Add("notes.styles");
 
         var footnoteReferences = mainPart.Document.Descendants<W.FootnoteReference>().Select(r => r.Id?.Value).Where(v => v is > 0).Select(v => v!.Value).ToList();
         var footnoteIds = mainPart.FootnotesPart?.Footnotes?.Elements<W.Footnote>().Select(f => f.Id?.Value).Where(v => v.HasValue).Select(v => v!.Value).ToHashSet() ?? [];
         ValidateNoteSet(result, "footnote", "/word/footnotes.xml", footnoteReferences, footnoteIds, mainPart.FootnotesPart is not null);
+        ValidateNoteParagraphStyles(result, "footnote", "/word/footnotes.xml", mainPart.FootnotesPart?.Footnotes?.Elements<W.Footnote>().Where(note => note.Id?.Value > 0).SelectMany(note => note.Elements<W.Paragraph>()) ?? [], StyleBuilder.NoteStyleId(format.Notes.Footnote, StyleIds.FootnoteText));
 
         var endnoteReferences = mainPart.Document.Descendants<W.EndnoteReference>().Select(r => r.Id?.Value).Where(v => v is > 0).Select(v => v!.Value).ToList();
         var endnoteIds = mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().Select(f => f.Id?.Value).Where(v => v.HasValue).Select(v => v!.Value).ToHashSet() ?? [];
         ValidateNoteSet(result, "endnote", "/word/endnotes.xml", endnoteReferences, endnoteIds, mainPart.EndnotesPart is not null);
+        ValidateNoteParagraphStyles(result, "endnote", "/word/endnotes.xml", mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().Where(note => note.Id?.Value > 0).SelectMany(note => note.Elements<W.Paragraph>()) ?? [], StyleBuilder.NoteStyleId(format.Notes.Endnote, StyleIds.EndnoteText));
     }
 
     private static void ValidateNoteSet(OpenXmlValidationResult result, string kind, string partName, IReadOnlyList<long> references, HashSet<long> partIds, bool partExists)
@@ -263,6 +350,15 @@ public sealed class FormatConformanceValidator
             {
                 AddError(result, $"notes.{kind}.targetMissing", $"{kind} reference id '{referenceId}' has no matching note content.", partName, $"//*[@w:id='{referenceId}']", referenceId.ToString(), "missing");
             }
+        }
+    }
+
+    private static void ValidateNoteParagraphStyles(OpenXmlValidationResult result, string kind, string partName, IEnumerable<W.Paragraph> paragraphs, string expectedStyleId)
+    {
+        foreach (var paragraph in paragraphs)
+        {
+            var actual = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
+            Compare(result, $"notes.{kind}.style", partName, "//w:p/w:pPr/w:pStyle/@w:val", expectedStyleId, actual);
         }
     }
 
@@ -455,6 +551,16 @@ public sealed class FormatConformanceValidator
                 AddError(result, "figure.drawingSize.missing", "Figure drawing is missing extent size.", "/word/document.xml", "//wp:inline/wp:extent", "cx/cy", "missing");
             }
         }
+    }
+
+    private static W.NumberFormatValues ToNumberFormat(PageNumberStyle style)
+    {
+        return style switch
+        {
+            PageNumberStyle.LowerRoman => W.NumberFormatValues.LowerRoman,
+            PageNumberStyle.UpperRoman => W.NumberFormatValues.UpperRoman,
+            _ => W.NumberFormatValues.Decimal
+        };
     }
 
     private static void Compare(OpenXmlValidationResult result, string code, string partName, string path, string? expected, string? actual)

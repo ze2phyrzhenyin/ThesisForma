@@ -29,6 +29,12 @@ public sealed class StyleBuilder
             SpaceAfterPt = 6
         }, StyleIds.Normal));
         styles.AppendChild(CreateParagraphStyle(StyleIds.Bibliography, "Thesis Bibliography", format.DefaultFont, format.Bibliography.EntryParagraph, StyleIds.Normal));
+        AppendNoteStyle(styles, format.Notes.Footnote, StyleIds.FootnoteText, "Thesis Footnote Text");
+        if (!string.Equals(NoteStyleId(format.Notes.Endnote, StyleIds.EndnoteText), NoteStyleId(format.Notes.Footnote, StyleIds.FootnoteText), StringComparison.Ordinal))
+        {
+            AppendNoteStyle(styles, format.Notes.Endnote, StyleIds.EndnoteText, "Thesis Endnote Text");
+        }
+
         styles.AppendChild(CreateParagraphStyle(StyleIds.TocTitle, "Thesis TOC Title", new FontFormatSpec
         {
             EastAsia = format.DefaultFont.EastAsia,
@@ -54,6 +60,16 @@ public sealed class StyleBuilder
 
         stylesPart.Styles = styles;
         stylesPart.Styles.Save();
+    }
+
+    private static void AppendNoteStyle(W.Styles styles, NoteFormatSpec note, string defaultStyleId, string name)
+    {
+        styles.AppendChild(CreateParagraphStyle(NoteStyleId(note, defaultStyleId), name, note.Font, note.Paragraph, StyleIds.Normal));
+    }
+
+    internal static string NoteStyleId(NoteFormatSpec note, string defaultStyleId)
+    {
+        return string.IsNullOrWhiteSpace(note.StyleId) ? defaultStyleId : note.StyleId;
     }
 
     private static W.DocDefaults CreateDocDefaults(FontFormatSpec font)
@@ -122,13 +138,7 @@ public sealed class StyleBuilder
 
         var styleParagraphProperties = new W.StyleParagraphProperties();
         styleParagraphProperties.AppendChild(new W.WidowControl { Val = paragraph.WidowControl });
-        styleParagraphProperties.AppendChild(new W.SpacingBetweenLines
-        {
-            Before = UnitConverter.PointsToTwips(paragraph.SpaceBeforePt).ToString(),
-            After = UnitConverter.PointsToTwips(paragraph.SpaceAfterPt).ToString(),
-            Line = ((int)Math.Round(paragraph.LineSpacingMultiple * 240)).ToString(),
-            LineRule = W.LineSpacingRuleValues.Auto
-        });
+        styleParagraphProperties.AppendChild(CreateSpacing(paragraph));
 
         var indentation = new W.Indentation();
         if (paragraph.FirstLineIndentChars > 0)
@@ -192,6 +202,27 @@ public sealed class StyleBuilder
             EastAsia = font.EastAsia,
             ComplexScript = font.Latin
         };
+    }
+
+    internal static W.SpacingBetweenLines CreateSpacing(ParagraphFormatSpec paragraph)
+    {
+        var spacing = new W.SpacingBetweenLines
+        {
+            Before = UnitConverter.PointsToTwips(paragraph.SpaceBeforePt).ToString(),
+            After = UnitConverter.PointsToTwips(paragraph.SpaceAfterPt).ToString()
+        };
+        if (paragraph.LineSpacingExactPt.HasValue)
+        {
+            spacing.Line = UnitConverter.PointsToTwips(paragraph.LineSpacingExactPt.Value).ToString();
+            spacing.LineRule = W.LineSpacingRuleValues.Exact;
+        }
+        else
+        {
+            spacing.Line = ((int)Math.Round(paragraph.LineSpacingMultiple * 240)).ToString();
+            spacing.LineRule = W.LineSpacingRuleValues.Auto;
+        }
+
+        return spacing;
     }
 
     internal static W.JustificationValues ToJustification(TextAlignment alignment)

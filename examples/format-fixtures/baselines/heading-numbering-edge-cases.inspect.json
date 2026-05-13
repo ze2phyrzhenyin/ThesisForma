@@ -1,10 +1,11 @@
 {
+  "reportVersion": "1.0.0",
   "entries": [
     "[Content_Types].xml",
     "_rels/.rels",
     "docProps/custom.xml",
     "media/image.png",
-    "package/services/metadata/core-properties/6805b347b6a540ca84197251481db9f3.psmdcp",
+    "package/services/metadata/core-properties/1e0df3e4a4994892af967be9c86ba4bb.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
@@ -22,7 +23,7 @@
     "_rels/.rels",
     "docProps/custom.xml",
     "media/image.png",
-    "package/services/metadata/core-properties/6805b347b6a540ca84197251481db9f3.psmdcp",
+    "package/services/metadata/core-properties/1e0df3e4a4994892af967be9c86ba4bb.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
@@ -43,6 +44,8 @@
     "ThesisBibliography",
     "ThesisBody",
     "ThesisCaption",
+    "ThesisEndnoteText",
+    "ThesisFootnoteText",
     "ThesisQuote",
     "ThesisTocTitle"
   ],
@@ -78,6 +81,16 @@
     },
     {
       "styleId": "ThesisCaption",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisEndnoteText",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisFootnoteText",
       "type": "StyleValues { }",
       "basedOn": "Normal"
     },
@@ -218,6 +231,10 @@
     "ids": [
       1
     ],
+    "styleIds": [
+      "ThesisFootnoteText"
+    ],
+    "referenceMarkCount": 1,
     "hasPart": true,
     "hasSeparator": true,
     "hasContinuationSeparator": true
@@ -227,6 +244,10 @@
     "ids": [
       1
     ],
+    "styleIds": [
+      "ThesisEndnoteText"
+    ],
+    "referenceMarkCount": 1,
     "hasPart": true,
     "hasSeparator": true,
     "hasContinuationSeparator": true
@@ -272,6 +293,11 @@
     "hasVerticalMerge": true,
     "hasRepeatHeaderRows": true,
     "hasCantSplitRows": true,
+    "hasNestedCellBlocks": false,
+    "hasCellNoteReferences": false,
+    "cellParagraphStyleIds": [
+      "ThesisBody"
+    ],
     "widthTypes": [
       "pct"
     ],
@@ -295,7 +321,8 @@
     "declarationSummary": {
       "hasDeclarationText": false,
       "hasSignatureField": false
-    }
+    },
+    "ruleParagraphCount": 0
   },
   "openXmlValidatorErrorCount": 0,
   "paragraphCount": 47,

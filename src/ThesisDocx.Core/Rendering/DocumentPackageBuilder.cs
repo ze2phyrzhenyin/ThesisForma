@@ -9,6 +9,7 @@ public sealed class DocumentPackageBuilder
 {
     public void Build(ThesisDocument document, ThesisFormatSpec format, string outputPath, DocxRenderContext? context = null)
     {
+        var effectiveFormat = new DocumentOverridesFormatMerger().Merge(format, context?.Overrides);
         var directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
         if (!string.IsNullOrWhiteSpace(directory))
         {
@@ -28,16 +29,17 @@ public sealed class DocumentPackageBuilder
         var mainPart = package.AddMainDocumentPart();
         mainPart.Document = new Document(new Body());
 
-        new StyleBuilder().Build(mainPart, format);
-        new NumberingBuilder().Build(mainPart, format);
-        new SettingsBuilder().Build(mainPart, format);
+        new StyleBuilder().Build(mainPart, effectiveFormat);
+        new NumberingBuilder().Build(mainPart, effectiveFormat);
+        new SettingsBuilder().Build(mainPart, effectiveFormat);
 
         var relationshipManager = new RelationshipManager(mainPart);
-        var headerFooterBuilder = new HeaderFooterBuilder(mainPart, format);
-        var sectionBuilder = new SectionBuilder(format, headerFooterBuilder, BuildPageSetupOverrides(context));
-        var bodyRenderer = new BodyRenderer(mainPart, relationshipManager, format, document.Metadata, document, context);
+        var headerFooterBuilder = new HeaderFooterBuilder(mainPart, effectiveFormat, context?.Overrides);
+        var sectionBuilder = new SectionBuilder(effectiveFormat, headerFooterBuilder, BuildPageSetupOverrides(context));
+        var bodyRenderer = new BodyRenderer(mainPart, relationshipManager, effectiveFormat, document.Metadata, document, context);
 
         var body = mainPart.Document.Body ?? throw new InvalidOperationException("Main document body was not created.");
+        ThesisSection? currentSection = null;
         SectionProfile? currentProfile = null;
 
         var sections = document.Sections.ToList();
@@ -59,24 +61,74 @@ public sealed class DocumentPackageBuilder
             if (currentProfile is null)
             {
                 currentProfile = nextProfile;
+                currentSection = section;
             }
-            else if (currentProfile.Value != nextProfile)
+            else if (currentProfile.Value != nextProfile || SectionPropertiesDiffer(currentSection, section, context))
             {
-                body.AppendChild(sectionBuilder.CreateSectionBreakParagraph(currentProfile.Value));
+                body.AppendChild(sectionBuilder.CreateSectionBreakParagraph(currentProfile.Value, currentSection));
                 currentProfile = nextProfile;
+                currentSection = section;
             }
             else if (section.StartOnNewPage)
             {
                 body.AppendChild(new Paragraph(new Run(new Break { Type = BreakValues.Page })));
+                currentSection = section;
             }
 
+            var bookmarkId = StartTocSectionBookmark(body, section, context, relationshipManager);
             bodyRenderer.RenderSection(body, section);
+            EndTocSectionBookmark(body, bookmarkId);
         }
 
         bodyRenderer.SaveNoteParts();
-        body.AppendChild(sectionBuilder.CreateSectionProperties(currentProfile ?? SectionProfile.Body));
-        new CustomPropertiesWriter().Write(package, context, format.SchemaVersion);
+        body.AppendChild(sectionBuilder.CreateSectionProperties(currentProfile ?? SectionProfile.Body, currentSection));
+        new CustomPropertiesWriter().Write(package, context, effectiveFormat.SchemaVersion);
         mainPart.Document.Save();
+    }
+
+    private static bool SectionPropertiesDiffer(ThesisSection? currentSection, ThesisSection nextSection, DocxRenderContext? context)
+    {
+        if (context?.Overrides?.SectionInstances is null)
+        {
+            return false;
+        }
+
+        var currentId = currentSection?.Id;
+        var nextId = nextSection.Id;
+        var currentHasOverride = !string.IsNullOrWhiteSpace(currentId)
+            && context.Overrides.SectionInstances.ContainsKey(currentId!);
+        var nextHasOverride = !string.IsNullOrWhiteSpace(nextId)
+            && context.Overrides.SectionInstances.ContainsKey(nextId!);
+
+        return currentHasOverride || nextHasOverride;
+    }
+
+    private static string? StartTocSectionBookmark(Body body, ThesisSection section, DocxRenderContext? context, RelationshipManager relationshipManager)
+    {
+        if (section.Id is null
+            || context?.Overrides?.Toc?.IncludeSectionIds is not { Count: > 0 } included
+            || !included.Contains(section.Id, StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        var bookmarkId = relationshipManager.AllocateBookmarkId().ToString();
+        body.AppendChild(new Paragraph(new BookmarkStart
+        {
+            Id = bookmarkId,
+            Name = FieldCodeRenderer.TocBookmarkName(section.Id)
+        }));
+        return bookmarkId;
+    }
+
+    private static void EndTocSectionBookmark(Body body, string? bookmarkId)
+    {
+        if (bookmarkId is null)
+        {
+            return;
+        }
+
+        body.AppendChild(new Paragraph(new BookmarkEnd { Id = bookmarkId }));
     }
 
     private static IReadOnlyDictionary<SectionProfile, PageSetupSpec> BuildPageSetupOverrides(DocxRenderContext? context)

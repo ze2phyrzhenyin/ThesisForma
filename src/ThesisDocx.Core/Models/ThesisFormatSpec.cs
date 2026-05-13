@@ -22,6 +22,8 @@ public sealed class ThesisFormatSpec
 
     public EquationFormatSpec Equations { get; set; } = new();
 
+    public NotesFormatSpec Notes { get; set; } = new();
+
     public FigureFormatSpec Figures { get; set; } = new();
 
     public CaptionFormatSpec Captions { get; set; } = new();
@@ -115,6 +117,8 @@ public sealed class FontFormatSpec
 public sealed class ParagraphFormatSpec
 {
     public double LineSpacingMultiple { get; set; } = 1.5;
+
+    public double? LineSpacingExactPt { get; set; }
 
     public double SpaceBeforePt { get; set; }
 
@@ -266,6 +270,57 @@ public enum EquationNumberPosition
 {
     Right,
     Caption
+}
+
+public sealed class NotesFormatSpec
+{
+    public NoteFormatSpec Footnote { get; set; } = new()
+    {
+        StyleId = "ThesisFootnoteText",
+        Font = new FontFormatSpec { SizePt = 10.5 },
+        Paragraph = new ParagraphFormatSpec
+        {
+            LineSpacingMultiple = 1.0,
+            SpaceBeforePt = 0,
+            SpaceAfterPt = 0,
+            FirstLineIndentChars = 0,
+            HangingIndentCm = 0,
+            Alignment = TextAlignment.Both,
+            WidowControl = true
+        }
+    };
+
+    public NoteFormatSpec Endnote { get; set; } = new()
+    {
+        StyleId = "ThesisEndnoteText",
+        Font = new FontFormatSpec { SizePt = 10.5 },
+        Paragraph = new ParagraphFormatSpec
+        {
+            LineSpacingMultiple = 1.0,
+            SpaceBeforePt = 0,
+            SpaceAfterPt = 0,
+            FirstLineIndentChars = 0,
+            HangingIndentCm = 0,
+            Alignment = TextAlignment.Both,
+            WidowControl = true
+        }
+    };
+}
+
+public sealed class NoteFormatSpec
+{
+    public string StyleId { get; set; } = string.Empty;
+
+    public FontFormatSpec Font { get; set; } = new() { SizePt = 10.5 };
+
+    public ParagraphFormatSpec Paragraph { get; set; } = new()
+    {
+        LineSpacingMultiple = 1.0,
+        FirstLineIndentChars = 0,
+        Alignment = TextAlignment.Both
+    };
+
+    public bool SuperscriptReferenceMark { get; set; } = true;
 }
 
 public sealed class FigureFormatSpec

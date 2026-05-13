@@ -11,4 +11,6 @@ public static class StyleIds
     public const string Bibliography = "ThesisBibliography";
     public const string TocTitle = "ThesisTocTitle";
     public const string Quote = "ThesisQuote";
+    public const string FootnoteText = "ThesisFootnoteText";
+    public const string EndnoteText = "ThesisEndnoteText";
 }

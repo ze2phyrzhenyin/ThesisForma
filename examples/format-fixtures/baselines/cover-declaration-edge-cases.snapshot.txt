@@ -24,6 +24,8 @@ styles:
 - ThesisBibliography
 - ThesisBody
 - ThesisCaption
+- ThesisEndnoteText
+- ThesisFootnoteText
 - ThesisQuote
 - ThesisTocTitle
 numberingLevelTexts:
@@ -58,10 +60,16 @@ equationBookmarks:
 equationSourceTypes:
 - latexSubsetOrStructuredOmml
 - plainOrOmml
+footnoteStyles:
+- ThesisFootnoteText
+endnoteStyles:
+- ThesisEndnoteText
 tableBookmarks:
 - bm-table-format-rules
 tableStyles:
 - threeLine
+tableCellParagraphStyles:
+- ThesisBody
 tableWidthTypes:
 - pct
 tableBorders:
@@ -76,5 +84,8 @@ tableHasGridSpan=True
 tableHasVerticalMerge=True
 tableHasRepeatHeaderRows=True
 tableHasCantSplitRows=True
+tableHasNestedCellBlocks=False
+tableHasCellNoteReferences=False
+templateRuleParagraphCount=0
 headerCount=2
 footerCount=2

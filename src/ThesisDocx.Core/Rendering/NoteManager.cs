@@ -1,5 +1,7 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.Models;
+using ThesisDocx.Core.OpenXml;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace ThesisDocx.Core.Rendering;
@@ -7,30 +9,28 @@ namespace ThesisDocx.Core.Rendering;
 public sealed class NoteManager
 {
     private readonly MainDocumentPart _mainPart;
+    private readonly NotesFormatSpec _format;
     private readonly Dictionary<string, NoteEntry> _footnotes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, NoteEntry> _endnotes = new(StringComparer.Ordinal);
     private int _nextFootnoteId = 1;
     private int _nextEndnoteId = 1;
 
-    public NoteManager(MainDocumentPart mainPart)
+    public NoteManager(MainDocumentPart mainPart, NotesFormatSpec format)
     {
         _mainPart = mainPart;
+        _format = format;
     }
 
     public W.Run CreateFootnoteReference(string noteId, IReadOnlyList<InlineNode> inlines)
     {
         var numericId = EnsureFootnote(noteId, inlines);
-        return new W.Run(
-            new W.RunProperties(new W.VerticalTextAlignment { Val = W.VerticalPositionValues.Superscript }),
-            new W.FootnoteReference { Id = numericId });
+        return CreateReferenceRun(new W.FootnoteReference { Id = numericId }, _format.Footnote);
     }
 
     public W.Run CreateEndnoteReference(string noteId, IReadOnlyList<InlineNode> inlines)
     {
         var numericId = EnsureEndnote(noteId, inlines);
-        return new W.Run(
-            new W.RunProperties(new W.VerticalTextAlignment { Val = W.VerticalPositionValues.Superscript }),
-            new W.EndnoteReference { Id = numericId });
+        return CreateReferenceRun(new W.EndnoteReference { Id = numericId }, _format.Endnote);
     }
 
     public int EnsureFootnote(string noteId, IReadOnlyList<InlineNode> inlines)
@@ -69,7 +69,7 @@ public sealed class NoteManager
             foreach (var entry in _footnotes.OrderBy(kvp => kvp.Value.NumericId))
             {
                 footnotesPart.Footnotes.AppendChild(new W.Footnote(
-                    CreateNoteParagraph(entry.Value.Inlines, isFootnote: true))
+                    CreateNoteParagraph(entry.Value.Inlines, _format.Footnote, isFootnote: true))
                 {
                     Id = entry.Value.NumericId
                 });
@@ -88,7 +88,7 @@ public sealed class NoteManager
             foreach (var entry in _endnotes.OrderBy(kvp => kvp.Value.NumericId))
             {
                 endnotesPart.Endnotes.AppendChild(new W.Endnote(
-                    CreateNoteParagraph(entry.Value.Inlines, isFootnote: false))
+                    CreateNoteParagraph(entry.Value.Inlines, _format.Endnote, isFootnote: false))
                 {
                     Id = entry.Value.NumericId
                 });
@@ -134,12 +134,25 @@ public sealed class NoteManager
         };
     }
 
-    private static W.Paragraph CreateNoteParagraph(IReadOnlyList<InlineNode> inlines, bool isFootnote)
+    private static W.Run CreateReferenceRun(OpenXmlElement reference, NoteFormatSpec format)
     {
-        var paragraph = new W.Paragraph();
-        paragraph.AppendChild(new W.Run(
-            new W.RunProperties(new W.VerticalTextAlignment { Val = W.VerticalPositionValues.Superscript }),
-            isFootnote ? new W.FootnoteReferenceMark() : new W.EndnoteReferenceMark()));
+        var run = new W.Run();
+        if (format.SuperscriptReferenceMark)
+        {
+            run.AppendChild(new W.RunProperties(new W.VerticalTextAlignment { Val = W.VerticalPositionValues.Superscript }));
+        }
+
+        run.AppendChild(reference);
+        return run;
+    }
+
+    private static W.Paragraph CreateNoteParagraph(IReadOnlyList<InlineNode> inlines, NoteFormatSpec format, bool isFootnote)
+    {
+        var paragraph = new W.Paragraph(new W.ParagraphProperties(new W.ParagraphStyleId
+        {
+            Val = StyleBuilder.NoteStyleId(format, isFootnote ? StyleIds.FootnoteText : StyleIds.EndnoteText)
+        }));
+        paragraph.AppendChild(CreateReferenceRun(isFootnote ? new W.FootnoteReferenceMark() : new W.EndnoteReferenceMark(), format));
 
         foreach (var inline in inlines)
         {

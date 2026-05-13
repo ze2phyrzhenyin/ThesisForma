@@ -13,9 +13,9 @@ The coverage reporter currently emits core categories for:
 9. tables
 10. equations
 11. citations/cross references
-12. footnotes/endnotes
+12. footnotes/endnotes with configured note styles
 13. bibliography
-14. cover/declaration page templates
+14. cover/declaration page templates, including bounded `rule` blocks
 15. assets
 16. template inheritance
 
@@ -28,4 +28,3 @@ dotnet run --project src/ThesisDocx.Cli -- template coverage \
   --template examples/templates/example-university-engineering \
   --out out/template.coverage.json
 ```
-

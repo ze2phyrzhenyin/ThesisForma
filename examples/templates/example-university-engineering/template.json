@@ -71,6 +71,7 @@
         { "type": "image", "assetId": "collegeLogo", "widthCm": 2.2, "heightCm": 2.2, "alignment": "center" },
         { "type": "text", "value": "{{template.school}}", "style": "ThesisTocTitle", "alignment": "center", "spacingBeforePt": 12, "spacingAfterPt": 6 },
         { "type": "text", "value": "{{template.college}}", "style": "ThesisBody", "alignment": "center", "spacingAfterPt": 18 },
+        { "type": "rule", "thicknessPt": 1, "color": "000000", "alignment": "center", "spacingBeforePt": 0, "spacingAfterPt": 12 },
         {
           "type": "fieldTable",
           "columns": 2,

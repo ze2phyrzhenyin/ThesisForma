@@ -32,6 +32,7 @@ Implemented layout block types:
 - `image`: renders a template image asset as DrawingML.
 - `declarationText`: renders declaration paragraphs and signature/date fields.
 - `pageBreak`: emits a Word page break.
+- `rule`: emits a deterministic paragraph bottom border for separators.
 
 All blocks render as normal WordprocessingML. The renderer does not use `altChunk` and does not default to absolute positioning.
 
@@ -47,4 +48,3 @@ All blocks render as normal WordprocessingML. The renderer does not use `altChun
 4. Add schema coverage in `template-package.schema.json`.
 5. Add XML-level tests.
 6. Update this document and examples.
-

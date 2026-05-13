@@ -27,6 +27,16 @@ public static class UnitConverter
         return (int)Math.Round(points * 20, MidpointRounding.AwayFromZero);
     }
 
+    public static double TwipsToPoints(int twips)
+    {
+        return twips / 20.0;
+    }
+
+    public static double TwipsToCentimeters(int twips)
+    {
+        return twips / TwipsPerInch * CmPerInch;
+    }
+
     public static int PointsToHalfPoints(double points)
     {
         return (int)Math.Round(points * 2, MidpointRounding.AwayFromZero);

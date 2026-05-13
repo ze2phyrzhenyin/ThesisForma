@@ -68,6 +68,9 @@ public sealed class PageTemplateRenderer
             case PageBreakLayoutBlock:
                 yield return new W.Paragraph(new W.Run(new W.Break { Type = W.BreakValues.Page }));
                 break;
+            case RuleLayoutBlock rule:
+                yield return CreateRuleParagraph(rule);
+                break;
         }
     }
 
@@ -154,6 +157,30 @@ public sealed class PageTemplateRenderer
         }
 
         return new W.Paragraph(properties, run);
+    }
+
+    private static W.Paragraph CreateRuleParagraph(RuleLayoutBlock rule)
+    {
+        var properties = new W.ParagraphProperties(
+            new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
+            new W.ParagraphBorders(new W.BottomBorder
+            {
+                Val = W.BorderValues.Single,
+                Size = (UInt32Value)(uint)Math.Clamp((int)Math.Round(rule.ThicknessPt * 8), 2, 96),
+                Color = string.IsNullOrWhiteSpace(rule.Color) ? "000000" : rule.Color
+            }));
+
+        if (rule.SpacingBeforePt.HasValue || rule.SpacingAfterPt.HasValue)
+        {
+            properties.AppendChild(new W.SpacingBetweenLines
+            {
+                Before = UnitConverter.PointsToTwips(rule.SpacingBeforePt ?? 0).ToString(),
+                After = UnitConverter.PointsToTwips(rule.SpacingAfterPt ?? 0).ToString()
+            });
+        }
+
+        properties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(rule.Alignment) });
+        return new W.Paragraph(properties, new W.Run(new W.Text(string.Empty)));
     }
 
     private W.TableCell CreateCell(string text, double widthCm, bool bold)

@@ -21,6 +21,8 @@ styles:
 - ThesisBibliography
 - ThesisBody
 - ThesisCaption
+- ThesisEndnoteText
+- ThesisFootnoteText
 - ThesisQuote
 - ThesisTocTitle
 numberingLevelTexts:
@@ -42,9 +44,13 @@ bookmarks:
 - chapter-introduction
 equationBookmarks:
 equationSourceTypes:
+footnoteStyles:
+endnoteStyles:
 tableBookmarks:
 tableStyles:
 - threeLine
+tableCellParagraphStyles:
+- ThesisBody
 tableWidthTypes:
 - pct
 tableBorders:
@@ -58,5 +64,8 @@ tableHasGridSpan=False
 tableHasVerticalMerge=False
 tableHasRepeatHeaderRows=True
 tableHasCantSplitRows=False
+tableHasNestedCellBlocks=False
+tableHasCellNoteReferences=False
+templateRuleParagraphCount=0
 headerCount=2
 footerCount=2

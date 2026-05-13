@@ -31,6 +31,8 @@ The renderer defines:
 
 Prefer styles for reusable formatting. Direct formatting is acceptable for inline bold/italic/underline/subscript/superscript and for feature-specific assertions like bibliography hanging indentation.
 
+Paragraph style spacing is emitted through `w:spacing`. Normal multiple line spacing uses `w:lineRule="auto"` with Word's 240-based multiplier; exact line spacing uses `lineSpacingExactPt` converted through `UnitConverter.PointsToTwips` and emits `w:lineRule="exact"`.
+
 ## Numbering
 
 `NumberingBuilder` defines:
@@ -69,6 +71,8 @@ Word must update TOC fields after opening the document.
 
 `NoteManager` creates `FootnotesPart` and `EndnotesPart`. Body content uses `w:footnoteReference` and `w:endnoteReference`. Note parts include separator id `-1`, continuation separator id `0`, and generated content ids starting at `1`.
 
+Note paragraph style ids, fonts, line spacing, and superscript reference mark behavior come from `ThesisFormatSpec.notes`. `StyleBuilder` writes those styles to `styles.xml`, and `NoteManager` applies them to the paragraphs in `footnotes.xml` and `endnotes.xml`.
+
 Note content currently supports basic inline text and simple inline fallback rendering.
 
 ## Tables and Figures
@@ -83,7 +87,9 @@ Advanced table rendering writes:
 - `w:cantSplit` for rows that must not break across pages;
 - `w:tblLayout`, `w:tblW`, `w:tblCellMar`, `w:tcMar`, `w:vAlign`, and `w:tcBorders` where configured.
 
-Cell content supports basic paragraphs and text runs. Table bookmarks are inserted inside the first cell paragraph after `w:pPr`, preserving required WordprocessingML element ordering.
+Cell content supports a bounded nested block subset: paragraphs, headings, quotes, lists, footnote blocks, and endnote blocks. Those paths reuse the normal inline renderer so hyperlinks, citations, references, and note references remain valid inside `w:tc`. Unsupported block surfaces are semantic validation errors for table cells.
+
+Table bookmarks are inserted inside the first cell paragraph after `w:pPr`, preserving required WordprocessingML element ordering.
 
 Figures use DrawingML inline drawings and image relationships. Sizes are converted to EMUs through `UnitConverter`.
 
@@ -91,7 +97,7 @@ Figures use DrawingML inline drawings and image relationships. Sizes are convert
 
 `PageTemplateRenderer` implements the stable subset of the page layout DSL for cover and declaration pages. It emits normal OpenXML paragraphs, tables, image drawings, and page breaks. It does not use `altChunk` and does not default to absolute positioning.
 
-Supported layout blocks are `spacer`, `text`, `metadataField`, `fieldTable`, `image`, `declarationText`, and `pageBreak`. `pageSetupOverride` is passed into `SectionBuilder`, so cover/front-matter/body section properties can receive template-specific margins and page setup.
+Supported layout blocks are `spacer`, `text`, `metadataField`, `fieldTable`, `image`, `declarationText`, `pageBreak`, and `rule`. `rule` emits a deterministic paragraph bottom border, which is useful for cover separators without introducing absolute positioning. `pageSetupOverride` is passed into `SectionBuilder`, so cover/front-matter/body section properties can receive template-specific margins and page setup.
 
 ## Custom Properties
 

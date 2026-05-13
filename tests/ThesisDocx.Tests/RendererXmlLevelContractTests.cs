@@ -41,6 +41,32 @@ public sealed class RendererXmlLevelContractTests
     }
 
     [Fact]
+    public void RenderTableCellBlocks_ShouldEmitRichParagraphsNotesAndDirectFormatting()
+    {
+        var rendered = TestRenderHelper.RenderDocument(CreateRichCellTableDocument(), CreateFormat());
+        AssertNoOpenXmlErrors(rendered.DocxPath);
+
+        using var package = WordprocessingDocument.Open(rendered.DocxPath, false);
+        var table = Assert.Single(package.MainDocumentPart!.Document.Descendants<W.Table>());
+        var cell = Assert.Single(table.Descendants<W.TableCell>());
+        var paragraphs = cell.Elements<W.Paragraph>().ToList();
+
+        Assert.True(paragraphs.Count >= 4);
+        Assert.Contains(paragraphs, paragraph => paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value == ThesisDocx.Core.OpenXml.StyleIds.Heading2);
+        Assert.Contains(cell.Descendants<W.Hyperlink>(), hyperlink => hyperlink.InnerText == "链接");
+        Assert.Contains(cell.Descendants<W.FootnoteReference>(), reference => reference.Id?.Value == 1);
+        Assert.Contains(cell.Descendants<W.Text>(), text => text.Text.Contains("•", StringComparison.Ordinal));
+        Assert.Contains(cell.Descendants<W.FontSize>(), size => size.Val?.Value == UnitConverter.PointsToHalfPoints(9).ToString());
+        Assert.Contains(paragraphs, paragraph => paragraph.ParagraphProperties?.SpacingBetweenLines?.Line?.Value == "240");
+        Assert.Contains(package.MainDocumentPart.FootnotesPart!.Footnotes!.Descendants<W.Text>(), text => text.Text == "单元格脚注");
+
+        var inspect = new DocxInspector().Inspect(rendered.DocxPath);
+        Assert.True(inspect.Tables.HasNestedCellBlocks);
+        Assert.True(inspect.Tables.HasCellNoteReferences);
+        Assert.Contains(ThesisDocx.Core.OpenXml.StyleIds.Heading2, inspect.Tables.CellParagraphStyleIds);
+    }
+
+    [Fact]
     public void RenderNotes_ShouldEmitBodyReferencesPartsSeparatorsAndContent()
     {
         var document = CreateBaseDocument([
@@ -70,6 +96,29 @@ public sealed class RendererXmlLevelContractTests
         Assert.Contains(endnotes.Elements<W.Endnote>(), note => note.Type?.Value == W.FootnoteEndnoteValues.ContinuationSeparator && note.Id?.Value == 0);
         Assert.Contains(footnotes.Descendants<W.Text>(), text => text.Text == "脚注内容");
         Assert.Contains(endnotes.Descendants<W.Text>(), text => text.Text == "尾注内容");
+    }
+
+    [Fact]
+    public void RenderExactLineSpacing_ShouldEmitExactSpacingInBodyStyle()
+    {
+        var format = CreateFormat();
+        format.BodyParagraph.LineSpacingExactPt = 20;
+        format.Sections = new Dictionary<string, SectionFormatSpec>
+        {
+            ["body"] = new() { PageNumberStyle = PageNumberStyle.Decimal, RestartPageNumbering = true }
+        };
+        var rendered = TestRenderHelper.RenderDocument(
+            CreateBaseDocument([new ParagraphBlock { Inlines = [new TextInline { Text = "固定行距" }] }]),
+            format);
+        AssertNoOpenXmlErrors(rendered.DocxPath);
+
+        using var package = WordprocessingDocument.Open(rendered.DocxPath, false);
+        var bodyStyle = package.MainDocumentPart!.StyleDefinitionsPart!.Styles!.Elements<W.Style>()
+            .Single(style => style.StyleId?.Value == ThesisDocx.Core.OpenXml.StyleIds.ThesisBody);
+        var spacing = bodyStyle.GetFirstChild<W.StyleParagraphProperties>()!.GetFirstChild<W.SpacingBetweenLines>()!;
+
+        Assert.Equal("400", spacing.Line?.Value);
+        Assert.Equal(W.LineSpacingRuleValues.Exact, spacing.LineRule?.Value);
     }
 
     [Fact]
@@ -176,6 +225,66 @@ public sealed class RendererXmlLevelContractTests
         Assert.DoesNotContain(root, ReadXmlLikePackageText(package), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RenderPageTemplateRule_ShouldEmitParagraphBorderAndInspectionEvidence()
+    {
+        var document = new ThesisDocument
+        {
+            Metadata = new ThesisMetadata
+            {
+                Title = "Rule Template",
+                Author = "测试作者",
+                College = "示例学院",
+                Major = "软件工程",
+                StudentId = "20260001",
+                Advisor = "导师",
+                Date = "2026-05-12"
+            },
+            Sections =
+            [
+                new ThesisSection { Kind = ThesisSectionKind.Cover, Blocks = [] },
+                new ThesisSection
+                {
+                    Kind = ThesisSectionKind.Body,
+                    Blocks = [new ParagraphBlock { Inlines = [new TextInline { Text = "正文" }] }]
+                }
+            ]
+        };
+        var context = new DocxRenderContext
+        {
+            TemplateId = "rule-template",
+            TemplateVersion = "1.0.0",
+            PageTemplates =
+            [
+                new TemplatePageLayout
+                {
+                    Id = "rule-cover",
+                    TargetSectionType = PageTemplateTargetSectionType.Cover,
+                    InsertPosition = PageTemplateInsertPosition.ReplaceSectionContent,
+                    Blocks =
+                    [
+                        new TextLayoutBlock { Value = "Rule Cover", Style = ThesisDocx.Core.OpenXml.StyleIds.TocTitle },
+                        new RuleLayoutBlock { ThicknessPt = 2, Color = "333333", SpacingAfterPt = 6 },
+                        new PageBreakLayoutBlock()
+                    ]
+                }
+            ]
+        };
+
+        var rendered = TestRenderHelper.RenderDocument(document, CreateFormat(), context);
+        AssertNoOpenXmlErrors(rendered.DocxPath);
+
+        using var package = WordprocessingDocument.Open(rendered.DocxPath, false);
+        Assert.Contains(package.MainDocumentPart!.Document.Descendants<W.ParagraphBorders>(),
+            borders => borders.BottomBorder?.Val?.Value == W.BorderValues.Single
+                && borders.BottomBorder.Size?.Value == 16U
+                && borders.BottomBorder.Color?.Value == "333333");
+
+        var inspect = new DocxInspector().Inspect(rendered.DocxPath);
+        Assert.Contains("rule-cover", inspect.TemplateRendering.RenderedPageTemplates);
+        Assert.Equal(1, inspect.TemplateRendering.RuleParagraphCount);
+    }
+
     private static ThesisDocument CreateTableDocument()
     {
         var table = new TableBlock
@@ -232,6 +341,68 @@ public sealed class RendererXmlLevelContractTests
                     [
                         new TableCellNode { Text = "", GridSpan = 2, VerticalMerge = VerticalMergeKind.Continue, WidthCm = 3 },
                         new TableCellNode { Text = "C2" }
+                    ]
+                }
+            ]
+        };
+
+        return CreateBaseDocument([table]);
+    }
+
+    private static ThesisDocument CreateRichCellTableDocument()
+    {
+        var table = new TableBlock
+        {
+            Caption = "单元格块",
+            Style = TableStyleKind.Custom,
+            Rows =
+            [
+                new TableRowNode
+                {
+                    Cells =
+                    [
+                        new TableCellNode
+                        {
+                            Alignment = TextAlignment.Left,
+                            Font = new FontFormatSpec
+                            {
+                                EastAsia = "宋体",
+                                Latin = "Times New Roman",
+                                SizePt = 9
+                            },
+                            Paragraph = new ParagraphFormatSpec
+                            {
+                                LineSpacingMultiple = 1.0,
+                                SpaceBeforePt = 0,
+                                SpaceAfterPt = 0,
+                                FirstLineIndentChars = 0,
+                                HangingIndentCm = 0,
+                                Alignment = TextAlignment.Left,
+                                WidowControl = true
+                            },
+                            Blocks =
+                            [
+                                new ParagraphBlock
+                                {
+                                    Inlines =
+                                    [
+                                        new TextInline { Text = "单元格段落" },
+                                        new HyperlinkInline { Text = "链接", Uri = "https://example.com" },
+                                        new FootnoteInline { NoteId = "fn-cell", Inlines = [new TextInline { Text = "单元格脚注" }] }
+                                    ]
+                                },
+                                new HeadingBlock { Level = 2, Numbered = false, Inlines = [new TextInline { Text = "单元格标题" }] },
+                                new QuoteBlock { Inlines = [new TextInline { Text = "单元格引用" }] },
+                                new ListBlock
+                                {
+                                    Ordered = false,
+                                    Items =
+                                    [
+                                        new ListItemNode { Blocks = [new ParagraphBlock { Inlines = [new TextInline { Text = "列表项" }] }] }
+                                    ]
+                                }
+                            ]
+                        }
                     ]
                 }
             ]

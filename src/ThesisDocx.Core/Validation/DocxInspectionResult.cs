@@ -111,6 +111,10 @@ public sealed class NoteInspectionSummary
 
     public List<long> Ids { get; set; } = [];
 
+    public List<string> StyleIds { get; set; } = [];
+
+    public int ReferenceMarkCount { get; set; }
+
     public bool HasPart { get; set; }
 
     public bool HasSeparator { get; set; }
@@ -160,6 +164,12 @@ public sealed class TableInspectionSummary
 
     public bool HasCantSplitRows { get; set; }
 
+    public bool HasNestedCellBlocks { get; set; }
+
+    public bool HasCellNoteReferences { get; set; }
+
+    public List<string> CellParagraphStyleIds { get; set; } = [];
+
     public List<string> WidthTypes { get; set; } = [];
 
     public List<string> BorderSummary { get; set; } = [];
@@ -184,6 +194,8 @@ public sealed class TemplateRenderingInspectionSummary
     public CoverInspectionSummary CoverSummary { get; set; } = new();
 
     public DeclarationInspectionSummary DeclarationSummary { get; set; } = new();
+
+    public int RuleParagraphCount { get; set; }
 }
 
 public sealed class CoverInspectionSummary

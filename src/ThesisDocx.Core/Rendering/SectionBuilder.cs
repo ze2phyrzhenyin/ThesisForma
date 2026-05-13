@@ -21,18 +21,18 @@ public sealed class SectionBuilder
         _pageSetupOverrides = pageSetupOverrides ?? new Dictionary<SectionProfile, PageSetupSpec>();
     }
 
-    public W.Paragraph CreateSectionBreakParagraph(SectionProfile profile)
+    public W.Paragraph CreateSectionBreakParagraph(SectionProfile profile, ThesisSection? section = null)
     {
-        return new W.Paragraph(new W.ParagraphProperties(CreateSectionProperties(profile)));
+        return new W.Paragraph(new W.ParagraphProperties(CreateSectionProperties(profile, section)));
     }
 
-    public W.SectionProperties CreateSectionProperties(SectionProfile profile)
+    public W.SectionProperties CreateSectionProperties(SectionProfile profile, ThesisSection? section = null)
     {
-        var sectionFormat = GetSectionFormat(profile);
+        var sectionFormat = _headerFooterBuilder.GetEffectiveSectionFormat(profile, section);
         var pageSetup = _pageSetupOverrides.TryGetValue(profile, out var overrideSetup)
             ? overrideSetup
             : _format.PageSetup;
-        var (headerId, footerId) = _headerFooterBuilder.EnsureReferences(profile);
+        var (headerId, footerId) = _headerFooterBuilder.EnsureReferences(profile, section);
 
         var sectionProperties = new W.SectionProperties();
         if (!string.IsNullOrWhiteSpace(headerId))
@@ -109,13 +109,6 @@ public sealed class SectionBuilder
                 ? W.PageOrientationValues.Landscape
                 : W.PageOrientationValues.Portrait
         };
-    }
-
-    private SectionFormatSpec GetSectionFormat(SectionProfile profile)
-    {
-        return _format.Sections.TryGetValue(profile.SpecKey(), out var configured)
-            ? configured
-            : new SectionFormatSpec();
     }
 
     private static W.NumberFormatValues ToNumberFormat(PageNumberStyle style)

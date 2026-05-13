@@ -40,6 +40,7 @@ public enum PageTemplateInsertPosition
 [JsonDerivedType(typeof(FieldTableLayoutBlock), "fieldTable")]
 [JsonDerivedType(typeof(DeclarationTextLayoutBlock), "declarationText")]
 [JsonDerivedType(typeof(PageBreakLayoutBlock), "pageBreak")]
+[JsonDerivedType(typeof(RuleLayoutBlock), "rule")]
 public abstract class PageLayoutBlock;
 
 public sealed class SpacerLayoutBlock : PageLayoutBlock
@@ -126,3 +127,16 @@ public sealed class DeclarationTextLayoutBlock : PageLayoutBlock
 }
 
 public sealed class PageBreakLayoutBlock : PageLayoutBlock;
+
+public sealed class RuleLayoutBlock : PageLayoutBlock
+{
+    public double ThicknessPt { get; set; } = 1;
+
+    public string Color { get; set; } = "000000";
+
+    public TextAlignment Alignment { get; set; } = TextAlignment.Center;
+
+    public double? SpacingBeforePt { get; set; }
+
+    public double? SpacingAfterPt { get; set; }
+}

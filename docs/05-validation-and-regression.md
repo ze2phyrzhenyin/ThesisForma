@@ -109,7 +109,7 @@ scripts/normalize-docx-for-snapshot out/simple.docx out/simple.snapshot.txt
 
 The validation stack now includes onboarding-specific checks:
 
-- `privacy scan` verifies that public examples do not contain real institution workspaces or source documents.
+- `privacy scan` verifies that public examples do not contain private real-institution workspaces or unattested source documents.
 - `onboarding validate` checks workspace manifest shape, path hygiene, required directories, requirements, template, and fixtures.
 - `onboarding summary` aggregates privacy, requirement, template, fixture, baseline, gate, diagnostic, and authoring status.
 - `onboarding package-validate` verifies pilot package checksums and rejects forbidden source/font entries.

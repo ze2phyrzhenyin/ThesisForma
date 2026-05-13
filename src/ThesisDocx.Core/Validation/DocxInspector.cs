@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.CustomProperties;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.OpenXml;
@@ -97,15 +98,37 @@ public sealed class DocxInspector
             CoverSummary = new CoverInspectionSummary
             {
                 HasTitle = text.Contains("结构化毕业论文 DOCX 渲染引擎", StringComparison.Ordinal) || text.Contains("Thesis", StringComparison.OrdinalIgnoreCase),
-                HasMetadataFieldTable = text.Contains("论文题目", StringComparison.Ordinal) && text.Contains("学号", StringComparison.Ordinal),
+                HasMetadataFieldTable = HasCoverMetadataTable(document),
                 HasLogoDrawing = document.MainDocumentPart?.Document.Descendants<W.Drawing>().Any() == true
             },
             DeclarationSummary = new DeclarationInspectionSummary
             {
-                HasDeclarationText = text.Contains("原创性声明", StringComparison.Ordinal) || text.Contains("declaration", StringComparison.OrdinalIgnoreCase),
+                HasDeclarationText = HasDeclarationText(text),
                 HasSignatureField = text.Contains("签名", StringComparison.Ordinal) || text.Contains("Signature", StringComparison.OrdinalIgnoreCase)
-            }
+            },
+            RuleParagraphCount = document.MainDocumentPart?.Document.Descendants<W.Paragraph>().Count(HasBottomRule) ?? 0
         };
+    }
+
+    private static bool HasCoverMetadataTable(WordprocessingDocument document)
+    {
+        return document.MainDocumentPart?.Document.Descendants<W.Table>()
+            .Any(table =>
+            {
+                var tableText = string.Concat(table.Descendants<W.Text>().Select(t => t.Text));
+                return tableText.Contains("学号", StringComparison.Ordinal)
+                    && (tableText.Contains("作者", StringComparison.Ordinal) || tableText.Contains("姓名", StringComparison.Ordinal))
+                    && (tableText.Contains("导师", StringComparison.Ordinal) || tableText.Contains("Advisor", StringComparison.OrdinalIgnoreCase));
+            }) == true;
+    }
+
+    private static bool HasDeclarationText(string text)
+    {
+        return text.Contains("declaration", StringComparison.OrdinalIgnoreCase)
+            || (text.Contains("声明", StringComparison.Ordinal)
+                && (text.Contains("独立完成", StringComparison.Ordinal)
+                    || text.Contains("学术规范", StringComparison.Ordinal)
+                    || text.Contains("原创", StringComparison.Ordinal)));
     }
 
     private static List<string> SplitCsv(string? value)
@@ -113,6 +136,11 @@ public sealed class DocxInspector
         return string.IsNullOrWhiteSpace(value)
             ? []
             : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+    }
+
+    private static bool HasBottomRule(W.Paragraph paragraph)
+    {
+        return paragraph.ParagraphProperties?.ParagraphBorders?.BottomBorder?.Val is not null;
     }
 
     private static List<NumberingSummary> CollectNumbering(MainDocumentPart mainPart)
@@ -175,12 +203,15 @@ public sealed class DocxInspector
 
     private static NoteInspectionSummary CollectFootnotes(MainDocumentPart mainPart)
     {
-        var ids = mainPart.FootnotesPart?.Footnotes?.Elements<W.Footnote>().Select(note => note.Id?.Value).Where(id => id.HasValue).Select(id => id!.Value).ToList() ?? [];
+        var notes = mainPart.FootnotesPart?.Footnotes?.Elements<W.Footnote>().ToList() ?? [];
+        var ids = notes.Select(note => note.Id?.Value).Where(id => id.HasValue).Select(id => id!.Value).ToList();
         return new NoteInspectionSummary
         {
             HasPart = mainPart.FootnotesPart is not null,
             Count = ids.Count(id => id > 0),
             Ids = ids.Where(id => id > 0).Order().ToList(),
+            StyleIds = NoteStyleIds(notes),
+            ReferenceMarkCount = notes.SelectMany(note => note.Descendants<W.FootnoteReferenceMark>()).Count(),
             HasSeparator = ids.Contains(-1),
             HasContinuationSeparator = ids.Contains(0)
         };
@@ -188,15 +219,31 @@ public sealed class DocxInspector
 
     private static NoteInspectionSummary CollectEndnotes(MainDocumentPart mainPart)
     {
-        var ids = mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().Select(note => note.Id?.Value).Where(id => id.HasValue).Select(id => id!.Value).ToList() ?? [];
+        var notes = mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().ToList() ?? [];
+        var ids = notes.Select(note => note.Id?.Value).Where(id => id.HasValue).Select(id => id!.Value).ToList();
         return new NoteInspectionSummary
         {
             HasPart = mainPart.EndnotesPart is not null,
             Count = ids.Count(id => id > 0),
             Ids = ids.Where(id => id > 0).Order().ToList(),
+            StyleIds = NoteStyleIds(notes),
+            ReferenceMarkCount = notes.SelectMany(note => note.Descendants<W.EndnoteReferenceMark>()).Count(),
             HasSeparator = ids.Contains(-1),
             HasContinuationSeparator = ids.Contains(0)
         };
+    }
+
+    private static List<string> NoteStyleIds(IEnumerable<OpenXmlElement> notes)
+    {
+        return notes
+            .Where(note => note.GetAttribute("id", "http://schemas.openxmlformats.org/wordprocessingml/2006/main").Value is not "-1" and not "0")
+            .SelectMany(note => note.Elements<W.Paragraph>())
+            .Select(paragraph => paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
     }
 
     private static BibliographyInspectionSummary CollectBibliography(MainDocumentPart mainPart)
@@ -274,6 +321,17 @@ public sealed class DocxInspector
             HasVerticalMerge = tables.Any(t => t.Descendants<W.VerticalMerge>().Any()),
             HasRepeatHeaderRows = tables.Any(t => t.Descendants<W.TableHeader>().Any()),
             HasCantSplitRows = tables.Any(t => t.Descendants<W.CantSplit>().Any()),
+            HasNestedCellBlocks = tables.SelectMany(t => t.Descendants<W.TableCell>()).Any(cell => cell.Elements<W.Paragraph>().Count() > 1),
+            HasCellNoteReferences = tables.Any(t => t.Descendants<W.FootnoteReference>().Any() || t.Descendants<W.EndnoteReference>().Any()),
+            CellParagraphStyleIds = tables
+                .SelectMany(t => t.Descendants<W.TableCell>())
+                .SelectMany(cell => cell.Elements<W.Paragraph>())
+                .Select(paragraph => paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Cast<string>()
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToList(),
             WidthTypes = tables
                 .Select(t => ToTableWidthType(t.GetFirstChild<W.TableProperties>()?.GetFirstChild<W.TableWidth>()?.Type?.Value))
                 .Distinct(StringComparer.Ordinal)

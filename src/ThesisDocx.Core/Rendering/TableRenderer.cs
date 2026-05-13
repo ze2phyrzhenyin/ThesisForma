@@ -11,12 +11,14 @@ public sealed class TableRenderer
     private readonly ThesisFormatSpec _format;
     private readonly CaptionRenderer _captionRenderer;
     private readonly RelationshipManager _relationshipManager;
+    private readonly ParagraphRenderer _paragraphRenderer;
 
-    public TableRenderer(ThesisFormatSpec format, CaptionRenderer captionRenderer, RelationshipManager relationshipManager)
+    public TableRenderer(ThesisFormatSpec format, CaptionRenderer captionRenderer, RelationshipManager relationshipManager, ParagraphRenderer paragraphRenderer)
     {
         _format = format;
         _captionRenderer = captionRenderer;
         _relationshipManager = relationshipManager;
+        _paragraphRenderer = paragraphRenderer;
     }
 
     public IEnumerable<OpenXmlElement> Render(TableBlock block)
@@ -194,7 +196,10 @@ public sealed class TableRenderer
         {
             foreach (var block in cell.Blocks)
             {
-                tableCell.AppendChild(CreateCellParagraph(block, cell, isHeader));
+                foreach (var paragraph in CreateCellParagraphs(block, cell, isHeader))
+                {
+                    tableCell.AppendChild(paragraph);
+                }
             }
         }
         else
@@ -205,37 +210,113 @@ public sealed class TableRenderer
         return tableCell;
     }
 
-    private W.Paragraph CreateCellParagraph(BlockNode block, TableCellNode cell, bool isHeader)
+    private IEnumerable<W.Paragraph> CreateCellParagraphs(BlockNode block, TableCellNode cell, bool isHeader)
     {
-        return block switch
+        switch (block)
         {
-            ParagraphBlock paragraph => CreateInlineCellParagraph(paragraph.Inlines, cell, isHeader),
-            HeadingBlock heading => CreateInlineCellParagraph(heading.Inlines, cell, isHeader),
-            _ => CreateTextCellParagraph(new TableCellNode { Text = string.Empty, Alignment = cell.Alignment }, isHeader)
-        };
+            case ParagraphBlock paragraph:
+                yield return ApplyCellParagraphFormatting(_paragraphRenderer.CreateParagraph(paragraph), cell, isHeader);
+                break;
+            case HeadingBlock heading:
+                yield return ApplyCellParagraphFormatting(CreateHeadingCellParagraph(heading), cell, isHeader);
+                break;
+            case QuoteBlock quote:
+                yield return ApplyCellParagraphFormatting(_paragraphRenderer.CreateParagraph(new ParagraphBlock
+                {
+                    StyleId = StyleIds.Quote,
+                    Inlines = quote.Inlines,
+                    Alignment = cell.Alignment
+                }), cell, isHeader);
+                break;
+            case ListBlock list:
+                foreach (var paragraph in CreateListCellParagraphs(list, cell, isHeader))
+                {
+                    yield return paragraph;
+                }
+
+                break;
+            case FootnoteBlock footnote:
+                yield return ApplyCellParagraphFormatting(CreateNoteCellParagraph(cell, new FootnoteInline { NoteId = footnote.NoteId, Inlines = footnote.Inlines }), cell, isHeader);
+                break;
+            case EndnoteBlock endnote:
+                yield return ApplyCellParagraphFormatting(CreateNoteCellParagraph(cell, new EndnoteInline { NoteId = endnote.NoteId, Inlines = endnote.Inlines }), cell, isHeader);
+                break;
+            default:
+                yield return CreateTextCellParagraph(new TableCellNode { Text = string.Empty, Alignment = cell.Alignment }, isHeader);
+                break;
+        }
     }
 
-    private W.Paragraph CreateInlineCellParagraph(IEnumerable<InlineNode> inlines, TableCellNode cell, bool isHeader)
+    private W.Paragraph CreateNoteCellParagraph(TableCellNode cell, InlineNode note)
     {
         var paragraph = new W.Paragraph(CreateCellParagraphProperties(cell));
-        foreach (var text in inlines.OfType<TextInline>())
+        foreach (var element in _paragraphRenderer.CreateInlineElements([note]))
         {
-            var run = ParagraphRenderer.CreateTextRun(text);
-            if (isHeader)
-            {
-                run.RunProperties ??= new W.RunProperties();
-                run.RunProperties.AppendChild(new W.Bold());
-            }
-
-            paragraph.AppendChild(run);
-        }
-
-        if (!paragraph.Elements<W.Run>().Any())
-        {
-            paragraph.AppendChild(new W.Run(new W.Text(string.Empty)));
+            paragraph.AppendChild(element);
         }
 
         return paragraph;
+    }
+
+    private IEnumerable<W.Paragraph> CreateListCellParagraphs(ListBlock list, TableCellNode cell, bool isHeader)
+    {
+        foreach (var item in list.Items)
+        {
+            var firstParagraph = item.Blocks.OfType<ParagraphBlock>().FirstOrDefault();
+            if (firstParagraph is null)
+            {
+                continue;
+            }
+
+            var paragraph = _paragraphRenderer.CreateParagraph(firstParagraph);
+            paragraph.ParagraphProperties ??= new W.ParagraphProperties();
+            if (list.Ordered)
+            {
+                paragraph.ParagraphProperties.AppendChild(new W.NumberingProperties(
+                    new W.NumberingLevelReference { Val = 0 },
+                    new W.NumberingId { Val = NumberingBuilder.OrderedListNumberingId }));
+            }
+            else
+            {
+                InsertRunAfterProperties(paragraph, new W.Run(new W.Text("• ")));
+            }
+
+            yield return ApplyCellParagraphFormatting(paragraph, cell, isHeader);
+        }
+    }
+
+    private W.Paragraph CreateHeadingCellParagraph(HeadingBlock heading)
+    {
+        var level = Math.Clamp(heading.Level, 1, 3);
+        var paragraph = new W.Paragraph(new W.ParagraphProperties(
+            new W.ParagraphStyleId
+            {
+                Val = level switch
+                {
+                    1 => StyleIds.Heading1,
+                    2 => StyleIds.Heading2,
+                    _ => StyleIds.Heading3
+                }
+            },
+            new W.OutlineLevel { Val = level - 1 }));
+        foreach (var inline in _paragraphRenderer.CreateInlineElements(heading.Inlines))
+        {
+            paragraph.AppendChild(inline);
+        }
+
+        return paragraph;
+    }
+
+    private static void InsertRunAfterProperties(W.Paragraph paragraph, W.Run run)
+    {
+        if (paragraph.ParagraphProperties is not null)
+        {
+            paragraph.InsertAfter(run, paragraph.ParagraphProperties);
+        }
+        else
+        {
+            paragraph.PrependChild(run);
+        }
     }
 
     private W.Paragraph CreateTextCellParagraph(TableCellNode cell, bool isHeader)
@@ -246,7 +327,7 @@ public sealed class TableRenderer
             run.PrependChild(new W.RunProperties(new W.Bold()));
         }
 
-        return new W.Paragraph(CreateCellParagraphProperties(cell), run);
+        return ApplyCellParagraphFormatting(new W.Paragraph(CreateCellParagraphProperties(cell), run), cell, isHeader);
     }
 
     private static W.ParagraphProperties CreateCellParagraphProperties(TableCellNode cell)
@@ -258,6 +339,146 @@ public sealed class TableRenderer
         }
 
         return paragraphProperties;
+    }
+
+    private static W.Paragraph ApplyCellParagraphFormatting(W.Paragraph paragraph, TableCellNode cell, bool isHeader)
+    {
+        paragraph.ParagraphProperties ??= new W.ParagraphProperties();
+        if (paragraph.ParagraphProperties.ParagraphStyleId is null)
+        {
+            paragraph.ParagraphProperties.PrependChild(new W.ParagraphStyleId { Val = StyleIds.ThesisBody });
+        }
+
+        if (cell.Alignment.HasValue)
+        {
+            paragraph.ParagraphProperties.RemoveAllChildren<W.Justification>();
+            paragraph.ParagraphProperties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(cell.Alignment.Value) });
+        }
+
+        if (cell.Paragraph is not null)
+        {
+            ApplyCellParagraphSpec(paragraph.ParagraphProperties, cell.Paragraph, cell.Font);
+        }
+
+        if (cell.Font is not null || isHeader)
+        {
+            foreach (var run in paragraph.Descendants<W.Run>())
+            {
+                ApplyCellRunFormatting(run, cell.Font, isHeader);
+            }
+        }
+
+        if (!paragraph.Descendants<W.Run>().Any())
+        {
+            paragraph.AppendChild(new W.Run(new W.Text(string.Empty)));
+        }
+
+        return paragraph;
+    }
+
+    private static void ApplyCellParagraphSpec(W.ParagraphProperties properties, ParagraphFormatSpec paragraph, FontFormatSpec? font)
+    {
+        var style = properties.ParagraphStyleId?.CloneNode(true);
+        var numbering = properties.NumberingProperties?.CloneNode(true);
+        var outline = properties.OutlineLevel?.CloneNode(true);
+        foreach (var child in properties.ChildElements.ToList())
+        {
+            child.Remove();
+        }
+
+        properties.AppendChild(style as W.ParagraphStyleId ?? new W.ParagraphStyleId { Val = StyleIds.ThesisBody });
+        properties.AppendChild(new W.WidowControl { Val = paragraph.WidowControl });
+        if (numbering is W.NumberingProperties numberingProperties)
+        {
+            properties.AppendChild(numberingProperties);
+        }
+
+        properties.AppendChild(StyleBuilder.CreateSpacing(paragraph));
+
+        var indentation = new W.Indentation();
+        var fontSize = font?.SizePt > 0 ? font.SizePt : 12;
+        if (paragraph.FirstLineIndentChars > 0)
+        {
+            indentation.FirstLine = UnitConverter.PointsToTwips(fontSize * paragraph.FirstLineIndentChars).ToString();
+        }
+
+        if (paragraph.HangingIndentCm > 0)
+        {
+            indentation.Hanging = UnitConverter.CentimetersToTwips(paragraph.HangingIndentCm).ToString();
+        }
+
+        if (indentation.HasAttributes)
+        {
+            properties.AppendChild(indentation);
+        }
+
+        properties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(paragraph.Alignment) });
+        if (outline is W.OutlineLevel outlineLevel)
+        {
+            properties.AppendChild(outlineLevel);
+        }
+    }
+
+    private static void ApplyCellRunFormatting(W.Run run, FontFormatSpec? font, bool isHeader)
+    {
+        var runProperties = run.RunProperties;
+        if (runProperties is null)
+        {
+            runProperties = new W.RunProperties();
+            run.PrependChild(runProperties);
+        }
+
+        var runStyle = runProperties.RunStyle?.CloneNode(true);
+        var color = runProperties.Color?.CloneNode(true);
+        var underline = runProperties.Underline?.CloneNode(true);
+        var vertical = runProperties.VerticalTextAlignment?.CloneNode(true);
+        foreach (var child in runProperties.ChildElements.ToList())
+        {
+            child.Remove();
+        }
+
+        if (runStyle is W.RunStyle clonedRunStyle)
+        {
+            runProperties.AppendChild(clonedRunStyle);
+        }
+
+        if (font is not null)
+        {
+            runProperties.AppendChild(StyleBuilder.CreateRunFonts(font));
+        }
+
+        if (isHeader || font?.Bold == true)
+        {
+            runProperties.AppendChild(new W.Bold());
+            runProperties.AppendChild(new W.BoldComplexScript());
+        }
+
+        if (font?.Italic == true)
+        {
+            runProperties.AppendChild(new W.Italic());
+            runProperties.AppendChild(new W.ItalicComplexScript());
+        }
+
+        if (color is W.Color clonedColor)
+        {
+            runProperties.AppendChild(clonedColor);
+        }
+
+        if (font is not null)
+        {
+            runProperties.AppendChild(new W.FontSize { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() });
+            runProperties.AppendChild(new W.FontSizeComplexScript { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() });
+        }
+
+        if (underline is W.Underline clonedUnderline)
+        {
+            runProperties.AppendChild(clonedUnderline);
+        }
+
+        if (vertical is W.VerticalTextAlignment clonedVertical)
+        {
+            runProperties.AppendChild(clonedVertical);
+        }
     }
 
     private static W.TableWidth ToTableWidth(TableWidthSpec width)

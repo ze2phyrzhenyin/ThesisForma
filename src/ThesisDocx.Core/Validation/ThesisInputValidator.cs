@@ -139,6 +139,8 @@ public sealed class ThesisInputValidator
         ValidateMargins(format.Tables.DefaultCellMargins, "$.tables.defaultCellMargins", result);
         ValidateBorders(format.Tables.DefaultBorders, "$.tables.defaultBorders", result);
         ValidateBorders(format.Tables.ThreeLineTableBorders, "$.tables.threeLineTableBorders", result);
+        ValidateNoteFormat(format.Notes.Footnote, "$.notes.footnote", result);
+        ValidateNoteFormat(format.Notes.Endnote, "$.notes.endnote", result);
         ValidateParagraph(format.Bibliography.EntryParagraph, "$.bibliography.entryParagraph", result);
 
         if (format.Equations.FontSizePt <= 0)
@@ -148,6 +150,17 @@ public sealed class ThesisInputValidator
 
         ValidateNonNegative(format.Equations.SpacingBeforePt, "$.equations.spacingBeforePt", "format.spacing.negative", "Equation spacingBeforePt must be non-negative.", result);
         ValidateNonNegative(format.Equations.SpacingAfterPt, "$.equations.spacingAfterPt", "format.spacing.negative", "Equation spacingAfterPt must be non-negative.", result);
+    }
+
+    private static void ValidateNoteFormat(NoteFormatSpec note, string path, ThesisInputValidationResult result)
+    {
+        if (string.IsNullOrWhiteSpace(note.StyleId))
+        {
+            result.Add("format.note.styleId.required", $"{path}.styleId", "Note styleId is required.");
+        }
+
+        ValidateFont(note.Font, $"{path}.font", result);
+        ValidateParagraph(note.Paragraph, $"{path}.paragraph", result);
     }
 
     private static void ValidatePageSetup(PageSetupSpec pageSetup, string path, ThesisInputValidationResult result)
@@ -178,6 +191,11 @@ public sealed class ThesisInputValidator
         if (paragraph.LineSpacingMultiple <= 0)
         {
             result.Add("format.lineSpacing.invalid", $"{path}.lineSpacingMultiple", "Line spacing multiple must be greater than 0.");
+        }
+
+        if (paragraph.LineSpacingExactPt.HasValue && paragraph.LineSpacingExactPt <= 0)
+        {
+            result.Add("format.lineSpacingExact.invalid", $"{path}.lineSpacingExactPt", "Exact line spacing must be greater than 0 points.");
         }
 
         ValidateNonNegative(paragraph.SpaceBeforePt, $"{path}.spaceBeforePt", "format.spacing.negative", "Paragraph spaceBeforePt must be non-negative.", result);
@@ -309,6 +327,7 @@ public sealed class ThesisInputValidator
                 }
 
                 ValidateTable(table, path, result);
+                VisitTableCellBlocks(table, path, documentBaseDirectory, format, result, blockAndBookmarkIds, bookmarks, referenceTargets, bibliographyKeys, citationTargets, referenceInlines, figureIds, tableIds, headingIds, footnoteIds, endnoteIds);
                 break;
             case QuoteBlock quote:
                 VisitInlines(quote.Inlines, $"{path}.inlines", result, blockAndBookmarkIds, bookmarks, referenceTargets, citationTargets, referenceInlines, footnoteIds, endnoteIds);
@@ -447,6 +466,76 @@ public sealed class ThesisInputValidator
         if (!Convert.TryFromBase64String(value, buffer, out _))
         {
             result.Add("image.base64.invalid", path, "imageDataBase64 must be valid base64.");
+        }
+    }
+
+    private static void VisitTableCellBlocks(
+        TableBlock table,
+        string path,
+        string? documentBaseDirectory,
+        ThesisFormatSpec format,
+        ThesisInputValidationResult result,
+        Dictionary<string, string> blockAndBookmarkIds,
+        HashSet<string> bookmarks,
+        Dictionary<string, string> referenceTargets,
+        HashSet<string> bibliographyKeys,
+        List<(string Path, string TargetId)> citationTargets,
+        List<(string Path, string TargetId)> referenceInlines,
+        HashSet<string> figureIds,
+        HashSet<string> tableIds,
+        HashSet<string> headingIds,
+        Dictionary<string, string> footnoteIds,
+        Dictionary<string, string> endnoteIds)
+    {
+        for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+        {
+            var row = table.Rows[rowIndex];
+            for (var cellIndex = 0; cellIndex < row.Cells.Count; cellIndex++)
+            {
+                var cell = row.Cells[cellIndex];
+                var cellPath = $"{path}.rows[{rowIndex}].cells[{cellIndex}]";
+                for (var blockIndex = 0; blockIndex < cell.Blocks.Count; blockIndex++)
+                {
+                    var child = cell.Blocks[blockIndex];
+                    var childPath = $"{cellPath}.blocks[{blockIndex}]";
+                    ValidateSupportedTableCellBlock(child, childPath, result);
+                    VisitBlock(child, childPath, documentBaseDirectory, format, result, blockAndBookmarkIds, bookmarks, referenceTargets, bibliographyKeys, citationTargets, referenceInlines, figureIds, tableIds, headingIds, footnoteIds, endnoteIds);
+                }
+            }
+        }
+    }
+
+    private static void ValidateSupportedTableCellBlock(BlockNode block, string path, ThesisInputValidationResult result)
+    {
+        switch (block)
+        {
+            case ParagraphBlock:
+            case HeadingBlock:
+            case QuoteBlock:
+            case FootnoteBlock:
+            case EndnoteBlock:
+                return;
+            case ListBlock list:
+                for (var itemIndex = 0; itemIndex < list.Items.Count; itemIndex++)
+                {
+                    for (var blockIndex = 0; blockIndex < list.Items[itemIndex].Blocks.Count; blockIndex++)
+                    {
+                        ValidateSupportedTableCellListItemBlock(list.Items[itemIndex].Blocks[blockIndex], $"{path}.items[{itemIndex}].blocks[{blockIndex}]", result);
+                    }
+                }
+
+                return;
+            default:
+                result.Add("table.cellBlock.unsupported", path, "Table cell blocks support paragraph, heading, quote, list, footnote, and endnote blocks only.");
+                return;
+        }
+    }
+
+    private static void ValidateSupportedTableCellListItemBlock(BlockNode block, string path, ThesisInputValidationResult result)
+    {
+        if (block is not ParagraphBlock and not QuoteBlock)
+        {
+            result.Add("table.cellListBlock.unsupported", path, "Table cell list items support paragraph and quote blocks only.");
         }
     }
 

@@ -1,4 +1,5 @@
 {
+  "reportVersion": "1.0.0",
   "sourcePath": "cover-declaration-edge-cases.docx",
   "sections": [
     {
@@ -99,19 +100,65 @@
       "width": "5000",
       "borders": "top=BorderValues { }:;bottom=BorderValues { }:;left=BorderValues { }:;right=BorderValues { }:;insideH=BorderValues { }:;insideV=BorderValues { }:",
       "hasGridSpan": false,
+      "gridSpanValues": [],
       "hasVerticalMerge": false,
+      "verticalMergeValues": [],
       "hasRepeatHeaderRows": false,
-      "hasCantSplitRows": false
+      "repeatHeaderRowCount": 0,
+      "hasCantSplitRows": false,
+      "cantSplitRowCount": 0,
+      "cellWidths": [
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386",
+        "dxa:1701",
+        "dxa:5386"
+      ],
+      "cellVerticalAlignments": [],
+      "cellBorders": []
     },
     {
       "index": 1,
+      "layoutType": "fixed",
       "widthType": "TableWidthUnitValues { }",
       "width": "5000",
       "borders": "top=BorderValues { }:12;bottom=BorderValues { }:12;left=BorderValues { }:0;right=BorderValues { }:0;insideH=BorderValues { }:6;insideV=BorderValues { }:0",
       "hasGridSpan": true,
+      "gridSpanValues": [
+        "2"
+      ],
       "hasVerticalMerge": true,
+      "verticalMergeValues": [
+        "restart",
+        "continue"
+      ],
       "hasRepeatHeaderRows": true,
-      "hasCantSplitRows": true
+      "repeatHeaderRowCount": 1,
+      "hasCantSplitRows": true,
+      "cantSplitRowCount": 3,
+      "cellWidths": [
+        "dxa:2400",
+        "dxa:7200"
+      ],
+      "cellVerticalAlignments": [
+        "center",
+        "center",
+        "center"
+      ],
+      "cellBorders": [
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000",
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000",
+        "top=single:4:000000;bottom=double:8:000000;left=single:4:000000;right=single:4:000000"
+      ]
     }
   ],
   "figures": [

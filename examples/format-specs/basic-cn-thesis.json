@@ -97,6 +97,48 @@
     "useThreeLineTables": true,
     "captionPosition": "above"
   },
+  "notes": {
+    "footnote": {
+      "styleId": "ThesisFootnoteText",
+      "font": {
+        "eastAsia": "宋体",
+        "latin": "Times New Roman",
+        "sizePt": 10.5,
+        "bold": false,
+        "italic": false
+      },
+      "paragraph": {
+        "lineSpacingMultiple": 1.0,
+        "spaceBeforePt": 0,
+        "spaceAfterPt": 0,
+        "firstLineIndentChars": 0,
+        "hangingIndentCm": 0,
+        "alignment": "both",
+        "widowControl": true
+      },
+      "superscriptReferenceMark": true
+    },
+    "endnote": {
+      "styleId": "ThesisEndnoteText",
+      "font": {
+        "eastAsia": "宋体",
+        "latin": "Times New Roman",
+        "sizePt": 10.5,
+        "bold": false,
+        "italic": false
+      },
+      "paragraph": {
+        "lineSpacingMultiple": 1.0,
+        "spaceBeforePt": 0,
+        "spaceAfterPt": 0,
+        "firstLineIndentChars": 0,
+        "hangingIndentCm": 0,
+        "alignment": "both",
+        "widowControl": true
+      },
+      "superscriptReferenceMark": true
+    }
+  },
   "figures": {
     "defaultWidthCm": 8,
     "defaultHeightCm": 4.5,

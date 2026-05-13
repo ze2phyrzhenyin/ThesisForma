@@ -17,8 +17,11 @@ public sealed class DocxSnapshotNormalizer
         AppendList(builder, "bookmarks", inspection.Bookmarks);
         AppendList(builder, "equationBookmarks", inspection.Equations.Bookmarks);
         AppendList(builder, "equationSourceTypes", inspection.Equations.SourceTypes);
+        AppendList(builder, "footnoteStyles", inspection.Footnotes.StyleIds);
+        AppendList(builder, "endnoteStyles", inspection.Endnotes.StyleIds);
         AppendList(builder, "tableBookmarks", inspection.Tables.Bookmarks);
         AppendList(builder, "tableStyles", inspection.Tables.Styles);
+        AppendList(builder, "tableCellParagraphStyles", inspection.Tables.CellParagraphStyleIds);
         AppendList(builder, "tableWidthTypes", inspection.Tables.WidthTypes);
         AppendList(builder, "tableBorders", inspection.Tables.BorderSummary);
 
@@ -31,6 +34,9 @@ public sealed class DocxSnapshotNormalizer
         builder.AppendLine($"tableHasVerticalMerge={inspection.Tables.HasVerticalMerge}");
         builder.AppendLine($"tableHasRepeatHeaderRows={inspection.Tables.HasRepeatHeaderRows}");
         builder.AppendLine($"tableHasCantSplitRows={inspection.Tables.HasCantSplitRows}");
+        builder.AppendLine($"tableHasNestedCellBlocks={inspection.Tables.HasNestedCellBlocks}");
+        builder.AppendLine($"tableHasCellNoteReferences={inspection.Tables.HasCellNoteReferences}");
+        builder.AppendLine($"templateRuleParagraphCount={inspection.TemplateRendering.RuleParagraphCount}");
         builder.AppendLine($"headerCount={inspection.HeaderCount}");
         builder.AppendLine($"footerCount={inspection.FooterCount}");
 

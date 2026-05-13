@@ -320,6 +320,7 @@ public sealed class InputValidatorTests
         format.PageSetup.LeftMarginCm = -1;
         format.DefaultFont.SizePt = 0;
         format.BodyParagraph.LineSpacingMultiple = 0;
+        format.BodyParagraph.LineSpacingExactPt = 0;
         format.BodyParagraph.SpaceAfterPt = -1;
         format.Headings[1].Level = 7;
 
@@ -328,6 +329,7 @@ public sealed class InputValidatorTests
         Assert.Contains(result.Errors, error => error.Code == "format.margin.negative");
         Assert.Contains(result.Errors, error => error.Code == "format.fontSize.invalid");
         Assert.Contains(result.Errors, error => error.Code == "format.lineSpacing.invalid");
+        Assert.Contains(result.Errors, error => error.Code == "format.lineSpacingExact.invalid");
         Assert.Contains(result.Errors, error => error.Code == "format.spacing.negative");
         Assert.Contains(result.Errors, error => error.Code == "format.heading.level.invalid");
     }
