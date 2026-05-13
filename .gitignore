@@ -24,3 +24,7 @@ TestResults/
 *.doc
 *.wps
 *.pdf
+!examples/onboarding/**/source-documents/*.docx
+!examples/onboarding/**/source-documents/*.pdf
+examples/onboarding/shnu-humanities-public-source/source-documents/*.docx
+examples/onboarding/shnu-humanities-public-source/source-documents/*.pdf
