@@ -1,11 +1,12 @@
 {
+  "reportVersion": "1.0.0",
   "entries": [
     "[Content_Types].xml",
     "_rels/.rels",
     "docProps/custom.xml",
     "media/image.png",
     "media/image2.png",
-    "package/services/metadata/core-properties/c6ebe87b0da4406782f03cd46cd2c783.psmdcp",
+    "package/services/metadata/core-properties/464d2be1a5c249048da76fd538d9b1e4.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
@@ -24,7 +25,7 @@
     "docProps/custom.xml",
     "media/image.png",
     "media/image2.png",
-    "package/services/metadata/core-properties/c6ebe87b0da4406782f03cd46cd2c783.psmdcp",
+    "package/services/metadata/core-properties/464d2be1a5c249048da76fd538d9b1e4.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
@@ -45,6 +46,8 @@
     "ThesisBibliography",
     "ThesisBody",
     "ThesisCaption",
+    "ThesisEndnoteText",
+    "ThesisFootnoteText",
     "ThesisQuote",
     "ThesisTocTitle"
   ],
@@ -80,6 +83,16 @@
     },
     {
       "styleId": "ThesisCaption",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisEndnoteText",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisFootnoteText",
       "type": "StyleValues { }",
       "basedOn": "Normal"
     },
@@ -220,6 +233,10 @@
     "ids": [
       1
     ],
+    "styleIds": [
+      "ThesisFootnoteText"
+    ],
+    "referenceMarkCount": 1,
     "hasPart": true,
     "hasSeparator": true,
     "hasContinuationSeparator": true
@@ -229,6 +246,10 @@
     "ids": [
       1
     ],
+    "styleIds": [
+      "ThesisEndnoteText"
+    ],
+    "referenceMarkCount": 1,
     "hasPart": true,
     "hasSeparator": true,
     "hasContinuationSeparator": true
@@ -274,6 +295,11 @@
     "hasVerticalMerge": true,
     "hasRepeatHeaderRows": true,
     "hasCantSplitRows": true,
+    "hasNestedCellBlocks": false,
+    "hasCellNoteReferences": false,
+    "cellParagraphStyleIds": [
+      "ThesisBody"
+    ],
     "widthTypes": [
       "pct"
     ],
@@ -306,10 +332,11 @@
     "declarationSummary": {
       "hasDeclarationText": true,
       "hasSignatureField": true
-    }
+    },
+    "ruleParagraphCount": 1
   },
   "openXmlValidatorErrorCount": 0,
-  "paragraphCount": 66,
+  "paragraphCount": 67,
   "tableCount": 2,
   "drawingCount": 2,
   "figuresCount": 2,

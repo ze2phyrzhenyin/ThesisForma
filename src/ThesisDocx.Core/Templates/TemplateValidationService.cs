@@ -129,6 +129,23 @@ public sealed class TemplateValidationService
                 }
 
                 break;
+            case RuleLayoutBlock rule:
+                if (rule.ThicknessPt <= 0 || rule.ThicknessPt > 12)
+                {
+                    result.Add("template.pageTemplate.rule.thickness.invalid", $"{path}.thicknessPt", "Rule thicknessPt must be greater than 0 and no more than 12.");
+                }
+
+                if (!Regex.IsMatch(rule.Color, "^[0-9A-Fa-f]{6}$", RegexOptions.CultureInvariant))
+                {
+                    result.Add("template.pageTemplate.rule.color.invalid", $"{path}.color", "Rule color must be a six-digit RGB hex value.");
+                }
+
+                if (rule.SpacingBeforePt is < 0 || rule.SpacingAfterPt is < 0)
+                {
+                    result.Add("template.pageTemplate.rule.spacing.invalid", path, "Rule spacing must be non-negative.");
+                }
+
+                break;
         }
     }
 

@@ -145,9 +145,20 @@ public sealed class TemplatePilotPackageBuilder
                 ["maxEvidenceExcerptLength"] = workspace.Manifest.Privacy.MaxEvidenceExcerptLength,
                 ["maxBase64Length"] = workspace.Manifest.Privacy.MaxBase64Length,
                 ["maxWarningCount"] = workspace.Manifest.Privacy.MaxWarningCount ?? -1,
+                ["allowPublicInstitutionSourceDocumentsInExamples"] = workspace.Manifest.Privacy.AllowPublicInstitutionSourceDocumentsInExamples,
+                ["publicSourceDocumentPathPrefixes"] = workspace.Manifest.Privacy.PublicSourceDocumentPathPrefixes.Order(StringComparer.Ordinal).ToList(),
                 ["suppressedWarningCodes"] = workspace.Manifest.Privacy.SuppressedWarningCodes.Order(StringComparer.Ordinal).ToList(),
                 ["suppressedWarningPathPrefixes"] = workspace.Manifest.Privacy.SuppressedWarningPathPrefixes.Order(StringComparer.Ordinal).ToList(),
                 ["nonSuppressibleWarningCodePrefixes"] = new[] { "privacy.personal." }
+            },
+            AcceptanceSummary = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["reviewStatus"] = workspace.Manifest.Acceptance.ReviewStatus,
+                ["acceptedScope"] = workspace.Manifest.Acceptance.AcceptedScope.Order(StringComparer.Ordinal).ToList(),
+                ["acceptedRequirementIds"] = workspace.Manifest.Acceptance.AcceptedRequirementIds.Order(StringComparer.Ordinal).ToList(),
+                ["knownGapCount"] = workspace.Manifest.Acceptance.KnownGaps.Count,
+                ["acceptedBy"] = workspace.Manifest.Acceptance.AcceptedBy ?? string.Empty,
+                ["acceptedAt"] = workspace.Manifest.Acceptance.AcceptedAt ?? string.Empty
             }
         };
     }
@@ -359,4 +370,5 @@ public sealed class TemplatePilotPackageManifest
     public Dictionary<string, string> Sha256 { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, object> PrivacyScanSummary { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, object> PrivacyPolicySummary { get; set; } = new(StringComparer.Ordinal);
+    public Dictionary<string, object> AcceptanceSummary { get; set; } = new(StringComparer.Ordinal);
 }

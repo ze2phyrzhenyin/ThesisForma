@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "shnu-humanities-requirements",
+  "title": "上海师范大学研究生学位论文规范示例（文科）格式要求抽取稿",
+  "school": "上海师范大学",
+  "college": "研究生院",
+  "degreeType": "master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "source-docx-2026-05-13",
+      "title": "上海师范大学研究生学位论文规范示例（文科）",
+      "type": "docx",
+      "path": "source-documents/上海师范大学研究生学位论文规范示例（文科）(2)(2).docx",
+      "capturedAt": "2026-05-13T00:00:00Z",
+      "notes": "Attested public source DOCX committed under this public-source onboarding example."
+    },
+    {
+      "id": "openxml-analysis",
+      "title": "OpenXML extraction evidence",
+      "type": "manualNote",
+      "path": "requirements/requirements.json",
+      "capturedAt": "2026-05-13T00:00:00Z",
+      "notes": "Summarized from word/document.xml and word/styles.xml. Raw extraction text is not committed."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-page-setup",
+      "category": "pageSetup",
+      "title": "A4 portrait page and margins",
+      "description": "The source DOCX uses A4 portrait pages with fixed margins and header/footer distances.",
+      "sourceId": "openxml-analysis",
+      "evidence": {
+        "shortQuote": "A4; margins 2.54/2.54/3.17/3.17 cm",
+        "section": "OpenXML section properties"
+      },
+      "normalizedValue": "A4 portrait; top/bottom 2.54 cm; left/right 3.17 cm; header/footer 2.0 cm",
+      "targetSpecPath": "$.pageSetup",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Requires human review against the official current SHNU rule text."
+    },
+    {
+      "id": "req-frontmatter-pagination",
+      "category": "section",
+      "title": "Front matter uses Roman page numbers",
+      "description": "Front matter sections use upper Roman page numbers and restart at one.",
+      "sourceId": "openxml-analysis",
+      "evidence": {
+        "shortQuote": "fmt=upperRoman start=1",
+        "section": "OpenXML section properties"
+      },
+      "normalizedValue": "frontMatter pageNumberStyle upperRoman, restart at 1",
+      "targetSpecPath": "$.sections.frontMatter",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to section format."
+    },
+    {
+      "id": "req-body-pagination",
+      "category": "section",
+      "title": "Body uses decimal page numbers",
+      "description": "Body sections use decimal page numbers and restart at one.",
+      "sourceId": "openxml-analysis",
+      "evidence": {
+        "shortQuote": "fmt=decimal start=1",
+        "section": "OpenXML section properties"
+      },
+      "normalizedValue": "body pageNumberStyle decimal, restart at 1",
+      "targetSpecPath": "$.sections.body",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to section format."
+    },
+    {
+      "id": "req-body-paragraph",
+      "category": "paragraph",
+      "title": "Body paragraph font and spacing",
+      "description": "Body text uses Songti Chinese, Times New Roman Latin, 12 pt, first-line indent 2 characters, and 20 pt line spacing.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "宋体，小四号...首行左缩进2个汉字符。行距20磅",
+        "section": "正文格式说明"
+      },
+      "normalizedValue": "宋体/Times New Roman, 12 pt, first-line indent 2 chars, exact 20 pt line spacing",
+      "targetSpecPath": "$.bodyParagraph",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to bodyParagraph.lineSpacingExactPt."
+    },
+    {
+      "id": "req-heading-hierarchy",
+      "category": "heading",
+      "title": "Heading hierarchy",
+      "description": "Main titles use Heiti 16 pt bold centered; second-level titles use Heiti 15 pt centered; third-level titles use Heiti 14 pt left aligned.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "一级标题：黑体，三号，加粗居中",
+        "section": "章节标题说明"
+      },
+      "normalizedValue": "H1 16 pt bold centered; H2 15 pt centered; H3 14 pt left",
+      "targetSpecPath": "$.headings",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to levels 1-3; heading numbering follows chapter-oriented Stage 1 numbering."
+    },
+    {
+      "id": "req-header",
+      "category": "headerFooter",
+      "title": "Centered chapter-name header",
+      "description": "The source sample states that the header is Songti 10.5 pt, justified, with the chapter name centered.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "页眉：宋体五号...章节名称居中",
+        "section": "摘要页格式说明"
+      },
+      "normalizedValue": "header centered; dynamic chapter name desired",
+      "targetSpecPath": "$.headerFooter",
+      "confidence": "medium",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Partially mapped: current template uses deterministic centered header text; dynamic per-chapter header should be implemented through overrides or future renderer support."
+    },
+    {
+      "id": "req-toc",
+      "category": "toc",
+      "title": "TOC levels 1-3",
+      "description": "The source DOCX contains a Word TOC field configured for heading levels 1 through 3.",
+      "sourceId": "openxml-analysis",
+      "evidence": {
+        "shortQuote": "TOC \\\\o \"1-3\" \\\\h \\\\z \\\\u",
+        "section": "OpenXML field code"
+      },
+      "normalizedValue": "TOC title 目录; minLevel 1; maxLevel 3; Word field code",
+      "targetSpecPath": "$.toc",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to TOC format."
+    },
+    {
+      "id": "req-cover",
+      "category": "cover",
+      "title": "Cover fields and SHNU wordmark",
+      "description": "The cover contains the SHNU wordmark, school code, student number, thesis title, degree type, college, major, research direction, author, advisor, and completion date.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "学校代码：10270学号：",
+        "section": "Cover"
+      },
+      "normalizedValue": "Cover page template with metadata and variables",
+      "targetTemplatePath": "$.pageTemplates[0]",
+      "confidence": "medium",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Academic cover is implemented. The professional-degree cover variant is recorded but not conditionally rendered in Stage 1."
+    },
+    {
+      "id": "req-declaration",
+      "category": "declaration",
+      "title": "Originality and use authorization declarations",
+      "description": "The source sample includes originality and thesis-use authorization declaration pages with signature/date fields.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "学位论文独创性声明",
+        "section": "Declaration pages"
+      },
+      "normalizedValue": "Declaration page template with fixed declaration text and signature fields",
+      "targetTemplatePath": "$.pageTemplates[1]",
+      "confidence": "high",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Mapped to declarationText page template block."
+    },
+    {
+      "id": "req-bibliography",
+      "category": "bibliography",
+      "title": "GB/T 7714 bibliography",
+      "description": "The references section states that entries follow GB/T 7714-2015.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "GB/T7714-2015列出",
+        "section": "参考文献"
+      },
+      "normalizedValue": "Reference title 参考文献; numeric bibliography markers",
+      "targetSpecPath": "$.bibliography",
+      "confidence": "medium",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Citation style semantics need human review; Stage 1 renders structured bibliography entries."
+    },
+    {
+      "id": "req-appendix",
+      "category": "appendix",
+      "title": "Appendix title and numbering note",
+      "description": "The appendix title follows the chapter title style; appendix item numbering uses A/B/C series in the source note.",
+      "sourceId": "source-docx-2026-05-13",
+      "evidence": {
+        "shortQuote": "附录的序号用 A，B，C…系列",
+        "section": "附录"
+      },
+      "normalizedValue": "Appendix heading follows H1; appendix-specific figure/table/equation numbering noted",
+      "targetSpecPath": "$.headings",
+      "confidence": "medium",
+      "reviewStatus": "reviewed",
+      "reviewer": "Codex extraction",
+      "notes": "Partially mapped; appendix-specific numbering is not fully represented by current FormatSpec."
+    }
+  ],
+  "mappings": [
+    { "requirementId": "req-page-setup", "specPath": "$.pageSetup", "mappingStatus": "mapped", "notes": "Mapped to page setup." },
+    { "requirementId": "req-frontmatter-pagination", "specPath": "$.sections.frontMatter", "mappingStatus": "mapped", "notes": "Mapped to front matter section format." },
+    { "requirementId": "req-body-pagination", "specPath": "$.sections.body", "mappingStatus": "mapped", "notes": "Mapped to body section format." },
+    { "requirementId": "req-body-paragraph", "specPath": "$.bodyParagraph", "mappingStatus": "mapped", "notes": "Exact 20 pt line spacing is mapped to lineSpacingExactPt." },
+    { "requirementId": "req-heading-hierarchy", "specPath": "$.headings", "mappingStatus": "mapped", "notes": "Mapped to levels 1-3." },
+    { "requirementId": "req-header", "specPath": "$.headerFooter", "mappingStatus": "partial", "notes": "Static centered header mapped; dynamic chapter-name header remains a renderer/template limitation." },
+    { "requirementId": "req-toc", "specPath": "$.toc", "mappingStatus": "mapped", "notes": "Mapped to Word TOC field levels 1-3." },
+    { "requirementId": "req-cover", "templatePath": "$.pageTemplates[0]", "mappingStatus": "partial", "notes": "Academic cover implemented; professional cover variant requires a separate template or conditional page-template support." },
+    { "requirementId": "req-declaration", "templatePath": "$.pageTemplates[1]", "mappingStatus": "mapped", "notes": "Mapped to declarationText layout." },
+    { "requirementId": "req-bibliography", "specPath": "$.bibliography", "mappingStatus": "partial", "notes": "GB/T 7714 label recorded; semantic citation formatting requires review." },
+    { "requirementId": "req-appendix", "specPath": "$.headings", "mappingStatus": "partial", "notes": "Appendix heading mapped; appendix-specific numbering remains a limitation." }
+  ],
+  "unresolvedItems": [
+    "Professional-degree cover variant requires a separate template or conditional page-template support.",
+    "Dynamic chapter-name headers require section-instance overrides or renderer support.",
+    "Exact 20 pt line spacing is now represented by lineSpacingExactPt."
+  ],
+  "approval": {
+    "preparedBy": "Codex extraction",
+    "notes": "Machine-assisted public-source extraction draft. Human review is required before this real-institution template is accepted."
+  }
+}

@@ -1,11 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DocumentFormat.OpenXml.Packaging;
+using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Models.Templates;
 using ThesisDocx.Core.OpenXml;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Templates;
+using ThesisDocx.Core.Templates.Authoring;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Validation.FormatRuleCoverage;
@@ -206,6 +208,18 @@ public sealed class TemplateSystemTests
 
         Assert.True(resolution.IsValid, string.Join(Environment.NewLine, resolution.Errors));
         Assert.Equal("example-university-engineering", resolution.FormatSpec!.Name);
+    }
+
+    [Fact]
+    public void TemplateResolver_ShouldResolveHumanitiesTemplate()
+    {
+        var resolution = new TemplateResolver().Resolve(TemplatePath("example-university-humanities"));
+
+        Assert.True(resolution.IsValid, string.Join(Environment.NewLine, resolution.Errors));
+        Assert.Equal("example-university-humanities", resolution.FormatSpec!.Name);
+        Assert.Equal("仿宋", resolution.FormatSpec.DefaultFont.EastAsia);
+        Assert.Equal(PageNumberStyle.UpperRoman, resolution.FormatSpec.Sections["frontMatter"].PageNumberStyle);
+        Assert.Contains(resolution.PageTemplates, layout => layout.Id == "humanities-abstract-note");
     }
 
     [Fact]
@@ -532,12 +546,49 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void RenderHumanitiesTemplate_ShouldApplyXmlLevelContracts()
+    {
+        var rendered = RenderTemplateDocument(
+            "example-university-humanities",
+            Path.Combine(RepoRoot(), "examples", "template-regression", "documents", "example-university-humanities-full", "document.json"),
+            new Dictionary<string, string>
+            {
+                ["variables.submissionDate"] = "2026-06-15",
+                ["variables.researchField"] = "数字人文",
+                ["variables.reviewStatus"] = "公开评阅"
+            });
+
+        var validation = new OpenXmlPackageValidator().Validate(rendered.DocxPath);
+        using var document = WordprocessingDocument.Open(rendered.DocxPath, false);
+        var inspect = new DocxInspector().Inspect(rendered.DocxPath);
+        var bodyStyle = document.MainDocumentPart!.StyleDefinitionsPart!.Styles!.Elements<W.Style>().Single(style => style.StyleId?.Value == StyleIds.ThesisBody);
+        var heading1 = document.MainDocumentPart.StyleDefinitionsPart.Styles.Elements<W.Style>().Single(style => style.StyleId?.Value == StyleIds.Heading1);
+
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        Assert.Contains("Example Humanities College", BodyText(document), StringComparison.Ordinal);
+        Assert.Contains("学术诚信声明", BodyText(document), StringComparison.Ordinal);
+        Assert.Contains("数字人文", BodyText(document), StringComparison.Ordinal);
+        Assert.Contains("公开评阅", BodyText(document), StringComparison.Ordinal);
+        Assert.Contains(inspect.SectionPageNumberFormats, value => value == "upperRoman");
+        Assert.Contains(inspect.TemplateRendering.RenderedPageTemplates, value => value == "humanities-cover");
+        Assert.Contains(inspect.TemplateRendering.RenderedPageTemplates, value => value == "humanities-declaration");
+        Assert.Contains(inspect.TemplateRendering.RenderedPageTemplates, value => value == "humanities-abstract-note");
+        Assert.Contains(inspect.TemplateRendering.RenderedAssets, value => value == "humanitiesSeal");
+        Assert.Contains(document.MainDocumentPart.Document.Descendants<W.SimpleField>(), field => field.Instruction?.Value == "TOC \\o \"1-2\" \\h \\z \\u");
+        Assert.Equal("仿宋", bodyStyle.GetFirstChild<W.StyleRunProperties>()!.GetFirstChild<W.RunFonts>()!.EastAsia!.Value);
+        Assert.Equal("300", bodyStyle.GetFirstChild<W.StyleParagraphProperties>()!.GetFirstChild<W.SpacingBetweenLines>()!.Line!.Value);
+        Assert.Equal("30", heading1.GetFirstChild<W.StyleRunProperties>()!.GetFirstChild<W.FontSize>()!.Val!.Value);
+        Assert.NotNull(heading1.GetFirstChild<W.StyleParagraphProperties>()!.GetFirstChild<W.PageBreakBefore>());
+    }
+
+    [Fact]
     public void Cli_TemplateList_ShouldListExampleTemplates()
     {
         var result = CliRunner.Run(RepoRoot(), "template", "list", "--templates", Path.Combine(RepoRoot(), "examples", "templates"));
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("example-university-engineering", result.StandardOutput);
+        Assert.Contains("example-university-humanities", result.StandardOutput);
     }
 
     [Fact]
@@ -597,6 +648,257 @@ public sealed class TemplateSystemTests
         Assert.Equal("1.0.0", json["versionReport"]!["reportVersion"]!.GetValue<string>());
         Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "templatePackage");
         Assert.Contains(json["versionReport"]!["checks"]!.AsArray(), check => check!["kind"]!.GetValue<string>() == "thesisFormatSpec");
+    }
+
+    [Fact]
+    public void Schema_ShouldValidateFormatCandidateDecisionsAndProposalReport()
+    {
+        var directory = NewTempDirectory();
+        var inputs = WriteCandidateInputs(directory, CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"));
+        var decisionsPath = WriteDecisions(directory, ReviewDecisions(false, Decision("$.bodyParagraph.lineSpacingMultiple", FormatCandidateDecisionKind.Accept)));
+        var proposalReportPath = Path.Combine(directory, "template-candidate-proposal-report.json");
+        File.WriteAllText(proposalReportPath, JsonSerializer.Serialize(new TemplateCandidateProposalReport
+        {
+            Status = "pass",
+            SourceTemplate = TemplatePath("example-university-engineering"),
+            ProposedTemplate = Path.Combine(directory, "proposed-template"),
+            SourceCandidateFormatSpec = inputs.CandidateFormatPath,
+            SourceCandidateReport = inputs.CandidateReportPath,
+            DecisionsPath = decisionsPath,
+            ChaosLevel = "low",
+            CandidateFieldCount = 1,
+            AcceptedCount = 1,
+            AppliedFields =
+            [
+                new TemplateCandidateProposalAppliedField
+                {
+                    FieldPath = "$.bodyParagraph.lineSpacingMultiple",
+                    Decision = "accept",
+                    Reviewer = "reviewer-a",
+                    Reason = "Reviewed line spacing evidence.",
+                    ValuePreview = "1.25",
+                    EvidencePaths = ["paragraphs[0]"]
+                }
+            ]
+        }, ThesisJson.Options));
+
+        var validator = new ThesisSchemaValidator();
+        var decisions = validator.ValidateFormatCandidateDecisionsFile(decisionsPath, SchemaPath("format-candidate-decisions.schema.json"));
+        var report = validator.ValidateTemplateCandidateProposalReportFile(proposalReportPath, SchemaPath("template-candidate-proposal-report.schema.json"));
+
+        Assert.True(decisions.IsValid, string.Join(Environment.NewLine, decisions.Errors));
+        Assert.True(report.IsValid, string.Join(Environment.NewLine, report.Errors));
+    }
+
+    [Fact]
+    public void Cli_TemplateScaffoldCandidateDecisions_ShouldWriteEveryGeneratedField()
+    {
+        var directory = NewTempDirectory();
+        var inputs = WriteCandidateInputs(
+            directory,
+            CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"),
+            CandidateField("$.defaultFont.sizePt", "11"));
+        var decisionsPath = Path.Combine(directory, "format-candidate-decisions.json");
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "scaffold-candidate-decisions",
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--reviewer",
+            "reviewer-a",
+            "--out",
+            decisionsPath);
+        var decisions = JsonSerializer.Deserialize<FormatCandidateDecisionSet>(File.ReadAllText(decisionsPath), ThesisJson.Options)!;
+        var schema = new ThesisSchemaValidator().ValidateFormatCandidateDecisionsFile(decisionsPath, SchemaPath("format-candidate-decisions.schema.json"));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(schema.IsValid, string.Join(Environment.NewLine, schema.Errors));
+        Assert.Equal(2, decisions.Decisions.Count);
+        Assert.All(decisions.Decisions, decision => Assert.Equal(FormatCandidateDecisionKind.Reject, decision.Decision));
+    }
+
+    [Fact]
+    public void Cli_TemplateScaffoldCandidateDecisions_ShouldRejectModifyAsDefaultDecision()
+    {
+        var directory = NewTempDirectory();
+        var inputs = WriteCandidateInputs(directory, CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "scaffold-candidate-decisions",
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--reviewer",
+            "reviewer-a",
+            "--default-decision",
+            "modify",
+            "--out",
+            Path.Combine(directory, "decisions.json"));
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("Use accept or reject", result.StandardError);
+    }
+
+    [Fact]
+    public void Cli_TemplateProposeFromCandidate_ShouldApplyAcceptedAndModifiedFieldsToCopiedTemplate()
+    {
+        var directory = NewTempDirectory();
+        var proposedTemplate = Path.Combine(directory, "proposed-template");
+        var reportPath = Path.Combine(directory, "template-candidate-proposal-report.json");
+        var markdownPath = Path.Combine(directory, "template-candidate-proposal-report.md");
+        var inputs = WriteCandidateInputs(
+            directory,
+            CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"),
+            CandidateField("$.defaultFont.sizePt", "11"));
+        var decisionsPath = WriteDecisions(
+            directory,
+            ReviewDecisions(
+                false,
+                Decision("$.bodyParagraph.lineSpacingMultiple", FormatCandidateDecisionKind.Accept),
+                Decision("$.defaultFont.sizePt", FormatCandidateDecisionKind.Modify, JsonValue.Create(10.5))));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "propose-from-candidate",
+            "--template",
+            TemplatePath("example-university-engineering"),
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--decisions",
+            decisionsPath,
+            "--out",
+            proposedTemplate,
+            "--report",
+            reportPath,
+            "--markdown",
+            markdownPath);
+        var proposed = LoadFormat(Path.Combine(proposedTemplate, "format-spec.json"));
+        var report = JsonSerializer.Deserialize<TemplateCandidateProposalReport>(File.ReadAllText(reportPath), ThesisJson.Options)!;
+        var validation = CliRunner.Run(RepoRoot(), "template", "validate", "--template", proposedTemplate);
+        var schema = new ThesisSchemaValidator().ValidateTemplateCandidateProposalReportFile(reportPath, SchemaPath("template-candidate-proposal-report.schema.json"));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(0, validation.ExitCode);
+        Assert.True(schema.IsValid, string.Join(Environment.NewLine, schema.Errors));
+        Assert.Equal(1.25, proposed.BodyParagraph.LineSpacingMultiple);
+        Assert.Equal(10.5, proposed.DefaultFont.SizePt);
+        Assert.Equal("pass", report.Status);
+        Assert.Equal(1, report.AcceptedCount);
+        Assert.Equal(1, report.ModifiedCount);
+        Assert.Contains("Template Candidate Proposal Report", File.ReadAllText(markdownPath));
+    }
+
+    [Fact]
+    public void Cli_TemplateProposeFromCandidate_ShouldLeaveRejectedFieldsUnchanged()
+    {
+        var directory = NewTempDirectory();
+        var proposedTemplate = Path.Combine(directory, "proposed-template");
+        var reportPath = Path.Combine(directory, "proposal.json");
+        var original = LoadFormat(TemplateFormatPath("example-university-engineering"));
+        var inputs = WriteCandidateInputs(directory, CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"));
+        var decisionsPath = WriteDecisions(directory, ReviewDecisions(false, Decision("$.bodyParagraph.lineSpacingMultiple", FormatCandidateDecisionKind.Reject)));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "propose-from-candidate",
+            "--template",
+            TemplatePath("example-university-engineering"),
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--decisions",
+            decisionsPath,
+            "--out",
+            proposedTemplate,
+            "--report",
+            reportPath);
+        var proposed = LoadFormat(Path.Combine(proposedTemplate, "format-spec.json"));
+        var report = JsonSerializer.Deserialize<TemplateCandidateProposalReport>(File.ReadAllText(reportPath), ThesisJson.Options)!;
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(original.BodyParagraph.LineSpacingMultiple, proposed.BodyParagraph.LineSpacingMultiple);
+        Assert.Equal(1, report.RejectedCount);
+        Assert.Empty(report.AppliedFields);
+    }
+
+    [Fact]
+    public void Cli_TemplateProposeFromCandidate_ShouldRejectHighChaosAcceptedFieldWithoutRiskAcceptance()
+    {
+        var directory = NewTempDirectory();
+        var proposedTemplate = Path.Combine(directory, "proposed-template");
+        var reportPath = Path.Combine(directory, "proposal.json");
+        var inputs = WriteCandidateInputs(directory, CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"), chaosLevel: "high", chaosScore: 0.82);
+        var decisionsPath = WriteDecisions(directory, ReviewDecisions(false, Decision("$.bodyParagraph.lineSpacingMultiple", FormatCandidateDecisionKind.Accept)));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "propose-from-candidate",
+            "--template",
+            TemplatePath("example-university-engineering"),
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--decisions",
+            decisionsPath,
+            "--out",
+            proposedTemplate,
+            "--report",
+            reportPath);
+        var report = JsonSerializer.Deserialize<TemplateCandidateProposalReport>(File.ReadAllText(reportPath), ThesisJson.Options)!;
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.False(Directory.Exists(proposedTemplate));
+        Assert.Equal("fail", report.Status);
+        Assert.Contains(report.Issues, issue => issue.Code == "templateCandidateProposal.riskAcceptance.required");
+    }
+
+    [Fact]
+    public void Cli_TemplateProposeFromCandidate_ShouldRequireDecisionForEveryGeneratedField()
+    {
+        var directory = NewTempDirectory();
+        var proposedTemplate = Path.Combine(directory, "proposed-template");
+        var reportPath = Path.Combine(directory, "proposal.json");
+        var inputs = WriteCandidateInputs(
+            directory,
+            CandidateField("$.bodyParagraph.lineSpacingMultiple", "1.25"),
+            CandidateField("$.defaultFont.sizePt", "11"));
+        var decisionsPath = WriteDecisions(directory, ReviewDecisions(false, Decision("$.bodyParagraph.lineSpacingMultiple", FormatCandidateDecisionKind.Accept)));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "template",
+            "propose-from-candidate",
+            "--template",
+            TemplatePath("example-university-engineering"),
+            "--candidate-format",
+            inputs.CandidateFormatPath,
+            "--candidate-report",
+            inputs.CandidateReportPath,
+            "--decisions",
+            decisionsPath,
+            "--out",
+            proposedTemplate,
+            "--report",
+            reportPath);
+        var report = JsonSerializer.Deserialize<TemplateCandidateProposalReport>(File.ReadAllText(reportPath), ThesisJson.Options)!;
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.False(Directory.Exists(proposedTemplate));
+        Assert.Contains(report.Issues, issue => issue.Code == "templateCandidateProposal.decision.missing");
     }
 
     [Fact]
@@ -866,6 +1168,147 @@ public sealed class TemplateSystemTests
             Path.Combine(RepoRoot(), "schemas", "template-package.schema.json"));
     }
 
+    private static string SchemaPath(string name)
+    {
+        return Path.Combine(RepoRoot(), "schemas", name);
+    }
+
+    private static CandidateInputPaths WriteCandidateInputs(
+        string directory,
+        params DocxFormatCandidateField[] fields)
+    {
+        return WriteCandidateInputs(directory, fields, "low", 0.1);
+    }
+
+    private static CandidateInputPaths WriteCandidateInputs(
+        string directory,
+        DocxFormatCandidateField field,
+        string chaosLevel,
+        double chaosScore)
+    {
+        return WriteCandidateInputs(directory, [field], chaosLevel, chaosScore);
+    }
+
+    private static CandidateInputPaths WriteCandidateInputs(
+        string directory,
+        IReadOnlyList<DocxFormatCandidateField> fields,
+        string chaosLevel,
+        double chaosScore)
+    {
+        Directory.CreateDirectory(directory);
+        var candidateFormatPath = Path.Combine(directory, "candidate-format-spec.json");
+        var candidateReportPath = Path.Combine(directory, "format-candidate-report.json");
+        var candidateSpec = JsonSerializer.SerializeToNode(new ThesisFormatSpec { Name = "candidate-test" }, ThesisJson.Options)!.AsObject();
+        foreach (var field in fields)
+        {
+            SetJsonPath(candidateSpec, field.Path, CandidateValue(field.Value));
+        }
+
+        var report = new DocxFormatCandidateReport
+        {
+            SourceExtraction = "synthetic-extraction.json",
+            CandidateStatus = chaosLevel == "high" ? "needsReview" : "draft",
+            CandidateFormatSpecName = "candidate-test",
+            ChaosLevel = chaosLevel,
+            ChaosScore = chaosScore,
+            GeneratedFieldCount = fields.Count,
+            GeneratedFields = fields.ToList(),
+            ClustersUsed = [],
+            UnresolvedItems = [],
+            Warnings = [],
+            RecommendedReviewSteps = ["Review every generated field before applying it to a template."]
+        };
+        File.WriteAllText(candidateFormatPath, candidateSpec.ToJsonString(ThesisJson.Options));
+        File.WriteAllText(candidateReportPath, JsonSerializer.Serialize(report, ThesisJson.Options));
+        return new CandidateInputPaths(candidateFormatPath, candidateReportPath);
+    }
+
+    private static DocxFormatCandidateField CandidateField(string path, string value)
+    {
+        return new DocxFormatCandidateField
+        {
+            Path = path,
+            Value = value,
+            SourceClusterId = "cluster-body",
+            Confidence = 0.9,
+            EvidencePaths = ["paragraphs[0]"],
+            Reason = "Synthetic candidate field for template proposal tests."
+        };
+    }
+
+    private static FormatCandidateDecisionSet ReviewDecisions(bool riskAccepted, params FormatCandidateDecision[] decisions)
+    {
+        return new FormatCandidateDecisionSet
+        {
+            SourceCandidateFormatSpec = "candidate-format-spec.json",
+            SourceCandidateReport = "format-candidate-report.json",
+            Reviewer = "reviewer-a",
+            ReviewedAt = "2026-05-13",
+            RiskAccepted = riskAccepted,
+            RiskAcceptanceReason = riskAccepted ? "Reviewed high-chaos evidence and accepted the explicitly listed fields only." : string.Empty,
+            Decisions = decisions.ToList()
+        };
+    }
+
+    private static FormatCandidateDecision Decision(string path, FormatCandidateDecisionKind kind, JsonNode? value = null)
+    {
+        return new FormatCandidateDecision
+        {
+            FieldPath = path,
+            Decision = kind,
+            Value = value,
+            Reason = kind switch
+            {
+                FormatCandidateDecisionKind.Accept => "Reviewed and accepted candidate evidence.",
+                FormatCandidateDecisionKind.Modify => "Reviewed evidence and corrected the candidate value.",
+                _ => "Rejected after review."
+            },
+            EvidencePaths = ["paragraphs[0]"]
+        };
+    }
+
+    private static string WriteDecisions(string directory, FormatCandidateDecisionSet decisions)
+    {
+        var decisionsPath = Path.Combine(directory, "format-candidate-decisions.json");
+        File.WriteAllText(decisionsPath, JsonSerializer.Serialize(decisions, ThesisJson.Options));
+        return decisionsPath;
+    }
+
+    private static JsonNode CandidateValue(string raw)
+    {
+        if (bool.TryParse(raw, out var boolean))
+        {
+            return JsonValue.Create(boolean)!;
+        }
+
+        if (double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number))
+        {
+            return JsonValue.Create(number)!;
+        }
+
+        return JsonValue.Create(raw)!;
+    }
+
+    private static void SetJsonPath(JsonObject root, string path, JsonNode value)
+    {
+        var segments = path[2..].Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var current = root;
+        foreach (var segment in segments.Take(segments.Length - 1))
+        {
+            if (current[segment] is not JsonObject child)
+            {
+                child = new JsonObject();
+                current[segment] = child;
+            }
+
+            current = child;
+        }
+
+        current[segments[^1]] = value;
+    }
+
+    private sealed record CandidateInputPaths(string CandidateFormatPath, string CandidateReportPath);
+
     private static string WriteMutatedTemplate(Action<JsonNode> mutate)
     {
         var source = JsonNode.Parse(File.ReadAllText(Path.Combine(TemplatePath("example-university-engineering"), "template.json")))!;
@@ -904,9 +1347,14 @@ public sealed class TemplateSystemTests
 
     private static RenderedTemplateDocx RenderTemplateFull(IReadOnlyDictionary<string, string>? cliVariables = null)
     {
-        var (document, baseDir) = LoadFullDocument();
+        return RenderTemplateDocument("example-university-engineering", FullDocumentPath(), cliVariables ?? new Dictionary<string, string>());
+    }
+
+    private static RenderedTemplateDocx RenderTemplateDocument(string templateName, string documentPath, IReadOnlyDictionary<string, string>? cliVariables = null)
+    {
+        var (document, baseDir) = LoadDocument(documentPath);
         ResolveFigurePaths(document, baseDir);
-        var resolution = new TemplateResolver().Resolve(TemplatePath("example-university-engineering"), document, cliVariables ?? new Dictionary<string, string>());
+        var resolution = new TemplateResolver().Resolve(TemplatePath(templateName), document, cliVariables ?? new Dictionary<string, string>());
         if (!resolution.IsValid)
         {
             throw new InvalidOperationException(string.Join(Environment.NewLine, resolution.Errors));
@@ -930,7 +1378,11 @@ public sealed class TemplateSystemTests
 
     private static (ThesisDocument Document, string BaseDir) LoadFullDocument()
     {
-        var path = FullDocumentPath();
+        return LoadDocument(FullDocumentPath());
+    }
+
+    private static (ThesisDocument Document, string BaseDir) LoadDocument(string path)
+    {
         var document = JsonSerializer.Deserialize<ThesisDocument>(File.ReadAllText(path), ThesisJson.Options)!;
         return (document, Path.GetDirectoryName(path)!);
     }

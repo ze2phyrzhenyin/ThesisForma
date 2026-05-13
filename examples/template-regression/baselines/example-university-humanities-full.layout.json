@@ -1,0 +1,229 @@
+{
+  "reportVersion": "1.0.0",
+  "sourcePath": "example-university-humanities-full.docx",
+  "sections": [
+    {
+      "index": 0,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304",
+      "headerDistanceTwips": "680",
+      "footerDistanceTwips": "907",
+      "pageNumberFormat": "none"
+    },
+    {
+      "index": 1,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304",
+      "headerDistanceTwips": "680",
+      "footerDistanceTwips": "907",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    },
+    {
+      "index": 2,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304",
+      "headerDistanceTwips": "680",
+      "footerDistanceTwips": "907",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    }
+  ],
+  "styles": [
+    {
+      "styleId": "Heading1",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "30",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "0"
+    },
+    {
+      "styleId": "Heading2",
+      "eastAsiaFont": "\u6977\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "28",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "1"
+    },
+    {
+      "styleId": "Heading3",
+      "eastAsiaFont": "\u4EFF\u5B8B",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "2"
+    },
+    {
+      "styleId": "ThesisBibliography",
+      "eastAsiaFont": "\u4EFF\u5B8B",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "240",
+      "hangingIndent": "482",
+      "alignment": "JustificationValues { }"
+    },
+    {
+      "styleId": "ThesisBody",
+      "eastAsiaFont": "\u4EFF\u5B8B",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "300",
+      "firstLineIndent": "480",
+      "alignment": "JustificationValues { }"
+    }
+  ],
+  "tables": [
+    {
+      "index": 0,
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:;bottom=BorderValues { }:;left=BorderValues { }:;right=BorderValues { }:;insideH=BorderValues { }:;insideV=BorderValues { }:",
+      "hasGridSpan": false,
+      "gridSpanValues": [],
+      "hasVerticalMerge": false,
+      "verticalMergeValues": [],
+      "hasRepeatHeaderRows": false,
+      "repeatHeaderRowCount": 0,
+      "hasCantSplitRows": false,
+      "cantSplitRowCount": 0,
+      "cellWidths": [
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556",
+        "dxa:1814",
+        "dxa:5556"
+      ],
+      "cellVerticalAlignments": [],
+      "cellBorders": []
+    },
+    {
+      "index": 1,
+      "layoutType": "fixed",
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:10;bottom=BorderValues { }:10;left=BorderValues { }:0;right=BorderValues { }:0;insideH=BorderValues { }:4;insideV=BorderValues { }:0",
+      "hasGridSpan": true,
+      "gridSpanValues": [
+        "2"
+      ],
+      "hasVerticalMerge": true,
+      "verticalMergeValues": [
+        "restart",
+        "continue"
+      ],
+      "hasRepeatHeaderRows": true,
+      "repeatHeaderRowCount": 1,
+      "hasCantSplitRows": true,
+      "cantSplitRowCount": 3,
+      "cellWidths": [
+        "dxa:2400",
+        "dxa:7200"
+      ],
+      "cellVerticalAlignments": [
+        "center",
+        "center",
+        "center"
+      ],
+      "cellBorders": [
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000",
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000",
+        "top=single:4:000000;bottom=double:8:000000;left=single:4:000000;right=single:4:000000"
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "index": 0,
+      "cx": "648000",
+      "cy": "648000",
+      "caption": "\u56FE1 \u6E32\u67D3\u6D41\u7A0B\u793A\u610F\u56FE"
+    },
+    {
+      "index": 1,
+      "cx": "1800000",
+      "cy": "1080000"
+    }
+  ],
+  "equations": {
+    "ommlCount": 3,
+    "hasNumbering": true,
+    "bookmarks": [
+      "bm-eq-energy",
+      "bm-eq-omml"
+    ]
+  },
+  "fields": {
+    "tocCount": 1,
+    "pageCount": 2,
+    "refCount": 4,
+    "instructions": [
+      "PAGE \\* MERGEFORMAT",
+      "PAGE \\* MERGEFORMAT",
+      "REF bm-chapter-1 \\h",
+      "REF bm-eq-energy \\h",
+      "REF bm-table-format-rules \\h",
+      "REF bm-validation \\h",
+      "TOC \\o \u00221-2\u0022 \\h \\z \\u"
+    ]
+  },
+  "footnotes": {
+    "hasPart": true,
+    "count": 1,
+    "ids": [
+      1
+    ]
+  },
+  "endnotes": {
+    "hasPart": true,
+    "count": 1,
+    "ids": [
+      1
+    ]
+  },
+  "bibliography": {
+    "entryCount": 2,
+    "hangingIndents": [
+      "482"
+    ]
+  },
+  "customProperties": {
+    "ThesisDocx.RenderedAssets": "humanitiesSeal",
+    "ThesisDocx.RenderedPageTemplates": "humanities-cover,humanities-declaration,humanities-abstract-note",
+    "ThesisDocx.RenderedVariables": "researchField,submissionDate,reviewStatus,submissionDate",
+    "ThesisDocx.RendererVersion": "1.0.0",
+    "ThesisDocx.ResolvedFormatSpecVersion": "1.2.0",
+    "ThesisDocx.SchemaVersion": "1.2.0",
+    "ThesisDocx.TemplateId": "example-university-humanities",
+    "ThesisDocx.TemplateVersion": "1.0.0"
+  }
+}

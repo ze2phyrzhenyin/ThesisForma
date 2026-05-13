@@ -25,7 +25,7 @@ A template package includes:
 - `complianceRules`;
 - notes.
 
-Examples live under `examples/templates`. The Example University templates are fictional fixtures.
+Examples live under `examples/templates` and `examples/onboarding`. The Example University engineering and humanities templates are fictional fixtures that exercise different declarative format profiles; real public-source onboarding examples require manifest attestations and privacy scan.
 
 ## Inheritance
 
@@ -65,11 +65,16 @@ Missing required variables are errors. Missing optional variables become warning
 
 Assets must use relative paths. Image assets can be rendered in page templates. Font assets are metadata-only in this round; the renderer does not embed or distribute font files.
 
+## Page Templates
+
+The page-template DSL remains bounded and deterministic. In addition to text, metadata fields, field tables, declaration text, images, spacers, and page breaks, templates can use `rule` blocks for cover/declaration separator lines. A rule renders as a normal paragraph bottom border, not as absolute positioning or raw document fragments.
+
 ## CLI
 
 ```bash
 dotnet run --project src/ThesisDocx.Cli -- template list --templates examples/templates
 dotnet run --project src/ThesisDocx.Cli -- template validate --template examples/templates/example-university-engineering
+dotnet run --project src/ThesisDocx.Cli -- template validate --template examples/templates/example-university-humanities
 dotnet run --project src/ThesisDocx.Cli -- template resolve --template examples/templates/example-university-engineering --out out/resolved-format-spec.json
 ```
 

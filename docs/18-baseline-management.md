@@ -34,6 +34,10 @@ dotnet run --project src/ThesisDocx.Cli -- baseline compare \
 dotnet run --project src/ThesisDocx.Cli -- baseline compare \
   --fixtures examples/format-fixtures \
   --out out/format-fixtures-baseline-compare.json
+
+dotnet run --project src/ThesisDocx.Cli -- baseline init \
+  --fixtures examples/format-fixtures \
+  --out examples/format-fixtures/baselines/format-fixture-baseline-manifest.json
 ```
 
 Only update a baseline after a reviewer accepts the rule change:

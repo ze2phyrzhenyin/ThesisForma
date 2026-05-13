@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "suiteId": "Example University Engineering Template Regression",
+  "suiteId": "Example University Template Regression",
   "generatedAt": "2000-01-01T00:00:00Z",
   "baselines": [
     {
@@ -16,7 +16,37 @@
       "allowedDiffCategories": [],
       "forbiddenDiffCategories": [],
       "lastUpdatedAt": "2000-01-01T00:00:00Z",
-      "notes": "Initialized baseline."
+      "notes": "Initialized baseline.; Accepted note styles, table cell block evidence, and page template rule rendering"
+    },
+    {
+      "caseId": "example-university-humanities-full",
+      "templateId": "example-university-humanities",
+      "templateVersion": "1.0.0",
+      "documentId": "document",
+      "snapshotPath": "example-university-humanities-full.snapshot.txt",
+      "layoutSignaturePath": "example-university-humanities-full.layout.json",
+      "inspectPath": "example-university-humanities-full.inspect.json",
+      "structureDiffPolicy": "failOnBreaking",
+      "layoutThreshold": 0.99,
+      "allowedDiffCategories": [],
+      "forbiddenDiffCategories": [],
+      "lastUpdatedAt": "2000-01-01T00:00:00Z",
+      "notes": "Initialized baseline.; Add fictional humanities template regression baseline.; Accepted note styles, table cell block evidence, and page template rule rendering"
+    },
+    {
+      "caseId": "shnu-humanities-public-source-full",
+      "templateId": "shnu-humanities-public-source-pilot",
+      "templateVersion": "1.0.0",
+      "documentId": "document",
+      "snapshotPath": "shnu-humanities-public-source-full.snapshot.txt",
+      "layoutSignaturePath": "shnu-humanities-public-source-full.layout.json",
+      "inspectPath": "shnu-humanities-public-source-full.inspect.json",
+      "structureDiffPolicy": "failOnBreaking",
+      "layoutThreshold": 0.99,
+      "allowedDiffCategories": [],
+      "forbiddenDiffCategories": [],
+      "lastUpdatedAt": "2000-01-01T00:00:00Z",
+      "notes": "Initialized public-source SHNU machine-acceptance baseline.; Accept exact 20 pt SHNU body line spacing; Apply exact 20 pt line spacing to SHNU body and bibliography styles; Apply exact 20 pt line spacing to SHNU bibliography entries"
     }
   ]
 }

@@ -1,0 +1,190 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "shnu-humanities-public-source-pilot",
+  "name": "上海师范大学研究生学位论文规范示例（文科）公开来源试点",
+  "version": "0.1.0",
+  "locale": "zh-CN",
+  "description": "Public-source real-institution pilot generated from the SHNU humanities DOCX sample. Human format review is still required before acceptance.",
+  "school": "上海师范大学",
+  "college": "研究生院",
+  "degreeType": "master",
+  "tags": ["public-source", "real-institution", "humanities", "shnu"],
+  "formatSpecRef": "format-spec.json",
+  "variables": [
+    {
+      "name": "schoolCode",
+      "label": "学校代码",
+      "type": "string",
+      "required": true,
+      "defaultValue": "10270",
+      "description": "Cover school code from the source sample.",
+      "displayOrder": 1
+    },
+    {
+      "name": "coverThesisType",
+      "label": "封面论文类型",
+      "type": "enum",
+      "required": true,
+      "defaultValue": "博士/硕士学位论文",
+      "description": "The source sample includes academic and professional cover variants; this template renders the selected label.",
+      "enumValues": ["博士/硕士学位论文", "硕士专业学位论文"],
+      "displayOrder": 2
+    },
+    {
+      "name": "researchDirection",
+      "label": "研究方向",
+      "type": "string",
+      "required": false,
+      "defaultValue": "中国古代文学",
+      "description": "Cover research direction field.",
+      "displayOrder": 3
+    },
+    {
+      "name": "completionDate",
+      "label": "完成日期",
+      "type": "date",
+      "required": true,
+      "defaultValue": "2026-05-13",
+      "description": "Completion date shown on the cover and declaration signature rows.",
+      "format": "yyyy年M月",
+      "displayOrder": 4
+    }
+  ],
+  "assets": [
+    {
+      "id": "shnuWordmark",
+      "type": "image",
+      "path": "assets/shnu-wordmark.jpg",
+      "contentType": "image/jpeg",
+      "description": "Wordmark extracted from the attested public source DOCX for pilot rendering.",
+      "required": true
+    }
+  ],
+  "pageTemplates": [
+    {
+      "id": "shnu-humanities-cover",
+      "targetSectionType": "cover",
+      "insertPosition": "replaceSectionContent",
+      "pageSetupOverride": {
+        "paperSize": "a4",
+        "orientation": "portrait",
+        "topMarginCm": 2.54,
+        "bottomMarginCm": 2.54,
+        "leftMarginCm": 3.17,
+        "rightMarginCm": 3.17,
+        "gutterCm": 0,
+        "headerDistanceCm": 2.0,
+        "footerDistanceCm": 2.0,
+        "columns": 1
+      },
+      "blocks": [
+        { "type": "spacer", "heightCm": 0.8 },
+        {
+          "type": "text",
+          "value": "学校代码：{{variables.schoolCode}}    学号：{{metadata.studentId}}",
+          "style": "ThesisBody",
+          "alignment": "left",
+          "spacingAfterPt": 8
+        },
+        { "type": "image", "assetId": "shnuWordmark", "widthCm": 12.0, "heightCm": 3.12, "alignment": "center" },
+        { "type": "rule", "thicknessPt": 0.75, "color": "000000", "alignment": "center", "spacingBeforePt": 4, "spacingAfterPt": 8 },
+        { "type": "spacer", "heightCm": 0.8 },
+        {
+          "type": "text",
+          "value": "{{variables.coverThesisType}}",
+          "style": "ThesisTocTitle",
+          "alignment": "center",
+          "spacingBeforePt": 8,
+          "spacingAfterPt": 18,
+          "fontOverride": { "eastAsia": "宋体", "latin": "Times New Roman", "sizePt": 26, "bold": true, "italic": false }
+        },
+        {
+          "type": "text",
+          "value": "{{metadata.title}}",
+          "style": "ThesisTocTitle",
+          "alignment": "center",
+          "spacingBeforePt": 12,
+          "spacingAfterPt": 24,
+          "fontOverride": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 18, "bold": true, "italic": false }
+        },
+        {
+          "type": "fieldTable",
+          "columns": 2,
+          "borderMode": "bottomLine",
+          "labelColumnWidthCm": 3.4,
+          "valueColumnWidthCm": 8.8,
+          "rows": [
+            [{ "type": "metadataField", "label": "学号", "sourcePath": "metadata.studentId", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "学 院", "sourcePath": "metadata.college", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "专 业", "sourcePath": "metadata.major", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "研究方向", "variableName": "researchDirection", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "研究生姓名", "sourcePath": "metadata.author", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "导师", "sourcePath": "metadata.advisor", "layout": "tableRow", "underline": true }],
+            [{ "type": "metadataField", "label": "完成日期", "variableName": "completionDate", "layout": "tableRow", "underline": true }]
+          ]
+        },
+        { "type": "pageBreak" }
+      ]
+    },
+    {
+      "id": "shnu-declarations",
+      "targetSectionType": "declaration",
+      "insertPosition": "replaceSectionContent",
+      "blocks": [
+        {
+          "type": "text",
+          "value": "学位论文独创性声明",
+          "style": "ThesisTocTitle",
+          "alignment": "center",
+          "spacingBeforePt": 15.6,
+          "spacingAfterPt": 15.6,
+          "fontOverride": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 14, "bold": false, "italic": false }
+        },
+        {
+          "type": "declarationText",
+          "paragraphs": [
+            "本人声明本论文是在导师指导下独立完成的研究成果。论文中除了特别加以标注和致谢的地方外，不包含其他人或机构已经发表或撰写过的研究成果。其他同志对本研究的启发和所做的贡献均已在论文中做了明确的声明并表示了谢意。"
+          ],
+          "signatureFields": [
+            { "type": "metadataField", "label": "作者签名", "valueTemplate": "{{metadata.author}}", "layout": "labelValueLine", "underline": true, "alignment": "right" },
+            { "type": "metadataField", "label": "日期", "variableName": "completionDate", "layout": "labelValueLine", "underline": true, "alignment": "right" }
+          ]
+        },
+        { "type": "spacer", "heightCm": 0.6 },
+        {
+          "type": "text",
+          "value": "学位论文使用授权声明",
+          "style": "ThesisTocTitle",
+          "alignment": "center",
+          "spacingBeforePt": 15.6,
+          "spacingAfterPt": 15.6,
+          "fontOverride": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 14, "bold": false, "italic": false }
+        },
+        {
+          "type": "declarationText",
+          "paragraphs": [
+            "本人完全了解上海师范大学有关保留、使用学位论文的规定，即：学校有权保留送交论文的复印件，允许论文被查阅和借阅；学校可以公布论文的全部或部分内容，可以采用影印、缩印或其它手段保存论文。暂缓出版的论文在公开后遵守此规定。"
+          ],
+          "signatureFields": [
+            { "type": "metadataField", "label": "作者签名", "valueTemplate": "{{metadata.author}}", "layout": "labelValueLine", "underline": true, "alignment": "right" },
+            { "type": "metadataField", "label": "导师签名", "sourcePath": "metadata.advisor", "layout": "labelValueLine", "underline": true, "alignment": "right" },
+            { "type": "metadataField", "label": "日期", "variableName": "completionDate", "layout": "labelValueLine", "underline": true, "alignment": "right" }
+          ]
+        },
+        { "type": "pageBreak" }
+      ]
+    }
+  ],
+  "complianceRules": [
+    { "id": "shnu-page-setup", "description": "A4 portrait with source-sample margins and header/footer distances.", "severity": "warning" },
+    { "id": "shnu-heading-shape", "description": "Heading levels 1-3 follow the extracted humanities sample styles.", "severity": "warning" },
+    { "id": "shnu-cover-fields", "description": "Cover renders SHNU wordmark and academic-degree metadata fields.", "severity": "warning" },
+    { "id": "shnu-declarations", "description": "Declaration page renders originality and use-authorization text.", "severity": "warning" },
+    { "id": "shnu-review-required", "description": "This public-source pilot requires human review before acceptance.", "severity": "info" }
+  ],
+  "notes": [
+    "Public-source real-institution pilot with source attestation in onboarding.json.",
+    "Generated from source DOCX evidence on 2026-05-13.",
+    "Professional-degree cover variant, dynamic chapter headers, and appendix-specific numbering are recorded as unresolved review items."
+  ]
+}

@@ -388,6 +388,8 @@ public sealed class OnboardingWorkspaceValidator
             }
         }
 
+        ValidateAcceptance(workspace.Manifest, result);
+
         if (File.Exists(workspace.RequirementsFile))
         {
             var requirements = new RequirementCaptureLoader().Load(workspace.RequirementsFile);
@@ -440,6 +442,44 @@ public sealed class OnboardingWorkspaceValidator
         yield return ("baselinesDir", paths.BaselinesDir);
         yield return ("reportsDir", paths.ReportsDir);
         yield return ("artifactsDir", paths.ArtifactsDir);
+    }
+
+    private static void ValidateAcceptance(OnboardingWorkspaceManifest manifest, OnboardingWorkspaceValidationResult result)
+    {
+        if (manifest.Acceptance.ReviewStatus == "humanAccepted"
+            && (string.IsNullOrWhiteSpace(manifest.Acceptance.AcceptedBy) || string.IsNullOrWhiteSpace(manifest.Acceptance.AcceptedAt)))
+        {
+            Add(result, true, "onboarding.acceptance.humanReviewMissing", "$.acceptance", "Human accepted workspaces must record acceptedBy and acceptedAt.");
+        }
+
+        if (!string.Equals(manifest.Institution.RedactionPolicy, "publicSourceExample", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (manifest.Acceptance.ReviewStatus == "notReviewed")
+        {
+            Add(result, true, "onboarding.acceptance.publicSourceNotReviewed", "$.acceptance.reviewStatus", "Public-source examples must record at least machineChecked acceptance.");
+        }
+
+        var requiredScopes = new[]
+        {
+            "privacy",
+            "schema",
+            "inputValidation",
+            "render",
+            "formatConformance",
+            "templateRegression",
+            "baselineCompare",
+            "package"
+        };
+        foreach (var scope in requiredScopes)
+        {
+            if (!manifest.Acceptance.AcceptedScope.Contains(scope, StringComparer.Ordinal))
+            {
+                Add(result, true, "onboarding.acceptance.scopeMissing", "$.acceptance.acceptedScope", $"Public-source acceptance is missing scope '{scope}'.");
+            }
+        }
     }
 
     private static void Add(OnboardingWorkspaceValidationResult result, bool error, string code, string path, string message)

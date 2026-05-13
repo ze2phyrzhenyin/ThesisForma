@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "workspaceId": "example-engineering-pilot",
   "displayName": "Example Engineering College pilot onboarding",
+  "publicSourceAttestations": [],
   "institution": {
     "school": "Example University",
     "college": "Example Engineering College",
@@ -24,6 +25,8 @@
     "allowSourceDocumentsInWorkspace": true,
     "prohibitSourceDocumentsInRelease": true,
     "prohibitPersonalDataInExamples": true,
+    "allowPublicInstitutionSourceDocumentsInExamples": false,
+    "publicSourceDocumentPathPrefixes": [],
     "maxEvidenceExcerptLength": 240,
     "maxWarningCount": 0,
     "suppressedWarningCodes": ["privacy.generatedArtifact.forbidden"],
@@ -35,6 +38,15 @@
       "requirements/example-engineering-requirements-invalid.json",
       "template-regression/template-regression-suite.json"
     ]
+  },
+  "acceptance": {
+    "reviewStatus": "humanAccepted",
+    "acceptedScope": ["privacy", "schema", "inputValidation", "render", "formatConformance", "templateRegression", "baselineCompare", "package"],
+    "acceptedRequirementIds": ["req-page-setup", "req-heading-structure", "req-cover-page"],
+    "knownGaps": [],
+    "acceptedBy": "Repository fixtures",
+    "acceptedAt": "2026-05-05T00:00:00Z",
+    "notes": "Fictional onboarding fixture accepted for CI and workflow validation."
   },
   "quality": {
     "coverageThreshold": 0.85,

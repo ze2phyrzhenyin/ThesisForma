@@ -1,6 +1,6 @@
 # Template Regression Example
 
-This suite renders the fictional Example University Engineering template, validates the DOCX, extracts inspect/layout data, compares the layout signature to a baseline, and compares the normalized snapshot to a baseline.
+This suite renders fictional Example University engineering and humanities templates, validates the DOCX outputs, extracts inspect/layout data, compares layout signatures to baselines, and compares normalized snapshots to baselines.
 
 Run:
 

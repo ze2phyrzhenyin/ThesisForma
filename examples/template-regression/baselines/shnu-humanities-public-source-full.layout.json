@@ -1,0 +1,224 @@
+{
+  "reportVersion": "1.0.0",
+  "sourcePath": "shnu-humanities-public-source-full.docx",
+  "sections": [
+    {
+      "index": 0,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797",
+      "headerDistanceTwips": "1134",
+      "footerDistanceTwips": "1134",
+      "pageNumberFormat": "none"
+    },
+    {
+      "index": 1,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797",
+      "headerDistanceTwips": "1134",
+      "footerDistanceTwips": "1134",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    },
+    {
+      "index": 2,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797",
+      "headerDistanceTwips": "1134",
+      "footerDistanceTwips": "1134",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    }
+  ],
+  "styles": [
+    {
+      "styleId": "Heading1",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "32",
+      "bold": "True",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "0"
+    },
+    {
+      "styleId": "Heading2",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "30",
+      "bold": "False",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "1"
+    },
+    {
+      "styleId": "Heading3",
+      "eastAsiaFont": "\u9ED1\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "28",
+      "bold": "False",
+      "lineSpacing": "360",
+      "alignment": "JustificationValues { }",
+      "outlineLevel": "2"
+    },
+    {
+      "styleId": "ThesisBibliography",
+      "eastAsiaFont": "\u5B8B\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "400",
+      "hangingIndent": "420",
+      "alignment": "JustificationValues { }"
+    },
+    {
+      "styleId": "ThesisBody",
+      "eastAsiaFont": "\u5B8B\u4F53",
+      "latinFont": "Times New Roman",
+      "fontSizeHalfPoints": "24",
+      "bold": "False",
+      "lineSpacing": "400",
+      "firstLineIndent": "480",
+      "alignment": "JustificationValues { }"
+    }
+  ],
+  "tables": [
+    {
+      "index": 0,
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:;bottom=BorderValues { }:;left=BorderValues { }:;right=BorderValues { }:;insideH=BorderValues { }:;insideV=BorderValues { }:",
+      "hasGridSpan": false,
+      "gridSpanValues": [],
+      "hasVerticalMerge": false,
+      "verticalMergeValues": [],
+      "hasRepeatHeaderRows": false,
+      "repeatHeaderRowCount": 0,
+      "hasCantSplitRows": false,
+      "cantSplitRowCount": 0,
+      "cellWidths": [
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989",
+        "dxa:1928",
+        "dxa:4989"
+      ],
+      "cellVerticalAlignments": [],
+      "cellBorders": []
+    },
+    {
+      "index": 1,
+      "layoutType": "autofit",
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:12;bottom=BorderValues { }:12;left=BorderValues { }:0;right=BorderValues { }:0;insideH=BorderValues { }:6;insideV=BorderValues { }:0",
+      "hasGridSpan": true,
+      "gridSpanValues": [
+        "2"
+      ],
+      "hasVerticalMerge": true,
+      "verticalMergeValues": [
+        "restart",
+        "continue"
+      ],
+      "hasRepeatHeaderRows": true,
+      "repeatHeaderRowCount": 1,
+      "hasCantSplitRows": true,
+      "cantSplitRowCount": 3,
+      "cellWidths": [
+        "dxa:2400",
+        "dxa:7200"
+      ],
+      "cellVerticalAlignments": [
+        "center",
+        "center",
+        "center"
+      ],
+      "cellBorders": [
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000",
+        "top=single:4:000000;bottom=single:6:000000;left=single:4:000000;right=single:4:000000"
+      ]
+    }
+  ],
+  "figures": [
+    {
+      "index": 0,
+      "cx": "4320000",
+      "cy": "1123200",
+      "caption": "\u56FE1 \u516C\u5F00\u6765\u6E90\u6A21\u677F\u9A8C\u8BC1\u6D41\u7A0B"
+    },
+    {
+      "index": 1,
+      "cx": "1440000",
+      "cy": "864000"
+    }
+  ],
+  "equations": {
+    "ommlCount": 1,
+    "hasNumbering": true,
+    "bookmarks": [
+      "bm-shnu-sample-equation"
+    ]
+  },
+  "fields": {
+    "tocCount": 1,
+    "pageCount": 2,
+    "refCount": 3,
+    "instructions": [
+      "PAGE \\* MERGEFORMAT",
+      "PAGE \\* MERGEFORMAT",
+      "REF bm-shnu-format-table \\h",
+      "REF bm-shnu-intro \\h",
+      "REF bm-shnu-sample-equation \\h",
+      "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+    ]
+  },
+  "footnotes": {
+    "hasPart": true,
+    "count": 1,
+    "ids": [
+      1
+    ]
+  },
+  "endnotes": {
+    "hasPart": false,
+    "count": 0,
+    "ids": []
+  },
+  "bibliography": {
+    "entryCount": 1,
+    "hangingIndents": [
+      "420"
+    ]
+  },
+  "customProperties": {
+    "ThesisDocx.RenderedAssets": "shnuWordmark",
+    "ThesisDocx.RenderedPageTemplates": "shnu-humanities-cover,shnu-declarations",
+    "ThesisDocx.RenderedVariables": "researchDirection,completionDate,completionDate,completionDate",
+    "ThesisDocx.RendererVersion": "1.0.0",
+    "ThesisDocx.ResolvedFormatSpecVersion": "1.2.0",
+    "ThesisDocx.SchemaVersion": "1.2.0",
+    "ThesisDocx.TemplateId": "shnu-humanities-public-source-pilot",
+    "ThesisDocx.TemplateVersion": "0.1.0"
+  }
+}

@@ -612,8 +612,9 @@ public sealed class CoreServiceFacadeTests
     [Fact]
     public void OnboardingPackageWorkflowService_ShouldValidatePackage()
     {
+        var workspace = CopyExampleWorkspace();
         var packagePath = Path.Combine(NewTempDirectory(), "example.template-pilot.zip");
-        var build = new TemplatePilotPackageBuilder().Build(OnboardingWorkspacePath(), packagePath);
+        var build = new TemplatePilotPackageBuilder().Build(workspace, packagePath);
 
         var result = new OnboardingPackageWorkflowService().Validate(new OnboardingPackageValidateRequest
         {
@@ -698,6 +699,20 @@ public sealed class CoreServiceFacadeTests
     private static string OnboardingWorkspacePath()
     {
         return Path.Combine(TestRenderHelper.LocateRepoRootForTests(), "examples", "onboarding", "example-engineering-pilot");
+    }
+
+    private static string CopyExampleWorkspace()
+    {
+        var target = Path.Combine(NewTempDirectory(), "example-engineering-pilot");
+        foreach (var file in Directory.EnumerateFiles(OnboardingWorkspacePath(), "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(OnboardingWorkspacePath(), file);
+            var destination = Path.Combine(target, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination);
+        }
+
+        return target;
     }
 
     private static DocxRenderContext RenderContextFrom(TemplateResolutionResult resolution)

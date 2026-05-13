@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "1.1.0",
+  "metadata": {
+    "title": "示例师范大学人文学科学位论文格式验证",
+    "subtitle": "公开虚构模板样稿",
+    "author": "张三",
+    "college": "示例人文学院",
+    "major": "中国古代文学",
+    "studentId": "20260002",
+    "advisor": "李四",
+    "date": "2026年5月",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "kind": "cover",
+      "blocks": []
+    },
+    {
+      "id": "originality",
+      "kind": "originalityStatement",
+      "startOnNewPage": true,
+      "blocks": []
+    },
+    {
+      "id": "abstract-cn",
+      "kind": "abstract",
+      "title": "摘要",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "本文档用于验证一个公开虚构的人文学科学位论文模板。" }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "关键词", "bold": true },
+            { "type": "text", "text": "：模板；格式；OpenXML；公开示例" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toc",
+      "kind": "toc",
+      "title": "目录",
+      "startOnNewPage": true,
+      "blocks": []
+    },
+    {
+      "id": "body",
+      "kind": "body",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "chapter-intro",
+          "level": 1,
+          "bookmarkName": "bm-normal-intro",
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "绪论" }]
+        },
+        {
+          "type": "heading",
+          "level": 2,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "选题意义" }]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "格式合规问题" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "本段用于验证宋体小四、首行缩进两个字符和行距设置。" },
+            {
+              "type": "footnote",
+              "noteId": "fn-normal-format",
+              "inlines": [{ "type": "text", "text": "公开示例脚注。" }]
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "id": "tbl-normal-format",
+          "bookmarkId": "bm-normal-format-table",
+          "caption": "格式规则验证表",
+          "captionPosition": "before",
+          "style": "threeLine",
+          "rows": [
+            {
+              "isHeader": true,
+              "cantSplit": true,
+              "cells": [
+                { "text": "项目", "width": { "type": "dxa", "value": 2400 }, "alignment": "center", "verticalAlignment": "center" },
+                { "text": "说明", "gridSpan": 2, "width": { "type": "dxa", "value": 7200 }, "alignment": "center", "verticalAlignment": "center" }
+              ]
+            },
+            {
+              "cantSplit": true,
+              "cells": [
+                { "text": "页面", "alignment": "center", "verticalMerge": "restart", "verticalAlignment": "center" },
+                { "text": "纸张", "alignment": "center" },
+                { "text": "A4 纵向，固定页边距" }
+              ]
+            },
+            {
+              "cells": [
+                { "text": "", "alignment": "center", "verticalMerge": "continue" },
+                { "text": "页码", "alignment": "center" },
+                { "text": "前置页罗马数字，正文阿拉伯数字" }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "figure",
+          "id": "fig-normal-flow",
+          "caption": "公开模板验证流程",
+          "imageContentType": "image/png",
+          "imageDataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          "widthCm": 4,
+          "heightCm": 2.4
+        },
+        {
+          "type": "equation",
+          "id": "eq-normal-sample",
+          "bookmarkId": "bm-normal-sample-equation",
+          "sourceType": "plain",
+          "plainText": "a+b=c",
+          "alignment": "center",
+          "caption": "示例公式",
+          "numbering": {
+            "enabled": true,
+            "label": "公式",
+            "format": "({chapter}.{index})",
+            "restartByHeadingLevel": 1
+          }
+        },
+        {
+          "type": "heading",
+          "id": "chapter-two",
+          "level": 1,
+          "bookmarkName": "bm-normal-chapter-two",
+          "numbered": true,
+          "inlines": [{ "type": "text", "text": "正文格式验证" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            { "type": "text", "text": "本章验证章节标题、页眉页脚、目录字段和参考文献引用 " },
+            { "type": "citation", "targetId": "ref-gbt7714", "displayText": "[1]" },
+            { "type": "text", "text": "。表格见 " },
+            { "type": "reference", "bookmarkName": "bm-normal-format-table", "fallbackText": "表1" },
+            { "type": "text", "text": "，公式见 " },
+            { "type": "reference", "bookmarkName": "bm-normal-sample-equation", "fallbackText": "(1.1)" },
+            { "type": "text", "text": "，章节见 " },
+            { "type": "reference", "bookmarkName": "bm-normal-intro", "fallbackText": "绪论" },
+            { "type": "text", "text": "。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "refs",
+      "kind": "bibliography",
+      "title": "参考文献",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "bibliography",
+          "entries": [
+            {
+              "id": "ref-gbt7714",
+              "text": "国家标准. 信息与文献 参考文献著录规则: GB/T 7714-2015."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appendix-a",
+      "kind": "appendix",
+      "title": "附录 A 示例说明",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "inlines": [{ "type": "text", "text": "附录 A 示例说明" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [{ "type": "text", "text": "本附录用于验证附录标题形态和正文段落格式。" }]
+        }
+      ]
+    },
+    {
+      "id": "acknowledgements",
+      "kind": "acknowledgements",
+      "title": "致谢",
+      "startOnNewPage": true,
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "inlines": [{ "type": "text", "text": "致谢" }]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [{ "type": "text", "text": "感谢参与公开模板示例验证的审阅者。" }]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "example-normal-humanities-requirements",
+  "title": "Example Normal University humanities thesis formatting requirements",
+  "school": "Example Normal University",
+  "college": "Example Humanities College",
+  "degreeType": "Master",
+  "locale": "zh-CN",
+  "sourceDocuments": [
+    {
+      "id": "fictional-note-2026",
+      "title": "Fictionalized humanities format note",
+      "type": "manualNote",
+      "path": "source-documents/README.md",
+      "capturedAt": "2026-05-13T00:00:00Z",
+      "notes": "Public fictional source note. No real institution source file is included."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "req-page-setup",
+      "category": "pageSetup",
+      "title": "A4 portrait page and margins",
+      "description": "Thesis pages use A4 portrait pages with fixed margins and header/footer distances.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "A4 portrait with fixed margins.",
+        "section": "Page setup"
+      },
+      "normalizedValue": "A4 portrait; top/bottom 2.54 cm; left/right 3.17 cm; header/footer 2.0 cm",
+      "targetSpecPath": "$.pageSetup",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Fictionalized public requirement."
+    },
+    {
+      "id": "req-frontmatter-pagination",
+      "category": "section",
+      "title": "Front matter uses Roman page numbers",
+      "description": "Front matter sections use upper Roman page numbers and restart at one.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Front matter restarts with Roman numerals.",
+        "section": "Pagination"
+      },
+      "normalizedValue": "frontMatter pageNumberStyle upperRoman, restart at 1",
+      "targetSpecPath": "$.sections.frontMatter",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to section format."
+    },
+    {
+      "id": "req-body-pagination",
+      "category": "section",
+      "title": "Body uses decimal page numbers",
+      "description": "Body sections use decimal page numbers and restart at one.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Body restarts with decimal numbering.",
+        "section": "Pagination"
+      },
+      "normalizedValue": "body pageNumberStyle decimal, restart at 1",
+      "targetSpecPath": "$.sections.body",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to section format."
+    },
+    {
+      "id": "req-body-paragraph",
+      "category": "paragraph",
+      "title": "Body paragraph font and spacing",
+      "description": "Body text uses Songti Chinese, Times New Roman Latin, 12 pt, first-line indent 2 characters, and fixed-looking line spacing.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Body paragraphs use 12 pt text and 2-character first-line indent.",
+        "section": "Body text"
+      },
+      "normalizedValue": "宋体/Times New Roman, 12 pt, first-line indent 2 chars, lineSpacingMultiple 1.67",
+      "targetSpecPath": "$.bodyParagraph",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Stage 1 stores line spacing as a multiple."
+    },
+    {
+      "id": "req-heading-hierarchy",
+      "category": "heading",
+      "title": "Heading hierarchy",
+      "description": "Main titles use Heiti 16 pt bold centered; second-level titles use Heiti 15 pt centered; third-level titles use Heiti 14 pt left aligned.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Heading levels use Heiti with distinct size and alignment.",
+        "section": "Headings"
+      },
+      "normalizedValue": "H1 16 pt bold centered; H2 15 pt centered; H3 14 pt left",
+      "targetSpecPath": "$.headings",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to heading levels 1-3."
+    },
+    {
+      "id": "req-header",
+      "category": "headerFooter",
+      "title": "Centered header",
+      "description": "Header text is centered with a header line and page numbers centered in the footer.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Header is centered; page numbers are centered.",
+        "section": "Header/footer"
+      },
+      "normalizedValue": "centered static header and centered page number",
+      "targetSpecPath": "$.headerFooter",
+      "confidence": "medium",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Dynamic chapter headers are outside this public example."
+    },
+    {
+      "id": "req-toc",
+      "category": "toc",
+      "title": "TOC levels 1-3",
+      "description": "The table of contents includes heading levels 1 through 3.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "TOC includes levels 1-3.",
+        "section": "TOC"
+      },
+      "normalizedValue": "TOC title 目录; minLevel 1; maxLevel 3; Word field code",
+      "targetSpecPath": "$.toc",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to TOC format."
+    },
+    {
+      "id": "req-cover",
+      "category": "cover",
+      "title": "Cover fields",
+      "description": "The cover contains a fictional mark, school code, student number, thesis title, degree type, college, major, research direction, author, advisor, and completion date.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Cover contains school and thesis metadata fields.",
+        "section": "Cover"
+      },
+      "normalizedValue": "Cover page template with metadata and variables",
+      "targetTemplatePath": "$.pageTemplates[0]",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Implemented with page template layout blocks."
+    },
+    {
+      "id": "req-declaration",
+      "category": "declaration",
+      "title": "Declaration pages",
+      "description": "The template renders originality and thesis-use authorization declaration text with signature/date fields.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "Declaration pages include signatures and dates.",
+        "section": "Declaration"
+      },
+      "normalizedValue": "Declaration page template with fixed declaration text and signature fields",
+      "targetTemplatePath": "$.pageTemplates[1]",
+      "confidence": "high",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Mapped to declarationText page template block."
+    },
+    {
+      "id": "req-bibliography",
+      "category": "bibliography",
+      "title": "Numbered bibliography",
+      "description": "Bibliography entries render as structured numbered entries.",
+      "sourceId": "fictional-note-2026",
+      "evidence": {
+        "shortQuote": "References use numbered entries.",
+        "section": "Bibliography"
+      },
+      "normalizedValue": "Reference title 参考文献; numeric bibliography markers",
+      "targetSpecPath": "$.bibliography",
+      "confidence": "medium",
+      "reviewStatus": "approved",
+      "reviewer": "Template Reviewer",
+      "notes": "Semantic citation style review is outside this fictional example."
+    }
+  ],
+  "mappings": [
+    { "requirementId": "req-page-setup", "specPath": "$.pageSetup", "mappingStatus": "mapped", "notes": "Mapped to page setup." },
+    { "requirementId": "req-frontmatter-pagination", "specPath": "$.sections.frontMatter", "mappingStatus": "mapped", "notes": "Mapped to front matter section format." },
+    { "requirementId": "req-body-pagination", "specPath": "$.sections.body", "mappingStatus": "mapped", "notes": "Mapped to body section format." },
+    { "requirementId": "req-body-paragraph", "specPath": "$.bodyParagraph", "mappingStatus": "mapped", "notes": "Mapped to body paragraph format." },
+    { "requirementId": "req-heading-hierarchy", "specPath": "$.headings", "mappingStatus": "mapped", "notes": "Mapped to levels 1-3." },
+    { "requirementId": "req-header", "specPath": "$.headerFooter", "mappingStatus": "mapped", "notes": "Mapped to centered static header/footer rules." },
+    { "requirementId": "req-toc", "specPath": "$.toc", "mappingStatus": "mapped", "notes": "Mapped to Word TOC field levels 1-3." },
+    { "requirementId": "req-cover", "templatePath": "$.pageTemplates[0]", "mappingStatus": "mapped", "notes": "Mapped to cover page template." },
+    { "requirementId": "req-declaration", "templatePath": "$.pageTemplates[1]", "mappingStatus": "mapped", "notes": "Mapped to declarationText layout." },
+    { "requirementId": "req-bibliography", "specPath": "$.bibliography", "mappingStatus": "mapped", "notes": "Mapped to bibliography format." }
+  ],
+  "unresolvedItems": [],
+  "approval": {
+    "preparedBy": "Template Author",
+    "reviewedBy": "Template Reviewer",
+    "approvedBy": "Template Lead",
+    "approvedAt": "2026-05-13",
+    "notes": "Fictionalized public example approved for repository tests. It does not claim real institution compliance."
+  }
+}

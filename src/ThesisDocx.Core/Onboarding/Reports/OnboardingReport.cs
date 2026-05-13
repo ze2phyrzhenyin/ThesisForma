@@ -20,6 +20,8 @@ public sealed class OnboardingReport
     public string GateStatus { get; set; } = "unknown";
     public string DiagnoseStatus { get; set; } = "unknown";
     public string AuthoringStatus { get; set; } = "unknown";
+    public string AcceptanceStatus { get; set; } = "notReviewed";
+    public int KnownGapCount { get; set; }
     public string ReleaseReadiness { get; set; } = "notReady";
     public List<OnboardingReportIssue> BlockingIssues { get; set; } = [];
     public List<OnboardingReportIssue> Warnings { get; set; } = [];
@@ -101,7 +103,9 @@ public sealed class OnboardingReportBuilder
             BaselineStatus = Directory.Exists(workspace.BaselinesDirectory) && Directory.EnumerateFiles(workspace.BaselinesDirectory).Any() ? "present" : "missing",
             GateStatus = gate?.Status.ToString() ?? "notRun",
             DiagnoseStatus = diagnostic?.Status ?? "notRun",
-            AuthoringStatus = authoring?.PublishReadiness ?? "notRun"
+            AuthoringStatus = authoring?.PublishReadiness ?? "notRun",
+            AcceptanceStatus = workspace.Manifest.Acceptance.ReviewStatus,
+            KnownGapCount = workspace.Manifest.Acceptance.KnownGaps.Count
         };
         if (gate is not null)
         {
@@ -159,7 +163,8 @@ public sealed class OnboardingReportBuilder
             Item("fixtures.present", "fixture document present", report.FixtureStatus == "present"),
             Item("baselines.present", "baseline manifest present", report.BaselineStatus == "present"),
             Item("gate.pass", "template gate pass", gate?.Status == TemplateGateStatus.Pass),
-            Item("authoring.ready", "authoring report ready", authoring?.PublishReadiness == "ready")
+            Item("authoring.ready", "authoring report ready", authoring?.PublishReadiness == "ready"),
+            Item("acceptance.recorded", "acceptance status recorded", report.AcceptanceStatus is "machineChecked" or "humanAccepted", $"{report.AcceptanceStatus}; {report.KnownGapCount} known gaps")
         ];
     }
 
@@ -218,6 +223,7 @@ public sealed class OnboardingMarkdownRenderer
             $"- Release readiness: `{report.ReleaseReadiness}`",
             $"- Phase: `{report.Phase}`",
             $"- Privacy: `{report.PrivacyStatus}`",
+            $"- Acceptance: `{report.AcceptanceStatus}` ({report.KnownGapCount} known gaps)",
             $"- Gate: `{report.GateStatus}`",
             $"- Authoring: `{report.AuthoringStatus}`",
             string.Empty,

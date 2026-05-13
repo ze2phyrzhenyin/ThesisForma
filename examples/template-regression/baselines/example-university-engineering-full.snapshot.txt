@@ -24,6 +24,8 @@ styles:
 - ThesisBibliography
 - ThesisBody
 - ThesisCaption
+- ThesisEndnoteText
+- ThesisFootnoteText
 - ThesisQuote
 - ThesisTocTitle
 numberingLevelTexts:
@@ -58,16 +60,22 @@ equationBookmarks:
 equationSourceTypes:
 - latexSubsetOrStructuredOmml
 - plainOrOmml
+footnoteStyles:
+- ThesisFootnoteText
+endnoteStyles:
+- ThesisEndnoteText
 tableBookmarks:
 - bm-table-format-rules
 tableStyles:
 - threeLine
+tableCellParagraphStyles:
+- ThesisBody
 tableWidthTypes:
 - pct
 tableBorders:
 - top:nil|bottom:single|left:nil|right:nil|insideH:single|insideV:nil
 - top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil
-paragraphCount=66
+paragraphCount=67
 tableCount=2
 drawingCount=2
 equationCount=3
@@ -76,5 +84,8 @@ tableHasGridSpan=True
 tableHasVerticalMerge=True
 tableHasRepeatHeaderRows=True
 tableHasCantSplitRows=True
+tableHasNestedCellBlocks=False
+tableHasCellNoteReferences=False
+templateRuleParagraphCount=1
 headerCount=2
 footerCount=2

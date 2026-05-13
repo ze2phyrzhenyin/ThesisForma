@@ -20,6 +20,8 @@ This project can model real college requirements as data, but real templates mus
 14. Generate `template authoring-report`.
 15. Have a human reviewer compare the source requirement to the encoded rules.
 
+Before using a real college source, rehearse the same closed loop with a fictional template such as `examples/templates/example-university-humanities`: template validation, render, format validation, regression baseline, baseline compare, and gate. This keeps new renderer/schema work out of private pilot evidence.
+
 ## Boundaries
 
 - No AI parsing is implemented in Stage 1.
@@ -30,7 +32,7 @@ This project can model real college requirements as data, but real templates mus
 ## Private Pilot Workspace
 
 Current real-college pilots should start in an `OnboardingWorkspace`, usually under `onboarding-workspaces/<slug>/`.
-Do not put real source PDFs, DOCX manuals, author names, student ids, or long evidence excerpts under `examples/`.
+Do not put private source PDFs, DOCX manuals, author names, student ids, or long evidence excerpts under `examples/`. Public-source real examples are allowed only with `publicSourceExample` manifest attestations and a passing privacy scan.
 
 Use the onboarding CLI:
 

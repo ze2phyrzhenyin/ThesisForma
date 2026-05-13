@@ -4,8 +4,8 @@
 
 It checks for:
 
-- real-institution onboarding workspaces under `examples/`;
-- source files such as `.pdf`, `.docx`, `.doc`, and `.wps` in public examples;
+- real-institution onboarding workspaces under `examples/` unless they are declared as reviewed public-source examples;
+- source files such as `.pdf`, `.docx`, `.doc`, and `.wps` in public examples, with a narrow `.docx`/`.pdf` exception for attested public-source onboarding examples;
 - long evidence excerpts;
 - absolute paths and path traversal, including Windows, macOS, and Linux-style paths;
 - forbidden font binaries;
@@ -16,6 +16,20 @@ It checks for:
 Privacy findings include `code`, normalized `severity`, `path`, `message`, `suggestedAction`, and, when useful, a `redactedExcerpt`. Findings do not echo full personal values or local absolute paths.
 
 Generated artifacts under onboarding `artifacts/` and `reports/` are ignored for the source-document rule because CI creates them during validation, but they are still reported as hygiene warnings and pilot packages reject them.
+
+## Public-Source Examples
+
+Real institution source files remain private by default. To commit a real public-source DOCX/PDF under `examples/onboarding/<slug>/source-documents/`, the workspace manifest must:
+
+- set `institution.isRealInstitution` to `true`;
+- set `institution.redactionPolicy` to `publicSourceExample`;
+- set `privacy.allowPublicInstitutionSourceDocumentsInExamples` to `true`;
+- restrict `privacy.publicSourceDocumentPathPrefixes` to the source-document directory;
+- include a `publicSourceAttestations` entry whose `path` exactly matches the DOCX/PDF path and records `publicAccessBasis`, `reviewedBy`, `reviewedAt`, and `notes`.
+
+The exception does not apply to legacy `.doc` or `.wps` files, private thesis drafts, raw extraction text, generated DOCX/PDF outputs, package zips, or font binaries. Pilot packages still reject source DOCX/PDF files even when the repository example is public-source.
+
+Public-source examples also need an `acceptance` block. `machineChecked` means the repository gates passed; only `humanAccepted` means a human reviewer accepted the encoded format scope. Known gaps stay explicit in `acceptance.knownGaps`.
 
 Known benign warnings can be suppressed narrowly when scanning generated example artifacts:
 

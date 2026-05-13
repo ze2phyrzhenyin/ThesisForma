@@ -17,6 +17,8 @@ public sealed class TemplateRegressionGateTests
 
         Assert.True(result.Passed, string.Join(Environment.NewLine, result.Cases.SelectMany(c => c.Errors)));
         Assert.Contains(result.Cases, c => c.Id == "example-university-engineering-full" && c.LayoutSimilarity >= 0.99);
+        Assert.Contains(result.Cases, c => c.Id == "example-university-humanities-full" && c.LayoutSimilarity >= 0.99);
+        Assert.Contains(result.Cases, c => c.Id == "shnu-humanities-public-source-full" && c.LayoutSimilarity >= 0.99);
     }
 
     [Fact]
@@ -34,7 +36,8 @@ public sealed class TemplateRegressionGateTests
         var result = new TemplateRegressionRunner().Run(suite, NewTempDirectory());
 
         Assert.False(result.Passed);
-        Assert.Contains(result.Cases.Single().Errors, error => error.StartsWith("layout.similarityBelowThreshold", StringComparison.Ordinal));
+        var failedCase = result.Cases.Single(c => c.Id == "example-university-engineering-full");
+        Assert.Contains(failedCase.Errors, error => error.StartsWith("layout.similarityBelowThreshold", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -42,7 +45,7 @@ public sealed class TemplateRegressionGateTests
     {
         var result = new TemplateRegressionRunner().Run(SuitePath(), NewTempDirectory());
 
-        Assert.True(result.Cases.Single().RequiredCustomPropertiesPassed);
+        Assert.All(result.Cases, regressionCase => Assert.True(regressionCase.RequiredCustomPropertiesPassed));
     }
 
     [Fact]
@@ -50,7 +53,7 @@ public sealed class TemplateRegressionGateTests
     {
         var result = new TemplateRegressionRunner().Run(SuitePath(), NewTempDirectory());
 
-        Assert.True(result.Cases.Single().RequiredPartsPassed);
+        Assert.All(result.Cases, regressionCase => Assert.True(regressionCase.RequiredPartsPassed));
     }
 
     [Fact]

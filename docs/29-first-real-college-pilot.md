@@ -2,6 +2,8 @@
 
 Start with one real college, not a batch.
 
+Run the full fictional template loop first, using `examples/templates/example-university-humanities` or another committed fictional package. Private real source files should enter only after the declarative field needed by the pilot is already represented in schema, renderer, validation, and regression tests. Public-source real examples additionally require manifest attestations and privacy scan.
+
 1. Put source PDFs/DOCX/manual notes in `onboarding-workspaces/<slug>/source-documents/`; do not commit them.
 2. Run `onboarding init`.
 3. Manually fill `RequirementCapture`; keep evidence excerpts short.

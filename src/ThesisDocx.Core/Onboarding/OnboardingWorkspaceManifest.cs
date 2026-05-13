@@ -16,6 +16,10 @@ public sealed class OnboardingWorkspaceManifest
 
     public OnboardingPrivacyPolicy Privacy { get; set; } = new();
 
+    public List<PublicSourceDocumentAttestation> PublicSourceAttestations { get; set; } = [];
+
+    public OnboardingAcceptancePolicy Acceptance { get; set; } = new();
+
     public OnboardingQualityPolicy Quality { get; set; } = new();
 
     public OnboardingWorkspaceStatus Status { get; set; } = new();
@@ -74,6 +78,10 @@ public sealed class OnboardingPrivacyPolicy
 
     public bool ProhibitPersonalDataInExamples { get; set; } = true;
 
+    public bool AllowPublicInstitutionSourceDocumentsInExamples { get; set; }
+
+    public List<string> PublicSourceDocumentPathPrefixes { get; set; } = [];
+
     public int MaxEvidenceExcerptLength { get; set; } = 240;
 
     public int MaxBase64Length { get; set; } = 200_000;
@@ -83,6 +91,51 @@ public sealed class OnboardingPrivacyPolicy
     public List<string> SuppressedWarningCodes { get; set; } = [];
 
     public List<string> SuppressedWarningPathPrefixes { get; set; } = [];
+}
+
+public sealed class PublicSourceDocumentAttestation
+{
+    public string Path { get; set; } = string.Empty;
+
+    public string PublicAccessBasis { get; set; } = string.Empty;
+
+    public string? SourceUrl { get; set; }
+
+    public string ReviewedBy { get; set; } = string.Empty;
+
+    public string ReviewedAt { get; set; } = string.Empty;
+
+    public string Notes { get; set; } = string.Empty;
+}
+
+public sealed class OnboardingAcceptancePolicy
+{
+    public string ReviewStatus { get; set; } = "notReviewed";
+
+    public List<string> AcceptedScope { get; set; } = [];
+
+    public List<string> AcceptedRequirementIds { get; set; } = [];
+
+    public List<OnboardingKnownGap> KnownGaps { get; set; } = [];
+
+    public string? AcceptedBy { get; set; }
+
+    public string? AcceptedAt { get; set; }
+
+    public string Notes { get; set; } = string.Empty;
+}
+
+public sealed class OnboardingKnownGap
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Impact { get; set; } = string.Empty;
+
+    public string Tracking { get; set; } = string.Empty;
+
+    public string Status { get; set; } = "open";
 }
 
 public sealed class OnboardingQualityPolicy

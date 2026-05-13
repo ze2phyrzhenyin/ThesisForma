@@ -215,6 +215,7 @@ public sealed class TemplateAuthoringReportBuilder
         yield return Item("pageTemplate.fieldTable", "page template fieldTable element covered", HasBlock<FieldTableLayoutBlock>(pageTemplates), "Add a fieldTable block or document why it is unnecessary.");
         yield return Item("pageTemplate.declarationText", "page template declarationText element covered", HasBlock<DeclarationTextLayoutBlock>(pageTemplates), "Add a declarationText block or document why it is unnecessary.");
         yield return Item("pageTemplate.pageBreak", "page template pageBreak element covered", HasBlock<PageBreakLayoutBlock>(pageTemplates), "Add a pageBreak block or document why it is unnecessary.");
+        yield return Item("pageTemplate.rule", "page template rule element covered", HasBlock<RuleLayoutBlock>(pageTemplates), "Add a rule block or document why it is unnecessary.");
     }
 
     private static IEnumerable<TemplateAuthoringChecklistItem> FormatSpecChecklist(ThesisFormatSpec? format)
@@ -256,7 +257,8 @@ public sealed class TemplateAuthoringReportBuilder
             ["image"] = HasBlock<ImageLayoutBlock>(pageTemplates),
             ["fieldTable"] = HasBlock<FieldTableLayoutBlock>(pageTemplates),
             ["declarationText"] = HasBlock<DeclarationTextLayoutBlock>(pageTemplates),
-            ["pageBreak"] = HasBlock<PageBreakLayoutBlock>(pageTemplates)
+            ["pageBreak"] = HasBlock<PageBreakLayoutBlock>(pageTemplates),
+            ["rule"] = HasBlock<RuleLayoutBlock>(pageTemplates)
         };
     }
 

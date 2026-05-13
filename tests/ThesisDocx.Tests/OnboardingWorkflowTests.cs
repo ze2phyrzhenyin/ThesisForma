@@ -43,6 +43,16 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void Schema_ShouldRejectOnboardingWorkspaceWithoutAcceptance()
+    {
+        var path = MutateOnboarding(node => node.AsObject().Remove("acceptance"));
+
+        var result = new ThesisSchemaValidator().ValidateOnboardingWorkspaceFile(path, SchemaPath("onboarding-workspace.schema.json"));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
     public void Schema_ShouldValidateTemplatePilotPackageManifest()
     {
         var package = BuildPackage();
@@ -96,6 +106,20 @@ public sealed class OnboardingWorkflowTests
         var result = new OnboardingWorkspaceValidator().Validate(workspace);
 
         Assert.Contains(result.Errors, error => error.Code == "onboarding.path.templateDirMissing");
+    }
+
+    [Fact]
+    public void OnboardingWorkspaceValidator_ShouldRejectPublicSourceMissingAcceptanceScope()
+    {
+        var workspace = CopyPublicSourceWorkspace();
+        MutateFile(Path.Combine(workspace, "onboarding.json"), node =>
+        {
+            node["acceptance"]!["acceptedScope"] = new JsonArray("privacy");
+        });
+
+        var result = new OnboardingWorkspaceValidator().Validate(workspace);
+
+        Assert.Contains(result.Errors, error => error.Code == "onboarding.acceptance.scopeMissing");
     }
 
     [Fact]
@@ -327,6 +351,64 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void PrivacyGuard_ShouldAllowAttestedPublicSourceDocumentsUnderExamples()
+    {
+        var workspace = CopyExampleWorkspaceUnderExamples();
+        File.WriteAllText(Path.Combine(workspace, "source-documents", "manual.docx"), "not a real docx");
+        MutateFile(Path.Combine(workspace, "onboarding.json"), node =>
+        {
+            node["institution"]!["school"] = "Public Source University";
+            node["institution"]!["isRealInstitution"] = true;
+            node["institution"]!["redactionPolicy"] = "publicSourceExample";
+            node["privacy"]!["allowPublicInstitutionSourceDocumentsInExamples"] = true;
+            node["privacy"]!["publicSourceDocumentPathPrefixes"] = new JsonArray("source-documents/");
+            node["publicSourceAttestations"] = new JsonArray(
+                new JsonObject
+                {
+                    ["path"] = "source-documents/manual.docx",
+                    ["publicAccessBasis"] = "Test fixture marked as publicly redistributable by the repository owner.",
+                    ["reviewedBy"] = "Repository owner",
+                    ["reviewedAt"] = "2026-05-13",
+                    ["notes"] = "Synthetic test source document."
+                });
+        });
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Findings.Select(finding => finding.Code)));
+        Assert.DoesNotContain(result.Findings, finding => finding.Code == "privacy.sourceDocumentInExamples");
+        Assert.DoesNotContain(result.Findings, finding => finding.Code == "privacy.realInstitutionInExamples");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldRejectLegacyOfficePublicSourceDocumentsUnderExamples()
+    {
+        var workspace = CopyExampleWorkspaceUnderExamples();
+        File.WriteAllText(Path.Combine(workspace, "source-documents", "manual.doc"), "not a real doc");
+        MutateFile(Path.Combine(workspace, "onboarding.json"), node =>
+        {
+            node["institution"]!["isRealInstitution"] = true;
+            node["institution"]!["redactionPolicy"] = "publicSourceExample";
+            node["privacy"]!["allowPublicInstitutionSourceDocumentsInExamples"] = true;
+            node["privacy"]!["publicSourceDocumentPathPrefixes"] = new JsonArray("source-documents/");
+            node["publicSourceAttestations"] = new JsonArray(
+                new JsonObject
+                {
+                    ["path"] = "source-documents/manual.doc",
+                    ["publicAccessBasis"] = "Test fixture.",
+                    ["reviewedBy"] = "Repository owner",
+                    ["reviewedAt"] = "2026-05-13",
+                    ["notes"] = "Legacy Office formats stay blocked in public examples."
+                });
+        });
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
+
+        Assert.Contains(result.Findings, finding => finding.Code == "privacy.sourceDocumentInExamples");
+        Assert.DoesNotContain(result.Findings, finding => finding.Code == "privacy.realInstitutionInExamples");
+    }
+
+    [Fact]
     public void PrivacyGuard_ShouldDetectLongEvidenceExcerpt()
     {
         var workspace = CopyExampleWorkspaceUnderExamples();
@@ -370,6 +452,30 @@ public sealed class OnboardingWorkflowTests
         var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = workspace });
 
         Assert.Contains(result.Findings, finding => finding.Code == "privacy.path.traversal");
+    }
+
+    [Fact]
+    public void PrivacyGuard_ShouldAllowSiblingReferencesInsideScanRoot()
+    {
+        var root = NewTempDirectory();
+        var suiteDirectory = Path.Combine(root, "template-regression");
+        Directory.CreateDirectory(suiteDirectory);
+        Directory.CreateDirectory(Path.Combine(root, "templates", "fictional"));
+        File.WriteAllText(
+            Path.Combine(suiteDirectory, "suite.json"),
+            """
+            {
+              "cases": [
+                {
+                  "templatePath": "../templates/fictional"
+                }
+              ]
+            }
+            """);
+
+        var result = new PrivacyGuard().Scan(new PrivacyGuardOptions { Path = root });
+
+        Assert.DoesNotContain(result.Findings, finding => finding.Code == "privacy.path.traversal");
     }
 
     [Fact]
@@ -745,6 +851,15 @@ public sealed class OnboardingWorkflowTests
     }
 
     [Fact]
+    public void GitIgnore_ShouldAllowAttestedPublicSourceDocumentsInExamples()
+    {
+        var gitignore = File.ReadAllText(Path.Combine(RepoRoot(), ".gitignore"));
+
+        Assert.Contains("!examples/onboarding/**/source-documents/*.docx", gitignore);
+        Assert.Contains("!examples/onboarding/**/source-documents/*.pdf", gitignore);
+    }
+
+    [Fact]
     public void GitIgnore_ShouldNotIgnoreRequiredExampleJson()
     {
         var gitignore = File.ReadAllText(Path.Combine(RepoRoot(), ".gitignore"));
@@ -766,6 +881,12 @@ public sealed class OnboardingWorkflowTests
     public void CiQualityGateScript_ShouldRunOnboardingSummary()
     {
         Assert.Contains("onboarding summary", File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate")));
+    }
+
+    [Fact]
+    public void CiQualityGateScript_ShouldRunPublicSourceExamples()
+    {
+        Assert.Contains("ci-public-source-examples", File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate")));
     }
 
     [Fact]
@@ -817,7 +938,11 @@ public sealed class OnboardingWorkflowTests
         Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningCodes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.generatedArtifact.forbidden");
         Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningPathPrefixes"]!.AsArray(), item => item?.GetValue<string>() == "artifacts/");
         Assert.Contains(manifest["privacyPolicySummary"]!["suppressedWarningPathPrefixes"]!.AsArray(), item => item?.GetValue<string>() == "template-regression/template-regression-suite.json");
+        Assert.False(manifest["privacyPolicySummary"]!["allowPublicInstitutionSourceDocumentsInExamples"]!.GetValue<bool>());
+        Assert.Empty(manifest["privacyPolicySummary"]!["publicSourceDocumentPathPrefixes"]!.AsArray());
         Assert.Contains(manifest["privacyPolicySummary"]!["nonSuppressibleWarningCodePrefixes"]!.AsArray(), item => item?.GetValue<string>() == "privacy.personal.");
+        Assert.Equal("humanAccepted", manifest["acceptanceSummary"]!["reviewStatus"]!.GetValue<string>());
+        Assert.Contains(manifest["acceptanceSummary"]!["acceptedScope"]!.AsArray(), item => item?.GetValue<string>() == "package");
     }
 
     [Fact]
@@ -884,6 +1009,13 @@ public sealed class OnboardingWorkflowTests
         return target;
     }
 
+    private static string CopyPublicSourceWorkspace()
+    {
+        var target = NewWorkspacePath();
+        CopyDirectory(PublicSourceWorkspacePath(), target);
+        return target;
+    }
+
     private static string CopyExampleWorkspaceUnderExamples()
     {
         var root = Path.Combine(NewTempDirectory(), "examples");
@@ -937,6 +1069,7 @@ public sealed class OnboardingWorkflowTests
     private static string RepoRoot() => TestRenderHelper.LocateRepoRootForTests();
     private static string SchemaPath(string name) => Path.Combine(RepoRoot(), "schemas", name);
     private static string OnboardingWorkspacePath() => Path.Combine(RepoRoot(), "examples", "onboarding", "example-engineering-pilot");
+    private static string PublicSourceWorkspacePath() => Path.Combine(RepoRoot(), "examples", "onboarding", "shnu-humanities-public-source");
     private static string OnboardingManifestPath() => Path.Combine(OnboardingWorkspacePath(), "onboarding.json");
     private static string TemplatePath() => Path.Combine(RepoRoot(), "examples", "templates", "example-university-engineering");
     private static string DocumentPath() => Path.Combine(RepoRoot(), "examples", "full-thesis", "document.json");

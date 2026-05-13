@@ -1,6 +1,6 @@
 {
   "suiteSchemaVersion": "1.0.0",
-  "name": "Example University Engineering Template Regression",
+  "name": "Example University Template Regression",
   "cases": [
     {
       "id": "example-university-engineering-full",
@@ -12,6 +12,53 @@
       "minLayoutSimilarity": 0.99,
       "baselineLayoutPath": "baselines/example-university-engineering-full.layout.json",
       "baselineSnapshotPath": "baselines/example-university-engineering-full.snapshot.txt",
+      "requiredCustomProperties": [
+        "ThesisDocx.TemplateId",
+        "ThesisDocx.TemplateVersion",
+        "ThesisDocx.RenderedPageTemplates"
+      ],
+      "requiredParts": [
+        "word/document.xml",
+        "word/styles.xml",
+        "docProps/custom.xml"
+      ]
+    },
+    {
+      "id": "example-university-humanities-full",
+      "documentPath": "documents/example-university-humanities-full/document.json",
+      "templatePath": "../templates/example-university-humanities",
+      "variables": {
+        "variables.submissionDate": "2026-06-15",
+        "variables.researchField": "数字人文",
+        "variables.reviewStatus": "公开评阅"
+      },
+      "minLayoutSimilarity": 0.99,
+      "baselineLayoutPath": "baselines/example-university-humanities-full.layout.json",
+      "baselineSnapshotPath": "baselines/example-university-humanities-full.snapshot.txt",
+      "requiredCustomProperties": [
+        "ThesisDocx.TemplateId",
+        "ThesisDocx.TemplateVersion",
+        "ThesisDocx.RenderedPageTemplates"
+      ],
+      "requiredParts": [
+        "word/document.xml",
+        "word/styles.xml",
+        "docProps/custom.xml"
+      ]
+    },
+    {
+      "id": "shnu-humanities-public-source-full",
+      "documentPath": "../onboarding/shnu-humanities-public-source/fixtures/document.json",
+      "templatePath": "../onboarding/shnu-humanities-public-source/template",
+      "variables": {
+        "variables.completionDate": "2026-05-13",
+        "variables.coverThesisType": "博士/硕士学位论文",
+        "variables.researchDirection": "中国古代文学",
+        "variables.schoolCode": "10270"
+      },
+      "minLayoutSimilarity": 0.99,
+      "baselineLayoutPath": "baselines/shnu-humanities-public-source-full.layout.json",
+      "baselineSnapshotPath": "baselines/shnu-humanities-public-source-full.snapshot.txt",
       "requiredCustomProperties": [
         "ThesisDocx.TemplateId",
         "ThesisDocx.TemplateVersion",

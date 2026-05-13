@@ -14,6 +14,11 @@ public sealed class PrivacyGuard
         ".pdf", ".docx", ".doc", ".wps"
     };
 
+    private static readonly HashSet<string> PublicSourceDocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf", ".docx"
+    };
+
     private static readonly HashSet<string> GeneratedArtifactExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".docx", ".pdf"
@@ -69,9 +74,12 @@ public sealed class PrivacyGuard
             || normalizedRelative.Contains("/artifacts/", StringComparison.Ordinal)
             || normalizedRelative.StartsWith("reports/", StringComparison.Ordinal)
             || normalizedRelative.Contains("/reports/", StringComparison.Ordinal);
-        if (isExamples && SourceDocumentExtensions.Contains(extension) && !isGeneratedArtifact)
+        if (isExamples
+            && SourceDocumentExtensions.Contains(extension)
+            && !isGeneratedArtifact
+            && !IsAllowedPublicSourceDocumentInExamples(root, file, extension))
         {
-            Add(result, "privacy.sourceDocumentInExamples", DiagnosticSeverity.Error, relative, "Source documents must not be committed under examples.", "Move real source files to onboarding-workspaces/<slug>/source-documents.");
+            Add(result, "privacy.sourceDocumentInExamples", DiagnosticSeverity.Error, relative, "Source documents under examples require a public-source onboarding attestation.", "Move private source files to onboarding-workspaces/<slug>/source-documents, or add a reviewed publicSourceExample manifest with a matching attestation.");
         }
 
         if (isGeneratedArtifact && GeneratedArtifactExtensions.Contains(extension))
@@ -120,9 +128,9 @@ public sealed class PrivacyGuard
     private static void ScanOnboardingManifest(JsonNode node, bool isExamples, string path, PrivacyGuardResult result)
     {
         var isReal = node["institution"]?["isRealInstitution"]?.GetValue<bool>() ?? false;
-        if (isExamples && isReal)
+        if (isExamples && isReal && !ManifestDeclaresPublicSourceExample(node))
         {
-            Add(result, "privacy.realInstitutionInExamples", DiagnosticSeverity.Error, path, "Real institution workspace is not allowed under examples.", "Move it to onboarding-workspaces/ or another private directory.");
+            Add(result, "privacy.realInstitutionInExamples", DiagnosticSeverity.Error, path, "Real institution workspace under examples requires public-source attestation.", "Use a fictional example, move the workspace to onboarding-workspaces/, or mark it as publicSourceExample with reviewed source attestations.");
         }
     }
 
@@ -166,7 +174,8 @@ public sealed class PrivacyGuard
                 Add(result, "privacy.path.absolute", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Absolute path is not allowed.", "Use a workspace-relative path.", Redact(text));
             }
 
-            if (text.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
+            if (text.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == "..")
+                && !RelativePathStaysInsideRoot(options.Path, filePath, text))
             {
                 Add(result, "privacy.path.traversal", options.PackageMode ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Path escapes the workspace.", "Keep paths inside the workspace.", Redact(text));
             }
@@ -204,6 +213,24 @@ public sealed class PrivacyGuard
         {
             Add(result, "privacy.personal.email", DiagnosticSeverity.Warning, $"{filePath}:{jsonPath}", "Value looks like a non-example email address.", "Use example.invalid or redact the email.", Redact(text));
         }
+    }
+
+    private static bool RelativePathStaysInsideRoot(string rootPath, string filePath, string value)
+    {
+        if (Path.IsPathRooted(value) || SensitivePatternCatalog.WindowsAbsolutePathRegex.IsMatch(value))
+        {
+            return false;
+        }
+
+        var root = Path.GetFullPath(rootPath);
+        var sourceFile = Path.GetFullPath(Path.Combine(root, filePath));
+        var sourceDirectory = Path.GetDirectoryName(sourceFile) ?? root;
+        var target = Path.GetFullPath(Path.Combine(sourceDirectory, value));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(root);
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(target);
+        return string.Equals(normalizedTarget, normalizedRoot, comparison)
+            || normalizedTarget.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, comparison);
     }
 
     internal static void Add(PrivacyGuardResult result, string code, string severity, string path, string message, string suggestedAction, string? redactedExcerpt = null)
@@ -290,6 +317,117 @@ public sealed class PrivacyGuard
         return path.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("examples", StringComparer.Ordinal);
     }
 
+    private static bool IsAllowedPublicSourceDocumentInExamples(string scanRoot, string file, string extension)
+    {
+        if (!PublicSourceDocumentExtensions.Contains(extension))
+        {
+            return false;
+        }
+
+        var manifestPath = FindNearestOnboardingManifest(file);
+        if (manifestPath is null)
+        {
+            return false;
+        }
+
+        JsonNode? manifest;
+        try
+        {
+            manifest = JsonNode.Parse(File.ReadAllText(manifestPath));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        if (manifest is null || !ManifestDeclaresPublicSourceExample(manifest))
+        {
+            return false;
+        }
+
+        var workspaceRoot = Path.GetDirectoryName(manifestPath) ?? scanRoot;
+        var relativeToWorkspace = Path.GetRelativePath(workspaceRoot, file).Replace('\\', '/');
+        var sourceDocumentsDir = NormalizePrefix(manifest["paths"]?["sourceDocumentsDir"]?.GetValue<string>() ?? "source-documents");
+        if (!relativeToWorkspace.StartsWith(sourceDocumentsDir, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!ManifestAllowsPublicSourcePath(manifest, relativeToWorkspace))
+        {
+            return false;
+        }
+
+        return HasPublicSourceAttestation(manifest, relativeToWorkspace);
+    }
+
+    private static string? FindNearestOnboardingManifest(string file)
+    {
+        var current = Directory.Exists(file)
+            ? Path.GetFullPath(file)
+            : Path.GetDirectoryName(Path.GetFullPath(file));
+        while (!string.IsNullOrWhiteSpace(current))
+        {
+            var manifestPath = Path.Combine(current, "onboarding.json");
+            if (File.Exists(manifestPath))
+            {
+                return manifestPath;
+            }
+
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        return null;
+    }
+
+    private static bool ManifestDeclaresPublicSourceExample(JsonNode node)
+    {
+        var isReal = node["institution"]?["isRealInstitution"]?.GetValue<bool>() ?? false;
+        var redactionPolicy = node["institution"]?["redactionPolicy"]?.GetValue<string>() ?? string.Empty;
+        var allowsPublicSource = node["privacy"]?["allowPublicInstitutionSourceDocumentsInExamples"]?.GetValue<bool>() ?? false;
+        return isReal
+            && string.Equals(redactionPolicy, "publicSourceExample", StringComparison.Ordinal)
+            && allowsPublicSource
+            && node["publicSourceAttestations"] is JsonArray { Count: > 0 };
+    }
+
+    private static bool ManifestAllowsPublicSourcePath(JsonNode manifest, string relativeToWorkspace)
+    {
+        if (manifest["privacy"]?["publicSourceDocumentPathPrefixes"] is not JsonArray prefixes || prefixes.Count == 0)
+        {
+            return true;
+        }
+
+        return prefixes.Any(prefix => prefix is not null && relativeToWorkspace.StartsWith(NormalizePrefix(prefix.GetValue<string>()), StringComparison.Ordinal));
+    }
+
+    private static bool HasPublicSourceAttestation(JsonNode manifest, string relativeToWorkspace)
+    {
+        if (manifest["publicSourceAttestations"] is not JsonArray attestations)
+        {
+            return false;
+        }
+
+        return attestations.Any(item =>
+        {
+            if (item is not JsonObject attestation)
+            {
+                return false;
+            }
+
+            return string.Equals(attestation["path"]?.GetValue<string>()?.Replace('\\', '/'), relativeToWorkspace, StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(attestation["publicAccessBasis"]?.GetValue<string>())
+                && !string.IsNullOrWhiteSpace(attestation["reviewedBy"]?.GetValue<string>())
+                && !string.IsNullOrWhiteSpace(attestation["reviewedAt"]?.GetValue<string>());
+        });
+    }
+
+    private static string NormalizePrefix(string value)
+    {
+        var normalized = value.Replace('\\', '/').Trim('/');
+        return normalized.Length == 0 ? string.Empty : normalized + "/";
+    }
+
     private static string Redact(string value)
     {
         if (value.Length <= 8)
@@ -316,6 +454,8 @@ public sealed class PrivacyGuardOptions
     public int MaxBase64Length { get; set; } = 200_000;
     public int? MaxWarningCount { get; set; }
     public bool PackageMode { get; set; }
+    public bool AllowPublicInstitutionSourceDocumentsInExamples { get; set; }
+    public HashSet<string> PublicSourceDocumentPathPrefixes { get; set; } = new(StringComparer.Ordinal);
     public HashSet<string> SuppressedWarningCodes { get; set; } = new(StringComparer.Ordinal);
     public HashSet<string> SuppressedWarningPathPrefixes { get; set; } = new(StringComparer.Ordinal);
 
@@ -328,6 +468,8 @@ public sealed class PrivacyGuardOptions
             MaxBase64Length = policy.MaxBase64Length,
             MaxWarningCount = policy.MaxWarningCount,
             PackageMode = packageMode,
+            AllowPublicInstitutionSourceDocumentsInExamples = policy.AllowPublicInstitutionSourceDocumentsInExamples,
+            PublicSourceDocumentPathPrefixes = policy.PublicSourceDocumentPathPrefixes.ToHashSet(StringComparer.Ordinal),
             SuppressedWarningCodes = policy.SuppressedWarningCodes.ToHashSet(StringComparer.Ordinal),
             SuppressedWarningPathPrefixes = policy.SuppressedWarningPathPrefixes.ToHashSet(StringComparer.Ordinal)
         };

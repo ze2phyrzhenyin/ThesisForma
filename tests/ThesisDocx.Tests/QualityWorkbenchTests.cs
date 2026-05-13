@@ -218,7 +218,9 @@ public sealed class QualityWorkbenchTests
         var result = new TemplateBaselineManager().Init(SuitePath(), manifest);
 
         Assert.Contains(result.Baselines, entry => entry.CaseId == "example-university-engineering-full");
-        Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(manifest)!, result.Baselines.Single().SnapshotPath)));
+        Assert.Contains(result.Baselines, entry => entry.CaseId == "example-university-humanities-full");
+        Assert.Contains(result.Baselines, entry => entry.CaseId == "shnu-humanities-public-source-full");
+        Assert.All(result.Baselines, entry => Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(manifest)!, entry.SnapshotPath))));
     }
 
     [Fact]
@@ -517,8 +519,8 @@ public sealed class QualityWorkbenchTests
     {
         var result = new TemplateRegressionRunner().Run(SuitePath(), NewTempDirectory());
 
-        Assert.Equal(1, result.BaselineSummary.TotalCases);
-        Assert.Equal(1, result.BaselineSummary.SnapshotMatches);
+        Assert.Equal(3, result.BaselineSummary.TotalCases);
+        Assert.Equal(3, result.BaselineSummary.SnapshotMatches);
     }
 
     [Fact]

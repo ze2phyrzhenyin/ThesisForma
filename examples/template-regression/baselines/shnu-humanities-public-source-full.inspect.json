@@ -1,0 +1,329 @@
+{
+  "reportVersion": "1.0.0",
+  "entries": [
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "docProps/custom.xml",
+    "media/image.jpg",
+    "media/image.png",
+    "package/services/metadata/core-properties/7290a2ce900a45aea88213e84282ee5d.psmdcp",
+    "word/_rels/document.xml.rels",
+    "word/document.xml",
+    "word/footer1.xml",
+    "word/footer2.xml",
+    "word/footnotes.xml",
+    "word/header1.xml",
+    "word/header2.xml",
+    "word/numbering.xml",
+    "word/settings.xml",
+    "word/styles.xml"
+  ],
+  "packageParts": [
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "docProps/custom.xml",
+    "media/image.jpg",
+    "media/image.png",
+    "package/services/metadata/core-properties/7290a2ce900a45aea88213e84282ee5d.psmdcp",
+    "word/_rels/document.xml.rels",
+    "word/document.xml",
+    "word/footer1.xml",
+    "word/footer2.xml",
+    "word/footnotes.xml",
+    "word/header1.xml",
+    "word/header2.xml",
+    "word/numbering.xml",
+    "word/settings.xml",
+    "word/styles.xml"
+  ],
+  "styles": [
+    "Heading1",
+    "Heading2",
+    "Heading3",
+    "Normal",
+    "ThesisBibliography",
+    "ThesisBody",
+    "ThesisCaption",
+    "ThesisEndnoteText",
+    "ThesisFootnoteText",
+    "ThesisQuote",
+    "ThesisTocTitle"
+  ],
+  "stylesSummary": [
+    {
+      "styleId": "Heading1",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Heading2",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Heading3",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "Normal",
+      "type": "StyleValues { }"
+    },
+    {
+      "styleId": "ThesisBibliography",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisBody",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisCaption",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisEndnoteText",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisFootnoteText",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisQuote",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    },
+    {
+      "styleId": "ThesisTocTitle",
+      "type": "StyleValues { }",
+      "basedOn": "Normal"
+    }
+  ],
+  "numberingLevelTexts": [
+    "\u7B2C%1\u7AE0",
+    "\u7B2C%2\u8282",
+    "%3",
+    "[%1]",
+    "%1."
+  ],
+  "numberingSummary": [
+    {
+      "abstractNumberId": 1,
+      "levelTexts": [
+        "\u7B2C%1\u7AE0",
+        "\u7B2C%2\u8282",
+        "%3"
+      ]
+    },
+    {
+      "abstractNumberId": 2,
+      "levelTexts": [
+        "[%1]"
+      ]
+    },
+    {
+      "abstractNumberId": 3,
+      "levelTexts": [
+        "%1."
+      ]
+    }
+  ],
+  "fieldCodes": [
+    "PAGE \\* MERGEFORMAT",
+    "PAGE \\* MERGEFORMAT",
+    "REF bm-shnu-format-table \\h",
+    "REF bm-shnu-intro \\h",
+    "REF bm-shnu-sample-equation \\h",
+    "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+  ],
+  "tocFields": [
+    "TOC \\o \u00221-3\u0022 \\h \\z \\u"
+  ],
+  "refFields": [
+    "REF bm-shnu-format-table \\h",
+    "REF bm-shnu-intro \\h",
+    "REF bm-shnu-sample-equation \\h"
+  ],
+  "sectionsSummary": [
+    {
+      "index": 0,
+      "pageNumberFormat": "none",
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797"
+    },
+    {
+      "index": 1,
+      "pageNumberFormat": "upperRoman",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797"
+    },
+    {
+      "index": 2,
+      "pageNumberFormat": "decimal",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1440",
+      "bottomMarginTwips": "1440",
+      "leftMarginTwips": "1797",
+      "rightMarginTwips": "1797"
+    }
+  ],
+  "headersFootersSummary": [
+    {
+      "kind": "footer",
+      "relationshipId": "rIdFooterBody",
+      "hasPageField": true,
+      "hasHeaderLine": false
+    },
+    {
+      "kind": "footer",
+      "relationshipId": "rIdFooterFrontMatter",
+      "hasPageField": true,
+      "hasHeaderLine": false
+    },
+    {
+      "kind": "header",
+      "relationshipId": "rIdHeaderBody",
+      "hasPageField": false,
+      "hasHeaderLine": true
+    },
+    {
+      "kind": "header",
+      "relationshipId": "rIdHeaderFrontMatter",
+      "hasPageField": false,
+      "hasHeaderLine": true
+    }
+  ],
+  "sectionPageNumberFormats": [
+    "none",
+    "upperRoman",
+    "decimal"
+  ],
+  "bookmarks": [
+    "bm-shnu-chapter-two",
+    "bm-shnu-format-table",
+    "bm-shnu-intro",
+    "bm-shnu-sample-equation"
+  ],
+  "footnotes": {
+    "count": 1,
+    "ids": [
+      1
+    ],
+    "styleIds": [
+      "ThesisFootnoteText"
+    ],
+    "referenceMarkCount": 1,
+    "hasPart": true,
+    "hasSeparator": true,
+    "hasContinuationSeparator": true
+  },
+  "endnotes": {
+    "count": 0,
+    "ids": [],
+    "styleIds": [],
+    "referenceMarkCount": 0,
+    "hasPart": false,
+    "hasSeparator": false,
+    "hasContinuationSeparator": false
+  },
+  "bibliography": {
+    "entryCount": 1,
+    "hangingIndents": [
+      "420"
+    ]
+  },
+  "equations": {
+    "count": 1,
+    "ids": [
+      "bm-shnu-sample-equation"
+    ],
+    "sourceTypes": [
+      "plainOrOmml"
+    ],
+    "hasNumbering": true,
+    "bookmarks": [
+      "bm-shnu-sample-equation"
+    ],
+    "ommlElementCount": 1,
+    "refFields": []
+  },
+  "tables": {
+    "count": 2,
+    "captions": [
+      "\u88681 \u683C\u5F0F\u89C4\u5219\u9A8C\u8BC1\u8868"
+    ],
+    "bookmarks": [
+      "bm-shnu-format-table"
+    ],
+    "styles": [
+      "threeLine"
+    ],
+    "hasGridSpan": true,
+    "hasVerticalMerge": true,
+    "hasRepeatHeaderRows": true,
+    "hasCantSplitRows": true,
+    "hasNestedCellBlocks": false,
+    "hasCellNoteReferences": false,
+    "cellParagraphStyleIds": [
+      "ThesisBody"
+    ],
+    "widthTypes": [
+      "pct"
+    ],
+    "borderSummary": [
+      "top:nil|bottom:single|left:nil|right:nil|insideH:single|insideV:nil",
+      "top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil"
+    ]
+  },
+  "templateRendering": {
+    "templateId": "shnu-humanities-public-source-pilot",
+    "templateVersion": "0.1.0",
+    "rendererVersion": "1.0.0",
+    "resolvedFormatSpecVersion": "1.2.0",
+    "renderedPageTemplates": [
+      "shnu-declarations",
+      "shnu-humanities-cover"
+    ],
+    "renderedVariables": [
+      "completionDate",
+      "researchDirection"
+    ],
+    "renderedAssets": [
+      "shnuWordmark"
+    ],
+    "coverSummary": {
+      "hasTitle": false,
+      "hasMetadataFieldTable": true,
+      "hasLogoDrawing": true
+    },
+    "declarationSummary": {
+      "hasDeclarationText": true,
+      "hasSignatureField": true
+    },
+    "ruleParagraphCount": 1
+  },
+  "openXmlValidatorErrorCount": 0,
+  "paragraphCount": 70,
+  "tableCount": 2,
+  "drawingCount": 2,
+  "figuresCount": 2,
+  "headerCount": 2,
+  "footerCount": 2
+}

@@ -1,6 +1,7 @@
 # Template Regression
 
 Template regression suites live under `examples/template-regression`.
+The committed suite covers the fictional Example University engineering and humanities variants plus the SHNU humanities public-source onboarding example. The public-source case uses structural baselines and manifest attestations; it is machine-checked, not human format certification.
 
 `TemplateRegressionRunner` executes each case:
 

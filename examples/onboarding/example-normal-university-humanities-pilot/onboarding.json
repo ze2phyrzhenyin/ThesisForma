@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "example-normal-university-humanities-pilot",
+  "displayName": "Example Normal University Humanities pilot onboarding",
+  "publicSourceAttestations": [],
+  "institution": {
+    "school": "Example Normal University",
+    "college": "Example Humanities College",
+    "degreeType": "master",
+    "locale": "zh-CN",
+    "isRealInstitution": false,
+    "redactionPolicy": "fictionalExample"
+  },
+  "paths": {
+    "sourceDocumentsDir": "source-documents",
+    "requirementsPath": "requirements/requirements.json",
+    "templateDir": "template",
+    "fixturesDir": "fixtures",
+    "baselinesDir": "baselines",
+    "reportsDir": "reports",
+    "artifactsDir": "artifacts"
+  },
+  "privacy": {
+    "allowRealInstitutionNamesInWorkspace": true,
+    "allowSourceDocumentsInWorkspace": true,
+    "prohibitSourceDocumentsInRelease": true,
+    "prohibitPersonalDataInExamples": true,
+    "allowPublicInstitutionSourceDocumentsInExamples": false,
+    "publicSourceDocumentPathPrefixes": [],
+    "maxEvidenceExcerptLength": 240,
+    "maxBase64Length": 200000,
+    "maxWarningCount": 0,
+    "suppressedWarningCodes": [],
+    "suppressedWarningPathPrefixes": []
+  },
+  "acceptance": {
+    "reviewStatus": "machineChecked",
+    "acceptedScope": ["privacy", "schema", "inputValidation", "render", "formatConformance"],
+    "acceptedRequirementIds": [],
+    "knownGaps": [
+      {
+        "id": "fictional-humanities-review",
+        "title": "Fictional humanities example is not institution-certified",
+        "impact": "The example validates workflow shape but does not claim compliance with a real institution.",
+        "tracking": "Keep as fictional regression fixture.",
+        "status": "acceptedLimitation"
+      }
+    ],
+    "acceptedBy": null,
+    "acceptedAt": null,
+    "notes": "Machine-checked fictionalized example for public workflow coverage."
+  },
+  "quality": {
+    "coverageThreshold": 0.85,
+    "layoutThreshold": 0.99,
+    "requiredReports": ["gate", "diagnostic", "authoring", "summary", "privacy", "requirements"]
+  },
+  "status": {
+    "phase": "templateScaffolded",
+    "lastCheckedAt": "2026-05-13T00:00:00Z",
+    "notes": "Fictionalized public example. Real source material remains in private onboarding workspaces."
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "shnu-humanities-public-source",
+  "displayName": "上海师范大学研究生学位论文规范示例（文科）公开来源试点",
+  "publicSourceAttestations": [
+    {
+      "path": "source-documents/上海师范大学研究生学位论文规范示例（文科）(2)(2).docx",
+      "sourceUrl": null,
+      "publicAccessBasis": "Repository owner confirmed in-session that this SHNU sample document may be public in examples.",
+      "reviewedBy": "Repository owner",
+      "reviewedAt": "2026-05-13",
+      "notes": "Only the public source DOCX and derived template fixtures are committed. Generated DOCX/PDF artifacts, package zips, raw extraction text, private thesis content, and font binaries remain excluded."
+    }
+  ],
+  "institution": {
+    "school": "上海师范大学",
+    "college": "研究生院",
+    "degreeType": "master",
+    "locale": "zh-CN",
+    "isRealInstitution": true,
+    "redactionPolicy": "publicSourceExample"
+  },
+  "paths": {
+    "sourceDocumentsDir": "source-documents",
+    "requirementsPath": "requirements/requirements.json",
+    "templateDir": "template",
+    "fixturesDir": "fixtures",
+    "baselinesDir": "baselines",
+    "reportsDir": "reports",
+    "artifactsDir": "artifacts"
+  },
+  "privacy": {
+    "allowRealInstitutionNamesInWorkspace": true,
+    "allowSourceDocumentsInWorkspace": true,
+    "prohibitSourceDocumentsInRelease": true,
+    "prohibitPersonalDataInExamples": true,
+    "allowPublicInstitutionSourceDocumentsInExamples": true,
+    "publicSourceDocumentPathPrefixes": ["source-documents/"],
+    "maxEvidenceExcerptLength": 240,
+    "maxBase64Length": 200000,
+    "maxWarningCount": 0,
+    "suppressedWarningCodes": ["privacy.generatedArtifact.forbidden"],
+    "suppressedWarningPathPrefixes": [
+      "artifacts/",
+      "reports/"
+    ]
+  },
+  "acceptance": {
+    "reviewStatus": "machineChecked",
+    "acceptedScope": ["privacy", "schema", "inputValidation", "render", "formatConformance", "templateRegression", "baselineCompare", "package"],
+    "acceptedRequirementIds": [
+      "req-page-setup",
+      "req-frontmatter-pagination",
+      "req-body-pagination",
+      "req-body-paragraph",
+      "req-heading-hierarchy",
+      "req-toc",
+      "req-declaration"
+    ],
+    "knownGaps": [
+      {
+        "id": "shnu-dynamic-chapter-header",
+        "title": "Dynamic chapter-name header",
+        "impact": "The source asks for chapter-name headers; the current public template renders a deterministic centered header text.",
+        "tracking": "Implement section-instance header overrides or dynamic header fields.",
+        "status": "open"
+      },
+      {
+        "id": "shnu-professional-cover-variant",
+        "title": "Professional-degree cover variant",
+        "impact": "The public template covers the academic-degree cover; the professional-degree variant is recorded but not conditionally rendered.",
+        "tracking": "Add template variant selection or conditional page-template blocks.",
+        "status": "open"
+      },
+      {
+        "id": "shnu-appendix-numbering",
+        "title": "Appendix A/B/C numbering",
+        "impact": "Appendix heading shape is covered, but appendix-specific figure/table/equation numbering is not fully modeled.",
+        "tracking": "Extend section-aware numbering rules for appendix sections.",
+        "status": "open"
+      }
+    ],
+    "acceptedBy": null,
+    "acceptedAt": null,
+    "notes": "Machine acceptance means the public-source example passes deterministic privacy, render, conformance, regression, baseline, and package gates. Human format review is still required before changing reviewStatus to humanAccepted."
+  },
+  "quality": {
+    "coverageThreshold": 0.85,
+    "layoutThreshold": 0.99,
+    "requiredReports": ["gate", "diagnostic", "authoring", "summary", "privacy", "requirements"]
+  },
+  "status": {
+    "phase": "readyForReview",
+    "lastCheckedAt": "2026-05-13T00:00:00Z",
+    "notes": "Public-source real-institution example. Human format review is still required before treating the template as accepted."
+  }
+}

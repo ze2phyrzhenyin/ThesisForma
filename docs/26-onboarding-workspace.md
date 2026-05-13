@@ -1,8 +1,8 @@
 # Onboarding Workspace
 
-`OnboardingWorkspace` is a private pilot workspace for turning one institution's manually reviewed formatting requirements into a template candidate.
+`OnboardingWorkspace` is a pilot workspace for turning one institution's manually reviewed formatting requirements into a template candidate.
 
-The workspace may contain sensitive source files and review notes, so real pilots should live under `onboarding-workspaces/<slug>/` or another private directory. The repository `examples/onboarding/example-engineering-pilot` is fictional and exists only to test the workflow.
+The workspace may contain sensitive source files and review notes, so real pilots should live under `onboarding-workspaces/<slug>/` or another private directory by default. Public examples are fictional unless the manifest explicitly declares a reviewed `publicSourceExample` with matching `publicSourceAttestations`.
 
 Typical layout:
 
@@ -14,6 +14,10 @@ Typical layout:
 - `baselines/`: pilot baseline manifest and layout/snapshot baselines.
 - `reports/`: gate, diagnostic, authoring, and summary reports.
 - `artifacts/`: generated DOCX, inspect JSON, layout signatures, and snapshots.
+
+For public-source real-institution examples, `source-documents/` may contain only attested `.docx` or `.pdf` files that are listed in `onboarding.json.publicSourceAttestations`. Generated artifacts, raw extraction text, private thesis content, legacy `.doc`/`.wps` files, and font binaries remain out of examples and packages.
+
+The manifest `acceptance` block records whether the workspace is only `machineChecked` or has been `humanAccepted`. Public-source examples must include the machine gate scope (`privacy`, `schema`, `inputValidation`, `render`, `formatConformance`, `templateRegression`, `baselineCompare`, and `package`) before they can pass onboarding validation. `knownGaps` are part of the acceptance evidence and must not be hidden in prose.
 
 CLI:
 
