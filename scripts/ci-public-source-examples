@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+OUT_DIR="${CI_OUT_DIR:-out/ci/public-source}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --out)
+      OUT_DIR="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+mkdir -p "$OUT_DIR"
+
+WORKSPACES_FILE="$(mktemp)"
+trap 'rm -f "$WORKSPACES_FILE"' EXIT
+node > "$WORKSPACES_FILE" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+function walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walk(full);
+      continue;
+    }
+
+    if (entry.isFile() && entry.name === 'onboarding.json') {
+      const manifest = JSON.parse(fs.readFileSync(full, 'utf8'));
+      if (manifest?.institution?.redactionPolicy === 'publicSourceExample') {
+        console.log(path.dirname(full));
+      }
+    }
+  }
+}
+
+walk(path.join('examples', 'onboarding'));
+NODE
+
+if [[ ! -s "$WORKSPACES_FILE" ]]; then
+  echo "No public-source onboarding examples found." >&2
+  exit 1
+fi
+
+dotnet run --project src/ThesisDocx.Cli -- privacy scan \
+  --path examples \
+  --policy examples/onboarding/example-engineering-pilot/onboarding.json \
+  --out "$OUT_DIR/privacy-scan-examples.json"
+
+dotnet run --project src/ThesisDocx.Cli -- baseline compare \
+  --suite examples/template-regression/template-regression-suite.json \
+  --out "$OUT_DIR/template-baseline-compare.json"
+
+dotnet run --project src/ThesisDocx.Cli -- template regression \
+  --suite examples/template-regression/template-regression-suite.json \
+  --out "$OUT_DIR/template-regression-report.json"
+
+while IFS= read -r workspace; do
+  slug="$(basename "$workspace")"
+  case_out="$OUT_DIR/$slug"
+  mkdir -p "$case_out"
+
+  node - "$workspace" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const workspace = process.argv[2];
+const manifest = JSON.parse(fs.readFileSync(path.join(workspace, 'onboarding.json'), 'utf8'));
+const requiredScopes = ['privacy', 'schema', 'inputValidation', 'render', 'formatConformance', 'templateRegression', 'baselineCompare', 'package'];
+const status = manifest?.acceptance?.reviewStatus;
+if (status !== 'machineChecked' && status !== 'humanAccepted') {
+  throw new Error(`${workspace}: public-source example must be machineChecked or humanAccepted`);
+}
+
+const scopes = new Set(manifest?.acceptance?.acceptedScope ?? []);
+for (const scope of requiredScopes) {
+  if (!scopes.has(scope)) {
+    throw new Error(`${workspace}: missing public-source acceptance scope ${scope}`);
+  }
+}
+
+if (!Array.isArray(manifest?.publicSourceAttestations) || manifest.publicSourceAttestations.length === 0) {
+  throw new Error(`${workspace}: missing publicSourceAttestations`);
+}
+NODE
+
+  dotnet run --project src/ThesisDocx.Cli -- privacy scan \
+    --path "$workspace" \
+    --out "$case_out/privacy-scan.json"
+
+  dotnet run --project src/ThesisDocx.Cli -- onboarding validate \
+    --workspace "$workspace"
+
+  dotnet run --project src/ThesisDocx.Cli -- template validate \
+    --template "$workspace/template" \
+    --json > "$case_out/template-validate.json"
+
+  dotnet run --project src/ThesisDocx.Cli -- validate-input \
+    --document "$workspace/fixtures/document.json" \
+    --template "$workspace/template" > "$case_out/input-validate.txt"
+
+  dotnet run --project src/ThesisDocx.Cli -- render \
+    --document "$workspace/fixtures/document.json" \
+    --template "$workspace/template" \
+    --out "$case_out/rendered.docx" \
+    --json > "$case_out/render.json"
+
+  dotnet run --project src/ThesisDocx.Cli -- validate \
+    --docx "$case_out/rendered.docx" \
+    --template "$workspace/template" \
+    --json > "$case_out/format-validate.json"
+
+  dotnet run --project src/ThesisDocx.Cli -- onboarding package \
+    --workspace "$workspace" \
+    --out "$case_out/$slug.template-pilot.zip"
+
+  dotnet run --project src/ThesisDocx.Cli -- onboarding package-validate \
+    --package "$case_out/$slug.template-pilot.zip" \
+    --out "$case_out/package-validate.json"
+
+  find "$workspace/artifacts" -mindepth 1 -maxdepth 1 ! -name README.md -exec rm -rf {} +
+done < "$WORKSPACES_FILE"

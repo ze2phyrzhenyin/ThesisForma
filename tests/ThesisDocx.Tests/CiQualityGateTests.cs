@@ -47,6 +47,21 @@ public sealed class CiQualityGateTests
     }
 
     [Fact]
+    public void GithubCiWorkflow_ShouldContainNodeSetupAndQualityGate()
+    {
+        var content = File.ReadAllText(Path.Combine(RepoRoot(), ".github", "workflows", "quality-gate.yml"));
+
+        Assert.Contains("actions/checkout", content);
+        Assert.Contains("actions/setup-dotnet", content);
+        Assert.Contains("actions/setup-node", content);
+        Assert.Contains("cache: npm", content);
+        Assert.Contains("cache-dependency-path: web/package-lock.json", content);
+        Assert.Contains("scripts/ci-quality-gate", content);
+        Assert.Contains("actions/upload-artifact", content);
+        Assert.Contains("path: out/ci", content);
+    }
+
+    [Fact]
     public void CiQualityGateScript_ShouldUseDeterministicOutputDirectory()
     {
         var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate"));
@@ -77,12 +92,58 @@ public sealed class CiQualityGateTests
     }
 
     [Fact]
+    public void CiQualityGateScript_ShouldInvokeWebQualityGate()
+    {
+        var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-quality-gate"));
+
+        Assert.Contains("scripts/web-quality-gate", content);
+    }
+
+    [Fact]
+    public void WebQualityGateScript_ShouldRunReproducibleWebChecks()
+    {
+        var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "web-quality-gate"));
+
+        Assert.Contains("npm --prefix web ci", content);
+        Assert.Contains("npm --prefix web run typecheck", content);
+        Assert.Contains("npm --prefix web test", content);
+        Assert.Contains("npm --prefix web run build", content);
+        Assert.Contains("npm --prefix web run e2e", content);
+        Assert.Contains("WEB_E2E:-1", content);
+    }
+
+    [Fact]
+    public void PlaywrightConfig_ShouldUseIsolatedServerPort()
+    {
+        var content = File.ReadAllText(Path.Combine(RepoRoot(), "web", "playwright.config.ts"));
+
+        Assert.Contains("PLAYWRIGHT_PORT", content);
+        Assert.Contains("127.0.0.1", content);
+        Assert.Contains("reuseExistingServer: false", content);
+        Assert.Contains("port: e2ePort", content);
+    }
+
+    [Fact]
     public void CiNegativeFixturesScript_ShouldRunNegativeFixtures()
     {
         var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-negative-fixtures"));
 
         Assert.Contains("negative-fixtures run", content);
         Assert.Contains("examples/negative-fixtures/negative-fixture-manifest.json", content);
+    }
+
+    [Fact]
+    public void CiSchemaCheckScript_ShouldRunGeneratedDocsTypesAndExamples()
+    {
+        var content = File.ReadAllText(Path.Combine(RepoRoot(), "scripts", "ci-schema-check"));
+
+        Assert.Contains("scripts/generate-schema-docs --check", content);
+        Assert.Contains("scripts/generate-web-types --check", content);
+        Assert.Contains("validate-input", content);
+        Assert.Contains("examples/simple-thesis/document.json", content);
+        Assert.Contains("examples/full-thesis/document.json", content);
+        Assert.Contains("requirements validate", content);
+        Assert.Contains("template validate", content);
     }
 
     [Fact]
@@ -600,7 +661,16 @@ public sealed class CiQualityGateTests
 
     private static IEnumerable<string> CiScripts()
     {
-        return ["ci-quality-gate", "ci-render-examples", "ci-template-quality", "ci-schema-check", "ci-negative-fixtures"];
+        return [
+            "ci-quality-gate",
+            "ci-render-examples",
+            "ci-template-quality",
+            "ci-schema-check",
+            "ci-negative-fixtures",
+            "generate-schema-docs",
+            "generate-web-types",
+            "schema-codegen.mjs"
+        ];
     }
 
     private static string NegativeManifestPath() => Path.Combine(RepoRoot(), "examples", "negative-fixtures", "negative-fixture-manifest.json");

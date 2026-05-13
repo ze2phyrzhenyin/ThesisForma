@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+if [[ ! -f web/package.json ]]; then
+  echo "web/package.json not found; skipping web quality gate"
+  exit 0
+fi
+
+if [[ "${WEB_SKIP_NPM_INSTALL:-0}" != "1" ]]; then
+  if [[ "${CI:-}" == "true" || ! -d web/node_modules ]]; then
+    npm --prefix web ci
+  fi
+fi
+
+npm --prefix web run typecheck
+npm --prefix web test
+npm --prefix web run build
+
+if [[ "${WEB_E2E:-1}" == "1" ]]; then
+  if [[ "${CI:-}" == "true" && "${WEB_SKIP_PLAYWRIGHT_INSTALL:-0}" != "1" ]]; then
+    npm --prefix web exec -- playwright install --with-deps chromium
+  fi
+  npm --prefix web run e2e
+else
+  echo "Skipping web e2e because WEB_E2E=${WEB_E2E}"
+fi
+
