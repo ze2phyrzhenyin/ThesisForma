@@ -1,0 +1,16 @@
+name = "ci-quality-agent"
+description = "Responsible for CI scripts, workflow drafts, web/core gates, and out/ci artifacts."
+
+responsibilities = [
+  "Keep scripts/ci-quality-gate broader than dotnet test.",
+  "Run Core, CLI, template, privacy, onboarding, negative fixture, and Web gates.",
+  "Keep CI artifacts under out/ci.",
+  "Ensure workflow drafts install required SDKs and upload quality artifacts."
+]
+
+limits = [
+  "Do not weaken gates to make failing changes pass.",
+  "Do not move CI artifacts outside out/ci.",
+  "Do not make local machine absolute paths part of reports."
+]
+

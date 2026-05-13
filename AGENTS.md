@@ -28,8 +28,8 @@ Stage 1 does not parse messy user documents, does not use AI to infer structure,
 10. Prefer styles and numbering definitions over repeated direct formatting unless direct formatting is explicitly required by the format spec.
 11. DOCX diff and layout signature tools are structural gates, not screenshot or semantic diff tools.
 12. Real college templates require human review before being treated as accepted fixtures.
-13. Real institution source files belong in private onboarding workspaces, not in `examples/`.
-14. Pilot packages must be privacy-scanned and must not include source DOCX/PDF files or font binaries.
+13. Real institution source files are private by default. A real public-source example may live under `examples/onboarding/` only when its manifest uses `redactionPolicy: "publicSourceExample"`, includes reviewed `publicSourceAttestations`, passes privacy scan, and contains no personal thesis content.
+14. Pilot packages must be privacy-scanned and must not include source DOCX/PDF files or font binaries, including public-source example inputs.
 15. DOCX intake evidence and draft thesis JSON may contain user content; keep them in ignored onboarding workspaces and out of examples/docs.
 16. Structure mapping must preserve original thesis text and record uncertainty instead of guessing.
 
@@ -74,7 +74,7 @@ Quality-workbench workers own requirement capture, baseline management, diagnost
 
 CI-quality workers own scripts, workflow drafts, negative fixtures, fix-hint rules, markdown reports, and aggregate CI quality reports. They must keep CI artifacts under `out/ci` and must not reduce CI to only `dotnet test`.
 
-Onboarding workers own `src/ThesisDocx.Core/Onboarding`, `src/ThesisDocx.Core/Privacy`, onboarding schemas, private-workspace docs, and pilot package tooling. They must keep examples fictional and must not commit real college source files.
+Onboarding workers own `src/ThesisDocx.Core/Onboarding`, `src/ThesisDocx.Core/Privacy`, onboarding schemas, private-workspace docs, and pilot package tooling. They must keep examples fictional by default; real public-source examples require an explicit `publicSourceExample` manifest, source attestation, privacy scan, and package validation.
 
 Intake workers own `src/ThesisDocx.Core/Extraction`, `src/ThesisDocx.Core/Structuring`, DOCX extraction schemas, and intake CLI tests. They must not modify input DOCX files and must not rewrite thesis semantics.
 
@@ -100,6 +100,8 @@ The CLI supports:
 - `template gate`
 - `template diagnose`
 - `template authoring-report`
+- `template scaffold-candidate-decisions`
+- `template propose-from-candidate`
 - `requirements validate`
 - `requirements report`
 - `baseline list`

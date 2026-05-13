@@ -72,6 +72,9 @@ dotnet run --project src/ThesisDocx.Cli -- template list \
 dotnet run --project src/ThesisDocx.Cli -- template validate \
   --template examples/templates/example-university-engineering
 
+dotnet run --project src/ThesisDocx.Cli -- template validate \
+  --template examples/templates/example-university-humanities
+
 dotnet run --project src/ThesisDocx.Cli -- render \
   --document examples/full-thesis/document.json \
   --template examples/templates/example-university-engineering \
@@ -82,6 +85,8 @@ dotnet run --project src/ThesisDocx.Cli -- validate \
   --docx out/template-full.docx \
   --template examples/templates/example-university-engineering
 ```
+
+The fictional humanities template has its own regression document and baseline under `examples/template-regression`.
 
 Template utilities:
 
@@ -162,19 +167,19 @@ Formal schemas live in `schemas/` and are validated with the `NJsonSchema` NuGet
 - Cover/front matter/body section profiles.
 - Cover without page number, front matter lower Roman page numbers, body decimal page numbers restarting at 1.
 - Default East Asia and Latin fonts.
-- body paragraph style, line spacing, spacing before/after, first-line indent, alignment.
+- body paragraph style, multiple or exact line spacing, spacing before/after, first-line indent, alignment.
 - heading 1-3 styles, outline levels, and multilevel numbering.
 - header text, header bottom line, footer PAGE field.
 - TOC field code.
 - normal and three-line tables.
-- advanced tables with gridSpan, vMerge, repeat header rows, cantSplit rows, fixed/auto layout, percent/dxa/auto width, table/cell margins, vertical alignment, and cell border overrides.
+- advanced tables with gridSpan, vMerge, repeat header rows, cantSplit rows, fixed/auto layout, percent/dxa/auto width, table/cell margins, vertical alignment, cell border overrides, and bounded nested cell blocks.
 - image insertion from base64 or path, DrawingML inline drawing, EMU sizing.
 - figure/table captions.
 - OMML equation blocks from controlled OMML, plain text, or a small LaTeX subset/fallback.
 - equation numbering, bookmarks, and `REF` cross references.
 - bibliography numbered list with hanging indent.
 - bookmarks and REF field cross references.
-- real `footnotes.xml` and `endnotes.xml` parts with body references and separators.
+- real `footnotes.xml` and `endnotes.xml` parts with body references, separators, and declarative note styles from `ThesisFormatSpec.notes`.
 - CLI render/validate/inspect/snapshot.
 - OpenXmlValidator wrapper, format conformance checks, XML assertions, normalized snapshot tests.
 - JSON Schema validation and semantic input validation.
@@ -182,7 +187,7 @@ Formal schemas live in `schemas/` and are validated with the `NJsonSchema` NuGet
 - reusable `TemplatePackage` examples with inheritance and deterministic format-spec merge.
 - template variables resolved from CLI values, thesis metadata, and defaults.
 - template image assets for cover layouts; font assets are metadata-only.
-- cover and declaration page layout DSL rendered as real WordprocessingML.
+- cover and declaration page layout DSL rendered as real WordprocessingML, including deterministic `rule` separator blocks.
 - template CLI list/inspect/validate/resolve/diff/coverage.
 - template-aware validation and custom document properties for renderer/template metadata.
 - conservative format rule coverage matrix.
@@ -326,7 +331,7 @@ dotnet run --project src/ThesisDocx.Cli -- onboarding package-validate \
   --package out/example-engineering-pilot.template-pilot.zip
 ```
 
-`examples/onboarding/example-engineering-pilot` is fictional. A real pilot package excludes source PDF/DOCX files, generated DOCX artifacts, system font binaries, absolute paths, and long evidence excerpts. See `docs/26-onboarding-workspace.md` through `docs/29-first-real-college-pilot.md`.
+`examples/onboarding/example-engineering-pilot` is fictional. Public-source real-institution examples must be explicitly attested in `onboarding.json`, carry an `acceptance` block, and pass `scripts/ci-public-source-examples`; private real-college material stays under ignored onboarding workspaces. A real pilot package excludes source PDF/DOCX files, generated DOCX artifacts, system font binaries, absolute paths, and long evidence excerpts. See `docs/26-onboarding-workspace.md` through `docs/29-first-real-college-pilot.md`.
 
 ## DOCX Intake Prototype
 

@@ -62,5 +62,26 @@ Use the mirrored skills as role guidance:
 - `web-structured-thesis-editor`: React structured thesis editor, block model, `ThesisDocument` JSON serialization.
 - `thesis-editor-design-system`: professional, restrained three-column editor UI and shared design tokens.
 - `web-editor-api`: ASP.NET Core editor API, runtime file storage, render/validate/assets endpoints, and path safety.
+- `stage1-vibe-completion`: one-pass completion coordination across DocumentOverrides, template fixtures, schema docs/typegen, unified CI, rendering pain points, refactors, and web performance.
 
-The `.toml` files define suggested worker boundaries for schema, renderer, validation, and docs agents.
+The `.toml` files define suggested worker boundaries for schema, renderer, validation, template, docs, web, CI-quality, and onboarding agents.
+
+## Stage 1 Completion Pack
+
+The mirrored vibe coding pack is:
+
+```text
+codex-components/vibe-coding/stage1-completion/
+```
+
+It contains component briefs for:
+
+- DocumentOverrides backend and renderer integration;
+- template-to-finished-DOCX closed-loop fixtures;
+- generated schema documentation and frontend types;
+- unified Web/Core CI;
+- common thesis rendering pain points;
+- maintainability refactors;
+- web performance and bundle shape.
+
+Use `scripts/ci-quality-gate` as the final acceptance command. It now invokes `scripts/web-quality-gate`, which runs web typecheck, unit tests, production build, and Playwright e2e unless `WEB_E2E=0` is set for local iteration.

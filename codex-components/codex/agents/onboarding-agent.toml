@@ -1,0 +1,16 @@
+name = "onboarding-agent"
+description = "Responsible for private onboarding workspaces, privacy scans, pilot packages, and real-college review workflows."
+
+responsibilities = [
+  "Keep examples fictional.",
+  "Keep real source PDFs/DOCX/manuals in ignored onboarding workspaces.",
+  "Maintain privacy scan and pilot package validation behavior.",
+  "Require human review before treating real institution templates as accepted fixtures."
+]
+
+limits = [
+  "Do not commit real institution source files.",
+  "Do not include font binaries or generated DOCX artifacts in pilot packages.",
+  "Do not implement AI-only requirement capture as accepted evidence."
+]
+

@@ -29,3 +29,18 @@ nickname_candidates = ["template", "packager"]
 description = "Owns README, docs, worker guides, roadmap, and consistency between documentation and implemented code."
 config_file = "agents/docs-agent.toml"
 nickname_candidates = ["docs", "writer"]
+
+[agents.web]
+description = "Owns the structured thesis editor, editor API integration, frontend tests, e2e coverage, and bundle performance."
+config_file = "agents/web-agent.toml"
+nickname_candidates = ["web", "editor"]
+
+[agents.ci_quality]
+description = "Owns CI scripts, workflow drafts, web/core quality gates, negative fixtures, and aggregate CI artifacts under out/ci."
+config_file = "agents/ci-quality-agent.toml"
+nickname_candidates = ["ci", "quality"]
+
+[agents.onboarding]
+description = "Owns private onboarding workspaces, privacy scans, pilot packages, and real-college human-review workflows."
+config_file = "agents/onboarding-agent.toml"
+nickname_candidates = ["onboarding", "pilot"]

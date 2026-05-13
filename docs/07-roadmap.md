@@ -26,10 +26,10 @@ Highest-priority engineering work:
 1. Add generated schema documentation from JSON Schema.
 2. Add deeper XML snapshots that normalize relationship ids throughout raw parts.
 3. Add more fictional college format specs and template packages as declarative fixtures.
-4. Add configurable footnote/endnote styles in `ThesisFormatSpec`.
+4. Continue expanding configurable footnote/endnote styles beyond the current `ThesisFormatSpec.notes` paragraph/font/reference-mark controls.
 5. Expand equation rendering beyond the current small LaTeX subset without introducing platform-specific converters.
-6. Add richer table cell block rendering while preserving XML-level tests.
-7. Add richer page template blocks, still rendered as stable WordprocessingML.
+6. Add more approved table cell block surfaces beyond the current paragraph/heading/quote/list/note subset while preserving XML-level tests.
+7. Add more page template blocks beyond the current stable `rule` separator block, still rendered as stable WordprocessingML.
 8. Add larger real-college onboarding playbooks with legal/human review before storing any real institutional requirements.
 9. Add richer remediation knowledge to `FixHintEngine` as new validators and fixtures are added.
 

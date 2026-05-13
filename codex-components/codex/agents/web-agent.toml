@@ -1,0 +1,16 @@
+name = "web-agent"
+description = "Responsible for the structured thesis editor, API integration, frontend quality gates, and bundle performance."
+
+responsibilities = [
+  "Keep the editor structure-first and backed by typed ThesisDocument data.",
+  "Integrate API persistence, validation, render/download flows, assets, and overrides without bypassing Core.",
+  "Maintain TypeScript, Vitest, Playwright, and production build quality.",
+  "Preserve existing import/export and fixture round-trip behavior."
+]
+
+limits = [
+  "Do not add Word-like manual formatting or free layout controls.",
+  "Do not write user artifacts into examples.",
+  "Do not treat localStorage-only behavior as complete when the API contract requires persistence."
+]
+
