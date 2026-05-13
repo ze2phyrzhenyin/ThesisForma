@@ -1024,9 +1024,19 @@ public sealed class DocxIntakeStructuringTests
 
         RunIntake(workspace, input);
         var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
 
         Assert.True(report["renderAttempted"]!.GetValue<bool>());
-        Assert.True(File.Exists(Path.Combine(workspace, "artifacts", "rendered-draft.docx")));
+        Assert.True(File.Exists(renderedPath));
+        var validation = new OpenXmlPackageValidator().Validate(renderedPath);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        using var package = WordprocessingDocument.Open(renderedPath, false);
+        Assert.Contains(package.MainDocumentPart!.Document.Descendants<W.FootnoteReference>(), reference => reference.Id?.Value == 1);
+        Assert.Contains(package.MainDocumentPart.Document.Descendants<W.EndnoteReference>(), reference => reference.Id?.Value == 1);
+        Assert.Contains(package.MainDocumentPart.Document.Descendants<W.Hyperlink>(), hyperlink => hyperlink.InnerText == "OpenAI");
+        Assert.Contains(package.MainDocumentPart.HyperlinkRelationships, relationship => relationship.Uri.ToString().Contains("example.com", StringComparison.Ordinal));
+        Assert.Contains(package.MainDocumentPart.FootnotesPart!.Footnotes!.Descendants<W.Text>(), text => text.Text == "脚注内容");
+        Assert.Contains(package.MainDocumentPart.EndnotesPart!.Endnotes!.Descendants<W.Text>(), text => text.Text == "尾注内容");
     }
 
     [Fact]
