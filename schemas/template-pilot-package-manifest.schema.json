@@ -52,6 +52,24 @@
           "items": { "type": "string" }
         }
       }
+    },
+    "acceptanceSummary": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "reviewStatus": { "type": "string" },
+        "acceptedScope": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "knownGapCount": { "type": "integer", "minimum": 0 },
+        "acceptedBy": { "type": "string" },
+        "acceptedAt": { "type": "string" }
+      }
     }
   },
   "definitions": {

@@ -4,11 +4,16 @@
   "title": "OnboardingWorkspaceManifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "workspaceId", "displayName", "institution", "paths", "privacy", "quality", "status"],
+  "required": ["schemaVersion", "workspaceId", "displayName", "institution", "paths", "privacy", "acceptance", "quality", "status"],
   "properties": {
     "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
     "workspaceId": { "$ref": "#/definitions/id" },
     "displayName": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "publicSourceAttestations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/publicSourceAttestation" },
+      "uniqueItems": true
+    },
     "institution": {
       "type": "object",
       "additionalProperties": false,
@@ -45,6 +50,12 @@
         "allowSourceDocumentsInWorkspace": { "type": "boolean" },
         "prohibitSourceDocumentsInRelease": { "type": "boolean" },
         "prohibitPersonalDataInExamples": { "type": "boolean" },
+        "allowPublicInstitutionSourceDocumentsInExamples": { "type": "boolean" },
+        "publicSourceDocumentPathPrefixes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/relativePath" },
+          "uniqueItems": true
+        },
         "maxEvidenceExcerptLength": { "type": "integer", "minimum": 40, "maximum": 1000 },
         "maxBase64Length": { "type": "integer", "minimum": 1000, "maximum": 10000000 },
         "maxWarningCount": { "type": ["integer", "null"], "minimum": 0, "maximum": 10000 },
@@ -58,6 +69,34 @@
           "items": { "$ref": "#/definitions/relativePath" },
           "uniqueItems": true
         }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewStatus", "acceptedScope", "acceptedRequirementIds", "knownGaps", "notes"],
+      "properties": {
+        "reviewStatus": { "type": "string", "enum": ["notReviewed", "reviewRequired", "machineChecked", "humanAccepted"] },
+        "acceptedScope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["privacy", "schema", "inputValidation", "render", "formatConformance", "templateRegression", "baselineCompare", "package"]
+          },
+          "uniqueItems": true
+        },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "knownGaps": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/knownGap" }
+        },
+        "acceptedBy": { "type": ["string", "null"], "maxLength": 120 },
+        "acceptedAt": { "type": ["string", "null"], "format": "date-time" },
+        "notes": { "type": "string", "maxLength": 1000 }
       }
     },
     "quality": {
@@ -95,6 +134,31 @@
           { "pattern": "^(/|[A-Za-z]:[\\\\/])" },
           { "pattern": "(^|[\\\\/])\\.\\.($|[\\\\/])" }
         ]
+      }
+    },
+    "publicSourceAttestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "publicAccessBasis", "reviewedBy", "reviewedAt", "notes"],
+      "properties": {
+        "path": { "$ref": "#/definitions/relativePath" },
+        "sourceUrl": { "type": ["string", "null"], "maxLength": 500 },
+        "publicAccessBasis": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "reviewedBy": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "reviewedAt": { "type": "string", "format": "date" },
+        "notes": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    },
+    "knownGap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "impact", "tracking", "status"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "impact": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "tracking": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "status": { "type": "string", "enum": ["open", "acceptedLimitation", "resolved"] }
       }
     }
   }

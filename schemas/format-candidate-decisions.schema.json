@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/format-candidate-decisions.schema.json",
+  "title": "FormatCandidateDecisionSet",
+  "description": "Human review decisions for applying DOCX-derived format candidate fields to a TemplatePackage proposal.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceCandidateFormatSpec", "sourceCandidateReport", "reviewer", "reviewedAt", "riskAccepted", "riskAcceptanceReason", "decisions"],
+  "properties": {
+    "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
+    "sourceCandidateFormatSpec": { "type": "string", "minLength": 1 },
+    "sourceCandidateReport": { "type": "string", "minLength": 1 },
+    "reviewer": { "type": "string", "minLength": 1 },
+    "reviewedAt": { "type": "string" },
+    "riskAccepted": { "type": "boolean" },
+    "riskAcceptanceReason": { "type": "string" },
+    "decisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/decision" }
+    }
+  },
+  "definitions": {
+    "evidencePath": {
+      "type": "string",
+      "pattern": "^(document|paragraphs\\[[0-9]+\\]|tables\\[[0-9]+\\](\\.rows\\[[0-9]+\\]\\.cells\\[[0-9]+\\])?|footnotes\\[[0-9]+\\]|endnotes\\[[0-9]+\\]|sections\\[[0-9]+\\])$"
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldPath", "decision", "reason", "evidencePaths"],
+      "properties": {
+        "fieldPath": { "type": "string", "pattern": "^\\$\\." },
+        "decision": { "type": "string", "enum": ["accept", "reject", "modify"] },
+        "value": {},
+        "reviewer": { "type": "string" },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidencePaths": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/evidencePath" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "decision": { "const": "modify" } },
+            "required": ["decision"]
+          },
+          "then": { "required": ["value"] }
+        }
+      ]
+    }
+  }
+}

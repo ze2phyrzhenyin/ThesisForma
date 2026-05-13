@@ -5,7 +5,7 @@
   "description": "Declarative formatting rules for deterministic DOCX rendering.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "name", "pageSetup", "defaultFont", "bodyParagraph", "headings", "headerFooter", "toc", "tables", "figures", "captions", "bibliography", "numbering", "compatibility", "sections", "coverPage"],
+  "required": ["schemaVersion", "name", "pageSetup", "defaultFont", "bodyParagraph", "headings", "headerFooter", "toc", "tables", "notes", "figures", "captions", "bibliography", "numbering", "compatibility", "sections", "coverPage"],
   "properties": {
     "schemaVersion": { "type": "string", "enum": ["1.0.0", "1.1.0", "1.2.0"] },
     "name": { "type": "string", "minLength": 1 },
@@ -24,6 +24,7 @@
     "toc": { "$ref": "#/definitions/toc" },
     "tables": { "$ref": "#/definitions/tables" },
     "equations": { "$ref": "#/definitions/equations" },
+    "notes": { "$ref": "#/definitions/notes" },
     "figures": { "$ref": "#/definitions/figures" },
     "captions": { "$ref": "#/definitions/captions" },
     "bibliography": { "$ref": "#/definitions/bibliography" },
@@ -78,6 +79,7 @@
       "required": ["lineSpacingMultiple", "spaceBeforePt", "spaceAfterPt", "firstLineIndentChars", "hangingIndentCm", "alignment", "widowControl"],
       "properties": {
         "lineSpacingMultiple": { "type": "number", "minimum": 0.5, "maximum": 4 },
+        "lineSpacingExactPt": { "type": ["number", "null"], "minimum": 1, "maximum": 120 },
         "spaceBeforePt": { "type": "number", "minimum": 0, "maximum": 72 },
         "spaceAfterPt": { "type": "number", "minimum": 0, "maximum": 72 },
         "firstLineIndentChars": { "type": "number", "minimum": 0, "maximum": 8 },
@@ -176,6 +178,26 @@
         "captionStyle": { "type": "string", "minLength": 1 },
         "allowLatexFallbackToPlain": { "type": "boolean" },
         "ommlSafetyMode": { "type": "string", "enum": ["strict"] }
+      }
+    },
+    "notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["footnote", "endnote"],
+      "properties": {
+        "footnote": { "$ref": "#/definitions/noteFormat" },
+        "endnote": { "$ref": "#/definitions/noteFormat" }
+      }
+    },
+    "noteFormat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["styleId", "font", "paragraph", "superscriptReferenceMark"],
+      "properties": {
+        "styleId": { "type": "string", "minLength": 1 },
+        "font": { "$ref": "#/definitions/font" },
+        "paragraph": { "$ref": "#/definitions/paragraph" },
+        "superscriptReferenceMark": { "type": "boolean" }
       }
     },
     "figures": {

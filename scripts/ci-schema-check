@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+scripts/generate-schema-docs --check
+scripts/generate-web-types --check
+
 dotnet run --project src/ThesisDocx.Cli -- validate-input \
   --document examples/simple-thesis/document.json \
   --format examples/format-specs/basic-cn-thesis.json

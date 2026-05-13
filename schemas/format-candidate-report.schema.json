@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/format-candidate-report.schema.json",
+  "title": "DocxFormatCandidateReport",
+  "description": "Evidence report for draft ThesisFormatSpec fields inferred from DOCX extraction format clusters.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reportVersion", "sourceExtraction", "candidateStatus", "candidateFormatSpecName", "chaosLevel", "chaosScore", "generatedFieldCount", "generatedFields", "clustersUsed", "unresolvedItems", "warnings", "recommendedReviewSteps"],
+  "properties": {
+    "reportVersion": { "type": "string", "enum": ["1.0.0"] },
+    "sourceExtraction": { "type": "string" },
+    "candidateStatus": { "type": "string", "enum": ["draft", "needsReview"] },
+    "candidateFormatSpecName": { "type": "string", "minLength": 1 },
+    "chaosLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+    "chaosScore": { "type": "number", "minimum": 0, "maximum": 1 },
+    "generatedFieldCount": { "type": "integer", "minimum": 0 },
+    "generatedFields": { "type": "array", "items": { "$ref": "#/definitions/generatedField" } },
+    "clustersUsed": { "type": "array", "items": { "$ref": "#/definitions/clusterUse" } },
+    "unresolvedItems": { "type": "array", "items": { "$ref": "#/definitions/unresolvedItem" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "recommendedReviewSteps": { "type": "array", "items": { "type": "string" } }
+  },
+  "definitions": {
+    "evidencePath": { "type": "string", "pattern": "^(document|paragraphs\\[[0-9]+\\]|tables\\[[0-9]+\\](\\.rows\\[[0-9]+\\]\\.cells\\[[0-9]+\\])?|footnotes\\[[0-9]+\\]|endnotes\\[[0-9]+\\]|sections\\[[0-9]+\\])$" },
+    "generatedField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "value", "sourceClusterId", "confidence", "evidencePaths", "reason"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^\\$\\." },
+        "value": { "type": "string" },
+        "sourceClusterId": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidencePaths": { "type": "array", "items": { "$ref": "#/definitions/evidencePath" } },
+        "reason": { "type": "string" }
+      }
+    },
+    "clusterUse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clusterId", "roleHint", "targetPath", "confidence", "usageCount", "evidencePaths", "variance"],
+      "properties": {
+        "clusterId": { "type": "string", "minLength": 1 },
+        "roleHint": { "type": "string", "enum": ["body", "heading", "bibliography", "caption", "frontMatter", "unknown"] },
+        "targetPath": { "type": "string", "pattern": "^\\$\\." },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "usageCount": { "type": "integer", "minimum": 0 },
+        "evidencePaths": { "type": "array", "items": { "$ref": "#/definitions/evidencePath" } },
+        "variance": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "unresolvedItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "code", "severity", "message", "evidencePaths", "recommendedAction"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+        "message": { "type": "string" },
+        "evidencePaths": { "type": "array", "items": { "$ref": "#/definitions/evidencePath" } },
+        "recommendedAction": { "type": "string" }
+      }
+    }
+  }
+}

@@ -2,6 +2,8 @@
 
 `ThesisDocument` represents content, not college formatting. The root object requires `schemaVersion`. The renderer and validators currently accept `1.0.0` and `1.1.0`.
 
+Formal schemas live in `schemas/`. Generated reference docs live under `docs/generated/`; update them with `scripts/generate-schema-docs`.
+
 `SchemaVersionSupport` centralizes the supported-version declaration for backend services:
 
 - `ThesisDocument`: `1.0.0`, `1.1.0`
@@ -71,7 +73,9 @@ OMML is safety-checked before rendering. Unknown namespaces, `altChunk`, relatio
 - row `isHeader`, `cantSplit`, and `heightPt`;
 - cell `gridSpan`, `verticalMerge`, `width`, `alignment`, `verticalAlignment`, `shading`, `borders`, `cellMargins`, `font`, and `paragraph`.
 
-Semantic validation checks logical column counts, vertical merge chains, vertical merge span consistency, header row ordering, gridSpan bounds, table widths, cell margins, border overrides, duplicate caption bookmarks, and table reference targets.
+Cells may use `blocks` for a bounded nested subset: paragraph, heading, quote, list, footnote, and endnote. Semantic validation rejects unsupported cell block surfaces so the renderer does not produce invalid table XML.
+
+Semantic validation checks logical column counts, vertical merge chains, vertical merge span consistency, header row ordering, gridSpan bounds, table widths, cell margins, border overrides, duplicate caption bookmarks, nested cell block support, and table reference targets.
 
 ## Inline Nodes
 

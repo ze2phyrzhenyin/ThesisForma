@@ -12,6 +12,7 @@
 - `toc`: title, min/max levels, field-code behavior.
 - `tables`: width, layout, borders, cell margins, caption position, three-line table preference, repeat header rows, and row page-break behavior.
 - `equations`: default alignment, font size metadata, numbering rules, spacing, caption style, LaTeX fallback behavior, and OMML safety mode.
+- `notes`: footnote/endnote paragraph style id, font, paragraph spacing, and reference mark superscript behavior.
 - `figures`: default size, centering, caption position.
 - `captions`: label and numbering format.
 - `bibliography`: title, entry paragraph format, numbering pattern.
@@ -40,6 +41,10 @@ Formal validation is defined in `schemas/thesis-format-spec.schema.json`.
 
 `1.2.0` is a compatible format-spec extension used by template examples. It does not remove any `1.0.0` or `1.1.0` behavior. The current implementation uses it for resolved template specs and for page-template-oriented examples.
 
+## Paragraph Spacing
+
+Paragraph formats use `lineSpacingMultiple` for normal Word automatic line spacing. When `lineSpacingExactPt` is present, the renderer writes fixed line spacing in twips with `w:lineRule="exact"` and treats the multiple as fallback metadata for older specs and UI defaults.
+
 ## Equations
 
 `equations.numbering.format` currently supports placeholders such as `({chapter}.{index})` and `({index})`. The renderer increments equation index in document order and resets it when the configured heading level is encountered. Numbered equations create a bookmark target when `bookmarkId` is present on the block, so inline `reference` nodes can render `REF bookmark \h`.
@@ -51,6 +56,12 @@ The LaTeX renderer intentionally supports only a small safe subset: plain text, 
 `tables.defaultBorders` and `tables.threeLineTableBorders` are declarative per-edge border specs. Three-line tables use top, header-bottom, and bottom horizontal rules with nil vertical rules. Per-cell border overrides are allowed through the document table cell model.
 
 `defaultWidth` accepts `auto`, `percent`, and `dxa`. `defaultLayout` accepts `autofit` and `fixed`. `repeatHeaderRowsDefault` emits `w:tblHeader`; `allowRowBreakAcrossPagesDefault: false` emits `w:cantSplit` on rows unless a row explicitly overrides behavior.
+
+Table cells may render a bounded nested block subset: paragraph, heading, quote, list, footnote, and endnote. Figure, equation, bibliography, page break, section break, and nested table blocks are rejected by semantic validation for table cells.
+
+## Notes
+
+`notes.footnote` and `notes.endnote` define note paragraph styles. The renderer creates the configured styles in `styles.xml`, applies those style ids in `footnotes.xml` and `endnotes.xml`, and uses `superscriptReferenceMark` for body and note reference marks.
 
 ## Template Merge Rule
 

@@ -96,7 +96,8 @@
         { "$ref": "#/definitions/imageBlock" },
         { "$ref": "#/definitions/fieldTableBlock" },
         { "$ref": "#/definitions/declarationTextBlock" },
-        { "$ref": "#/definitions/pageBreakBlock" }
+        { "$ref": "#/definitions/pageBreakBlock" },
+        { "$ref": "#/definitions/ruleBlock" }
       ]
     },
     "spacerBlock": {
@@ -180,6 +181,19 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": { "type": { "enum": ["pageBreak"] } }
+    },
+    "ruleBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["rule"] },
+        "thicknessPt": { "type": "number", "exclusiveMinimum": 0, "maximum": 12 },
+        "color": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "alignment": { "$ref": "#/definitions/alignment" },
+        "spacingBeforePt": { "type": "number", "minimum": 0 },
+        "spacingAfterPt": { "type": "number", "minimum": 0 }
+      }
     },
     "complianceRule": {
       "type": "object",

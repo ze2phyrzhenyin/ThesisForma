@@ -239,6 +239,57 @@ public sealed class SchemaTests
         Assert.False(result.IsValid);
     }
 
+    [Fact]
+    public void Schema_ShouldValidateDocumentOverrides()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var path = WriteTempJson(JsonNode.Parse(
+            """
+            {
+              "toc": {
+                "title": "本文目录",
+                "minLevel": 1,
+                "maxLevel": 2,
+                "includeSectionIds": ["body"]
+              },
+              "headerFooter": {
+                "headerText": "论文题目",
+                "drawHeaderLine": true
+              },
+              "defaultFont": {
+                "eastAsia": "宋体",
+                "latin": "Times New Roman",
+                "sizePt": 12
+              },
+              "bodyParagraph": {
+                "lineSpacingMultiple": 1.25
+              },
+              "sectionInstances": {
+                "body": {
+                  "headerText": "正文页眉",
+                  "pageNumberStyle": "decimal",
+                  "startPageNumber": 1
+                }
+              }
+            }
+            """)!);
+
+        var result = new ThesisSchemaValidator().ValidateDocumentOverridesFile(path, Path.Combine(root, "schemas", "document-overrides.schema.json"));
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+    }
+
+    [Fact]
+    public void Schema_ShouldRejectInvalidDocumentOverrides()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var path = WriteTempJson(JsonNode.Parse("""{"defaultFont":{"sizePt":0},"sectionFormats":{"body":{"pageNumberStyle":"letters"}}}""")!);
+
+        var result = new ThesisSchemaValidator().ValidateDocumentOverridesFile(path, Path.Combine(root, "schemas", "document-overrides.schema.json"));
+
+        Assert.False(result.IsValid);
+    }
+
     private static JsonNode LoadJson(string path)
     {
         return JsonNode.Parse(File.ReadAllText(path)) ?? throw new InvalidOperationException("Could not parse JSON.");

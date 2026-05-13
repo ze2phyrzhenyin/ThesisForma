@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/template-candidate-proposal-report.schema.json",
+  "title": "TemplateCandidateProposalReport",
+  "description": "Report produced when reviewed DOCX format candidate decisions are applied to a proposed TemplatePackage copy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reportVersion", "status", "sourceTemplate", "proposedTemplate", "sourceCandidateFormatSpec", "sourceCandidateReport", "decisionsPath", "chaosLevel", "chaosScore", "riskAccepted", "candidateFieldCount", "acceptedCount", "modifiedCount", "rejectedCount", "skippedCount", "appliedFields", "issues", "artifacts"],
+  "properties": {
+    "reportVersion": { "type": "string", "enum": ["1.0.0"] },
+    "status": { "type": "string", "enum": ["pass", "fail"] },
+    "sourceTemplate": { "type": "string" },
+    "proposedTemplate": { "type": "string" },
+    "sourceCandidateFormatSpec": { "type": "string" },
+    "sourceCandidateReport": { "type": "string" },
+    "decisionsPath": { "type": "string" },
+    "chaosLevel": { "type": "string", "enum": ["low", "medium", "high", "unknown"] },
+    "chaosScore": { "type": "number", "minimum": 0, "maximum": 1 },
+    "riskAccepted": { "type": "boolean" },
+    "candidateFieldCount": { "type": "integer", "minimum": 0 },
+    "acceptedCount": { "type": "integer", "minimum": 0 },
+    "modifiedCount": { "type": "integer", "minimum": 0 },
+    "rejectedCount": { "type": "integer", "minimum": 0 },
+    "skippedCount": { "type": "integer", "minimum": 0 },
+    "appliedFields": { "type": "array", "items": { "$ref": "#/definitions/appliedField" } },
+    "issues": { "type": "array", "items": { "$ref": "#/definitions/issue" } },
+    "artifacts": { "type": "array", "items": { "type": "string" } }
+  },
+  "definitions": {
+    "appliedField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldPath", "decision", "reviewer", "reason", "valuePreview", "evidencePaths"],
+      "properties": {
+        "fieldPath": { "type": "string", "pattern": "^\\$\\." },
+        "decision": { "type": "string", "enum": ["accept", "modify"] },
+        "reviewer": { "type": "string" },
+        "reason": { "type": "string" },
+        "valuePreview": { "type": "string" },
+        "evidencePaths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "path", "message", "fixHint"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+        "path": { "type": "string" },
+        "message": { "type": "string" },
+        "fixHint": { "type": "string" }
+      }
+    }
+  }
+}

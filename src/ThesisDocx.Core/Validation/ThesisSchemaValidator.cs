@@ -43,6 +43,11 @@ public sealed class ThesisSchemaValidator
         return ValidateJsonFile(manifestPath, schemaPath, "negativeFixtureManifest");
     }
 
+    public ThesisInputValidationResult ValidateDocumentOverridesFile(string overridesPath, string schemaPath)
+    {
+        return ValidateJsonFile(overridesPath, schemaPath, "documentOverrides");
+    }
+
     public ThesisInputValidationResult ValidateFixHintRulesFile(string rulesPath, string schemaPath)
     {
         return ValidateJsonFile(rulesPath, schemaPath, "fixHintRules");
@@ -76,6 +81,21 @@ public sealed class ThesisSchemaValidator
     public ThesisInputValidationResult ValidateDocxExtractionFile(string extractionPath, string schemaPath)
     {
         return ValidateJsonFile(extractionPath, schemaPath, "docxExtraction");
+    }
+
+    public ThesisInputValidationResult ValidateFormatCandidateReportFile(string reportPath, string schemaPath)
+    {
+        return ValidateJsonFile(reportPath, schemaPath, "formatCandidateReport");
+    }
+
+    public ThesisInputValidationResult ValidateFormatCandidateDecisionsFile(string decisionsPath, string schemaPath)
+    {
+        return ValidateJsonFile(decisionsPath, schemaPath, "formatCandidateDecisions");
+    }
+
+    public ThesisInputValidationResult ValidateTemplateCandidateProposalReportFile(string reportPath, string schemaPath)
+    {
+        return ValidateJsonFile(reportPath, schemaPath, "templateCandidateProposalReport");
     }
 
     private static ThesisInputValidationResult ValidateJsonFile(string jsonPath, string schemaPath, string rootName)

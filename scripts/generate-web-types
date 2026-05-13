@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+import { generateWebTypes, hasCheckFlag } from './schema-codegen.mjs';
+
+generateWebTypes({ check: hasCheckFlag(process.argv.slice(2)) });

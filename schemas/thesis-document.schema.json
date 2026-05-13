@@ -455,6 +455,7 @@
       "additionalProperties": false,
       "properties": {
         "lineSpacingMultiple": { "type": "number", "minimum": 0.5, "maximum": 4 },
+        "lineSpacingExactPt": { "type": ["number", "null"], "minimum": 1, "maximum": 120 },
         "spaceBeforePt": { "type": "number", "minimum": 0, "maximum": 72 },
         "spaceAfterPt": { "type": "number", "minimum": 0, "maximum": 72 },
         "firstLineIndentChars": { "type": "number", "minimum": 0, "maximum": 8 },

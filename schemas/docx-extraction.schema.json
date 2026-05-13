@@ -4,7 +4,7 @@
   "title": "DocxExtractionResult",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "inputFileName", "document", "plainText", "blocks", "paragraphs", "tables", "figures", "footnotes", "endnotes", "bookmarks", "hyperlinks", "fields", "styles", "numbering", "sections", "possibleHeadings", "possibleAbstract", "possibleKeywords", "possibleBibliography", "possibleCaptions", "possibleAppendix", "extractionIssues"],
+  "required": ["schemaVersion", "inputFileName", "document", "plainText", "blocks", "paragraphs", "tables", "figures", "footnotes", "endnotes", "bookmarks", "hyperlinks", "fields", "styles", "numbering", "formatSignatures", "formatChaos", "formatClusters", "sections", "possibleHeadings", "possibleAbstract", "possibleKeywords", "possibleBibliography", "possibleCaptions", "possibleAppendix", "extractionIssues"],
   "properties": {
     "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
     "inputFileName": { "type": "string" },
@@ -33,6 +33,9 @@
     "fields": { "type": "array", "items": { "$ref": "#/definitions/field" } },
     "styles": { "type": "array", "items": { "$ref": "#/definitions/style" } },
     "numbering": { "type": "array", "items": { "$ref": "#/definitions/numbering" } },
+    "formatSignatures": { "type": "array", "items": { "$ref": "#/definitions/formatSignature" } },
+    "formatChaos": { "$ref": "#/definitions/formatChaos" },
+    "formatClusters": { "type": "array", "items": { "$ref": "#/definitions/formatCluster" } },
     "sections": { "type": "array", "items": { "$ref": "#/definitions/section" } },
     "possibleHeadings": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
     "possibleAbstract": { "type": "array", "items": { "$ref": "#/definitions/evidence" } },
@@ -59,7 +62,7 @@
     "paragraph": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "index", "text", "runSummary", "possibleRole", "runs", "evidencePath"],
+      "required": ["id", "index", "text", "runSummary", "effectiveFormat", "possibleRole", "runs", "evidencePath"],
       "properties": {
         "id": { "$ref": "#/definitions/id" },
         "index": { "type": "integer", "minimum": 0 },
@@ -85,6 +88,7 @@
             "hasSubscript": { "type": "boolean" }
           }
         },
+        "effectiveFormat": { "$ref": "#/definitions/effectiveFormat" },
         "possibleRole": { "type": "string" },
         "runs": { "type": "array", "items": { "$ref": "#/definitions/run" } },
         "evidencePath": { "$ref": "#/definitions/evidencePath" }
@@ -223,6 +227,89 @@
         "numberingId": { "type": "string" },
         "levels": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
         "usageCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "effectiveFormat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signature", "styleChain", "hasDirectParagraphFormatting", "hasDirectRunFormatting", "sources"],
+      "properties": {
+        "signature": { "type": "string" },
+        "styleId": { "type": ["string", "null"] },
+        "styleName": { "type": ["string", "null"] },
+        "styleChain": { "type": "array", "items": { "type": "string" } },
+        "font": { "type": ["string", "null"] },
+        "eastAsiaFont": { "type": ["string", "null"] },
+        "fontSizePt": { "type": ["number", "null"], "minimum": 0 },
+        "bold": { "type": ["boolean", "null"] },
+        "italic": { "type": ["boolean", "null"] },
+        "alignment": { "type": ["string", "null"] },
+        "leftIndentTwips": { "type": ["integer", "null"] },
+        "rightIndentTwips": { "type": ["integer", "null"] },
+        "firstLineIndentTwips": { "type": ["integer", "null"] },
+        "hangingIndentTwips": { "type": ["integer", "null"] },
+        "spaceBeforeTwips": { "type": ["integer", "null"] },
+        "spaceAfterTwips": { "type": ["integer", "null"] },
+        "lineSpacing": { "type": ["string", "null"] },
+        "lineSpacingRule": { "type": ["string", "null"] },
+        "outlineLevel": { "type": ["integer", "null"], "minimum": 0, "maximum": 9 },
+        "numberingId": { "type": ["string", "null"] },
+        "numberingLevel": { "type": ["integer", "null"], "minimum": 0, "maximum": 9 },
+        "numberingFormat": { "type": ["string", "null"] },
+        "numberingText": { "type": ["string", "null"] },
+        "hasDirectParagraphFormatting": { "type": "boolean" },
+        "hasDirectRunFormatting": { "type": "boolean" },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "formatSignature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "signature", "usageCount", "paragraphIds", "evidencePaths", "representativeFormat"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "signature": { "type": "string" },
+        "usageCount": { "type": "integer", "minimum": 0 },
+        "paragraphIds": { "type": "array", "items": { "$ref": "#/definitions/id" } },
+        "evidencePaths": { "type": "array", "items": { "$ref": "#/definitions/evidencePath" } },
+        "representativeFormat": { "$ref": "#/definitions/effectiveFormat" }
+      }
+    },
+    "formatChaos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chaosScore", "chaosLevel", "nonEmptyParagraphCount", "formatSignatureCount", "formatSignatureDensity", "directParagraphFormattingRatio", "directRunFormattingRatio", "unstyledParagraphRatio", "bodyCandidateParagraphCount", "bodyCandidateSignatureCount", "headingCandidateCount", "headingWithoutHeadingStyleCount", "emptyParagraphCount", "diagnostics"],
+      "properties": {
+        "chaosScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "chaosLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+        "nonEmptyParagraphCount": { "type": "integer", "minimum": 0 },
+        "formatSignatureCount": { "type": "integer", "minimum": 0 },
+        "formatSignatureDensity": { "type": "number", "minimum": 0 },
+        "directParagraphFormattingRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "directRunFormattingRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "unstyledParagraphRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "bodyCandidateParagraphCount": { "type": "integer", "minimum": 0 },
+        "bodyCandidateSignatureCount": { "type": "integer", "minimum": 0 },
+        "headingCandidateCount": { "type": "integer", "minimum": 0 },
+        "headingWithoutHeadingStyleCount": { "type": "integer", "minimum": 0 },
+        "emptyParagraphCount": { "type": "integer", "minimum": 0 },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
+      }
+    },
+    "formatCluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "roleHint", "confidence", "usageCount", "signatureIds", "evidencePaths", "representativeFormat", "variance", "diagnostics"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "roleHint": { "type": "string", "enum": ["body", "heading", "bibliography", "caption", "frontMatter", "unknown"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "usageCount": { "type": "integer", "minimum": 0 },
+        "signatureIds": { "type": "array", "items": { "$ref": "#/definitions/id" } },
+        "evidencePaths": { "type": "array", "items": { "$ref": "#/definitions/evidencePath" } },
+        "representativeFormat": { "$ref": "#/definitions/effectiveFormat" },
+        "variance": { "type": "array", "items": { "type": "string" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/definitions/issue" } }
       }
     },
     "section": {

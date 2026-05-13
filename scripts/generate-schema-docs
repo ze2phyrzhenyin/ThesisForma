@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+import { generateSchemaDocs, hasCheckFlag } from './schema-codegen.mjs';
+
+generateSchemaDocs({ check: hasCheckFlag(process.argv.slice(2)) });
