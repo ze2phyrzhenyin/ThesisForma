@@ -240,7 +240,8 @@ public sealed class ThesisStructureMapper
 
     private static int GuessHeadingLevel(ExtractedParagraph paragraph, string text)
     {
-        if (paragraph.OutlineLevel is >= 0 and <= 5) return paragraph.OutlineLevel.Value + 1;
+        var outlineLevel = paragraph.OutlineLevel ?? paragraph.EffectiveFormat.OutlineLevel;
+        if (outlineLevel is >= 0 and <= 5) return outlineLevel.Value + 1;
         if (Regex.IsMatch(text, @"^[0-9]+\.[0-9]+\.[0-9]+")) return 3;
         if (Regex.IsMatch(text, @"^[0-9]+\.[0-9]+")) return 2;
         return 1;

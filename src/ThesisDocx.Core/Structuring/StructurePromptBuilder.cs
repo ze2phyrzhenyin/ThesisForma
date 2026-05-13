@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Utilities;
 
@@ -7,7 +8,7 @@ namespace ThesisDocx.Core.Structuring;
 
 public sealed class StructurePromptBuilder
 {
-    public string Build(string extractionPath)
+    public string Build(string extractionPath, string? formatCandidateReportPath = null)
     {
         var extraction = JsonSerializer.Deserialize<DocxExtractionResult>(File.ReadAllText(extractionPath), ThesisJson.Options)
             ?? throw new InvalidOperationException($"Could not deserialize extraction '{extractionPath}'.");
@@ -19,6 +20,11 @@ public sealed class StructurePromptBuilder
         builder.AppendLine("Inputs:");
         builder.AppendLine($"- Extraction JSON: `{extractionPath}`");
         builder.AppendLine("- Extracted Markdown: `extraction/extracted.md` if present beside the extraction JSON.");
+        if (!string.IsNullOrWhiteSpace(formatCandidateReportPath))
+        {
+            builder.AppendLine($"- Candidate format report: `{formatCandidateReportPath}`.");
+        }
+
         builder.AppendLine();
         builder.AppendLine("Rules:");
         builder.AppendLine("1. Do not read or modify `input.docx` directly.");
@@ -27,7 +33,8 @@ public sealed class StructurePromptBuilder
         builder.AppendLine("4. If uncertain, add an unresolved item instead of guessing.");
         builder.AppendLine("5. Output `structured/thesis-document.draft.json`, `structured/structure-mapping-report.json`, `structured/unresolved-items.json`, and `structured/evidence-links.json`.");
         builder.AppendLine("6. Link every mapped section/block to extraction evidence where possible.");
-        builder.AppendLine("7. Run `validate-input` after editing the draft.");
+        builder.AppendLine("7. Treat `candidate-format-spec.json` and `format-candidate-report.json` as review evidence only; do not accept candidate fields into a committed template without human review.");
+        builder.AppendLine("8. Run `validate-input` after editing the draft.");
         builder.AppendLine();
         builder.AppendLine("Evidence summary:");
         builder.AppendLine($"- Paragraphs: {extraction.Paragraphs.Count}");
@@ -35,8 +42,20 @@ public sealed class StructurePromptBuilder
         builder.AppendLine($"- Figures: {extraction.Figures.Count}");
         builder.AppendLine($"- Footnotes: {extraction.Footnotes.Count}");
         builder.AppendLine($"- Endnotes: {extraction.Endnotes.Count}");
+        builder.AppendLine($"- Effective format signatures: {extraction.FormatSignatures.Count}");
+        builder.AppendLine($"- Format chaos: {extraction.FormatChaos.ChaosLevel} ({extraction.FormatChaos.ChaosScore.ToString("0.###", CultureInfo.InvariantCulture)})");
+        builder.AppendLine($"- Format clusters: {extraction.FormatClusters.Count}");
         builder.AppendLine($"- Heading candidates: {extraction.PossibleHeadings.Count}");
         builder.AppendLine($"- Bibliography candidates: {extraction.PossibleBibliography.Count}");
+        if (extraction.FormatChaos.Diagnostics.Count > 0)
+        {
+            builder.AppendLine("- Format diagnostics:");
+            foreach (var issue in extraction.FormatChaos.Diagnostics.Take(8))
+            {
+                builder.AppendLine($"  - `{issue.Code}` {issue.Message}");
+            }
+        }
+
         builder.AppendLine();
         builder.AppendLine("Recommended command:");
         builder.AppendLine();

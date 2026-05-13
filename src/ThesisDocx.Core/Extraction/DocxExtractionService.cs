@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.IO.Compression;
+using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
@@ -20,6 +21,7 @@ public sealed class DocxExtractionService
         var main = document.MainDocumentPart ?? throw Error("intake.docx.missingMainDocumentPart", "$.input", "DOCX package has no main document part.", "Use a valid WordprocessingML .docx file.");
         var body = main.Document.Body ?? throw Error("intake.docx.missingBody", "$.input", "DOCX main document has no body.", "Use a valid WordprocessingML .docx file with document body content.");
         var styleNames = LoadStyleNames(main);
+        var formatResolver = new DocxEffectiveFormatResolver(main, styleNames);
         var artifactImageDirectory = ResolveImageDirectory(options);
         var result = new DocxExtractionResult
         {
@@ -36,7 +38,7 @@ public sealed class DocxExtractionService
             switch (element)
             {
                 case Paragraph paragraph:
-                    var extracted = ExtractParagraph(paragraph, paragraphIndex, styleNames);
+                    var extracted = ExtractParagraph(paragraph, paragraphIndex, styleNames, formatResolver);
                     result.Paragraphs.Add(extracted);
                     result.Blocks.Add(new ExtractedBlock
                     {
@@ -85,6 +87,11 @@ public sealed class DocxExtractionService
         ExtractFootnotes(main, result);
         ExtractEndnotes(main, result);
         SummarizeStylesAndNumbering(result);
+        SummarizeFormatSignatures(result);
+        var formatAnalysis = new DocxFormatChaosAnalyzer().Analyze(result);
+        result.FormatChaos = formatAnalysis.Report;
+        result.FormatClusters = formatAnalysis.Clusters;
+        result.ExtractionIssues.AddRange(formatAnalysis.Report.Diagnostics);
         result.PlainText = string.Join(Environment.NewLine, result.Paragraphs.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
         result.Document = new ExtractedDocument
         {
@@ -353,7 +360,7 @@ public sealed class DocxExtractionService
         return new DocxExtractionException(code, path, message, fixHint, innerException);
     }
 
-    private static ExtractedParagraph ExtractParagraph(Paragraph paragraph, int index, Dictionary<string, string> styleNames)
+    private static ExtractedParagraph ExtractParagraph(Paragraph paragraph, int index, Dictionary<string, string> styleNames, DocxEffectiveFormatResolver formatResolver)
     {
         var pPr = paragraph.ParagraphProperties;
         var styleId = pPr?.ParagraphStyleId?.Val?.Value;
@@ -372,7 +379,7 @@ public sealed class DocxExtractionService
         var outlineRaw = pPr?.OutlineLevel?.Val?.Value;
         var numId = pPr?.NumberingProperties?.NumberingId?.Val?.Value.ToString();
         var ilvlRaw = pPr?.NumberingProperties?.NumberingLevelReference?.Val?.Value;
-        return new ExtractedParagraph
+        var extracted = new ExtractedParagraph
         {
             Id = $"paragraph-{index}",
             Index = index,
@@ -397,6 +404,8 @@ public sealed class DocxExtractionService
             },
             EvidencePath = $"paragraphs[{index}]"
         };
+        extracted.EffectiveFormat = formatResolver.Resolve(paragraph, extracted);
+        return extracted;
     }
 
     private static ExtractedRun ExtractRun(Run run, string id)
@@ -620,10 +629,10 @@ public sealed class DocxExtractionService
             paragraph.PossibleRole = "bibliographyCandidate";
             result.PossibleBibliography.Add(Evidence($"bibliography-{paragraph.Index}", paragraph.EvidencePath, text, "bibliography label or numbered item", 0.85));
         }
-        else if (paragraph.OutlineLevel is <= 5 || IsHeadingLike(text, paragraph))
+        else if ((paragraph.OutlineLevel ?? paragraph.EffectiveFormat.OutlineLevel) is <= 5 || IsHeadingLike(text, paragraph))
         {
             paragraph.PossibleRole = "headingCandidate";
-            result.PossibleHeadings.Add(Evidence($"heading-{paragraph.Index}", paragraph.EvidencePath, text, "style/numbering/shape heading candidate", paragraph.OutlineLevel is null ? 0.65 : 0.9));
+            result.PossibleHeadings.Add(Evidence($"heading-{paragraph.Index}", paragraph.EvidencePath, text, "effective style/numbering/shape heading candidate", (paragraph.OutlineLevel ?? paragraph.EffectiveFormat.OutlineLevel) is null ? 0.65 : 0.9));
         }
         else if (Regex.IsMatch(text, @"^(附录|Appendix)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
@@ -661,6 +670,58 @@ public sealed class DocxExtractionService
             .ToList();
     }
 
+    private static void SummarizeFormatSignatures(DocxExtractionResult result)
+    {
+        result.FormatSignatures = result.Paragraphs
+            .Where(paragraph => !string.IsNullOrWhiteSpace(paragraph.EffectiveFormat.Signature))
+            .GroupBy(paragraph => paragraph.EffectiveFormat.Signature, StringComparer.Ordinal)
+            .Select((group, index) => new ExtractedFormatSignature
+            {
+                Id = $"format-{index}",
+                Signature = group.Key,
+                UsageCount = group.Count(),
+                ParagraphIds = group.Select(paragraph => paragraph.Id).ToList(),
+                EvidencePaths = group.Select(paragraph => paragraph.EvidencePath).ToList(),
+                RepresentativeFormat = CloneFormat(group.First().EffectiveFormat)
+            })
+            .OrderByDescending(signature => signature.UsageCount)
+            .ThenBy(signature => signature.Id, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static ExtractedEffectiveFormat CloneFormat(ExtractedEffectiveFormat source)
+    {
+        return new ExtractedEffectiveFormat
+        {
+            Signature = source.Signature,
+            StyleId = source.StyleId,
+            StyleName = source.StyleName,
+            StyleChain = source.StyleChain.ToList(),
+            Font = source.Font,
+            EastAsiaFont = source.EastAsiaFont,
+            FontSizePt = source.FontSizePt,
+            Bold = source.Bold,
+            Italic = source.Italic,
+            Alignment = source.Alignment,
+            LeftIndentTwips = source.LeftIndentTwips,
+            RightIndentTwips = source.RightIndentTwips,
+            FirstLineIndentTwips = source.FirstLineIndentTwips,
+            HangingIndentTwips = source.HangingIndentTwips,
+            SpaceBeforeTwips = source.SpaceBeforeTwips,
+            SpaceAfterTwips = source.SpaceAfterTwips,
+            LineSpacing = source.LineSpacing,
+            LineSpacingRule = source.LineSpacingRule,
+            OutlineLevel = source.OutlineLevel,
+            NumberingId = source.NumberingId,
+            NumberingLevel = source.NumberingLevel,
+            NumberingFormat = source.NumberingFormat,
+            NumberingText = source.NumberingText,
+            HasDirectParagraphFormatting = source.HasDirectParagraphFormatting,
+            HasDirectRunFormatting = source.HasDirectRunFormatting,
+            Sources = source.Sources.ToList()
+        };
+    }
+
     private static void WriteOutputs(DocxExtractionOptions options, DocxExtractionResult result)
     {
         if (!string.IsNullOrWhiteSpace(options.OutputJsonPath))
@@ -688,11 +749,37 @@ public sealed class DocxExtractionService
         builder.AppendLine($"- Tables: {result.Tables.Count}");
         builder.AppendLine($"- Figures: {result.Figures.Count}");
         builder.AppendLine($"- Footnotes: {result.Footnotes.Count}");
+        builder.AppendLine($"- Format signatures: {result.FormatSignatures.Count}");
+        builder.AppendLine($"- Format chaos: {result.FormatChaos.ChaosLevel} ({result.FormatChaos.ChaosScore.ToString("0.###", CultureInfo.InvariantCulture)})");
+        builder.AppendLine($"- Format clusters: {result.FormatClusters.Count}");
         builder.AppendLine();
+
+        if (result.FormatChaos.Diagnostics.Count > 0)
+        {
+            builder.AppendLine("## Format Diagnostics");
+            foreach (var issue in result.FormatChaos.Diagnostics)
+            {
+                builder.AppendLine($"- `{issue.Severity}` `{issue.Code}` {issue.Message}");
+            }
+
+            builder.AppendLine();
+        }
+
+        if (result.FormatClusters.Count > 0)
+        {
+            builder.AppendLine("## Format Clusters");
+            foreach (var cluster in result.FormatClusters.Take(12))
+            {
+                builder.AppendLine($"- `{cluster.Id}` `{cluster.RoleHint}` confidence={cluster.Confidence.ToString("0.##", CultureInfo.InvariantCulture)} usage={cluster.UsageCount} signatures={cluster.SignatureIds.Count} variance={string.Join(",", cluster.Variance)}");
+            }
+
+            builder.AppendLine();
+        }
+
         builder.AppendLine("## Paragraphs");
         foreach (var paragraph in result.Paragraphs)
         {
-            builder.AppendLine($"- `{paragraph.EvidencePath}` `{paragraph.PossibleRole}` {paragraph.Text}");
+            builder.AppendLine($"- `{paragraph.EvidencePath}` `{paragraph.PossibleRole}` `{paragraph.EffectiveFormat.Signature}` {paragraph.Text}");
         }
 
         if (result.Tables.Count > 0)
@@ -719,6 +806,20 @@ public sealed class DocxExtractionService
     private static bool IsHeadingLike(string text, ExtractedParagraph paragraph)
     {
         if (paragraph.StyleName?.Contains("heading", StringComparison.OrdinalIgnoreCase) == true || paragraph.StyleName?.Contains("标题", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        if ((paragraph.EffectiveFormat.StyleName?.Contains("heading", StringComparison.OrdinalIgnoreCase) == true
+                || paragraph.EffectiveFormat.StyleName?.Contains("标题", StringComparison.OrdinalIgnoreCase) == true)
+            && text.Length <= 80)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(paragraph.EffectiveFormat.NumberingText)
+            && paragraph.EffectiveFormat.NumberingLevel is <= 2
+            && text.Length <= 80)
         {
             return true;
         }

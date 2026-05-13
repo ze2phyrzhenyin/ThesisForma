@@ -132,6 +132,98 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void DocxExtraction_ShouldResolveEffectiveFormattingFromStylesAndNumbering()
+    {
+        var result = ExtractSynthetic();
+        var heading = result.Paragraphs.First(p => p.Text == "摘要");
+
+        Assert.Equal("Heading1", heading.EffectiveFormat.StyleId);
+        Assert.Equal(["Normal", "Heading1"], heading.EffectiveFormat.StyleChain);
+        Assert.Equal("黑体", heading.EffectiveFormat.EastAsiaFont);
+        Assert.Equal("Times New Roman", heading.EffectiveFormat.Font);
+        Assert.Equal(16, heading.EffectiveFormat.FontSizePt);
+        Assert.True(heading.EffectiveFormat.Bold);
+        Assert.Equal(0, heading.EffectiveFormat.OutlineLevel);
+        Assert.Equal("360", heading.EffectiveFormat.LineSpacing);
+        Assert.Contains("style:Heading1.paragraph", heading.EffectiveFormat.Sources);
+
+        var numbered = result.Paragraphs.First(p => p.Text == "1.1 研究背景");
+        Assert.Equal("decimal", numbered.EffectiveFormat.NumberingFormat);
+        Assert.Equal("%1.", numbered.EffectiveFormat.NumberingText);
+        Assert.Equal(720, numbered.EffectiveFormat.LeftIndentTwips);
+        Assert.Equal(360, numbered.EffectiveFormat.HangingIndentTwips);
+        Assert.Contains("numbering:1/0", numbered.EffectiveFormat.Sources);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldSummarizeEffectiveFormatSignatures()
+    {
+        var result = ExtractSynthetic();
+
+        Assert.NotEmpty(result.FormatSignatures);
+        Assert.Contains(result.FormatSignatures, signature =>
+            signature.RepresentativeFormat.StyleId == "Heading1"
+            && signature.EvidencePaths.Contains("paragraphs[1]", StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldReportFormatChaosAndClusterSimilarBodyFormats()
+    {
+        var result = ExtractChaotic();
+
+        Assert.Equal("high", result.FormatChaos.ChaosLevel);
+        Assert.True(result.FormatChaos.ChaosScore >= 0.6);
+        Assert.Contains(result.FormatChaos.Diagnostics, issue => issue.Code == "format.directParagraph.high");
+        Assert.Contains(result.FormatChaos.Diagnostics, issue => issue.Code == "format.body.fragmented");
+        Assert.Contains(result.ExtractionIssues, issue => issue.Code == "format.signatures.fragmented");
+
+        var bodyCluster = result.FormatClusters.First(cluster => cluster.RoleHint == "body" && cluster.SignatureIds.Count >= 4);
+        Assert.Contains("lineSpacing", bodyCluster.Variance);
+        Assert.Contains(bodyCluster.Diagnostics, issue => issue.Code == "format.cluster.fragmented");
+    }
+
+    [Fact]
+    public void FormatCandidates_ShouldGenerateDraftFormatSpecWithEvidenceReport()
+    {
+        var result = new DocxFormatCandidateGenerator().Generate(ExtractSynthetic(), "synthetic-extraction.json");
+
+        Assert.StartsWith("candidate-", result.CandidateFormatSpec.Name, StringComparison.Ordinal);
+        Assert.True(result.Report.GeneratedFieldCount > 0);
+        Assert.Contains(result.Report.GeneratedFields, field => field.Path == "$.bodyParagraph.lineSpacingMultiple");
+        Assert.Contains(result.Report.ClustersUsed, cluster => cluster.RoleHint == "body");
+        Assert.Contains(result.Report.ClustersUsed, cluster => cluster.RoleHint == "heading");
+    }
+
+    [Fact]
+    public void FormatCandidates_ShouldKeepHighChaosCandidatesNeedsReview()
+    {
+        var result = new DocxFormatCandidateGenerator().Generate(ExtractChaotic(), "chaotic-extraction.json");
+
+        Assert.Equal("needsReview", result.Report.CandidateStatus);
+        Assert.Equal("high", result.Report.ChaosLevel);
+        Assert.Contains(result.Report.UnresolvedItems, item => item.Code == "format.chaos.highReviewRequired");
+        Assert.Contains(result.Report.GeneratedFields, field => field.Path == "$.bodyParagraph.lineSpacingMultiple");
+    }
+
+    [Fact]
+    public void FormatCandidates_ShouldValidateSpecAndReportSchemas()
+    {
+        var directory = NewTempDirectory();
+        var result = new DocxFormatCandidateGenerator().Generate(ExtractSynthetic(), "synthetic-extraction.json");
+        var specPath = Path.Combine(directory, "candidate-format-spec.json");
+        var reportPath = Path.Combine(directory, "format-candidate-report.json");
+        File.WriteAllText(specPath, JsonSerializer.Serialize(result.CandidateFormatSpec, ThesisJson.Options));
+        File.WriteAllText(reportPath, JsonSerializer.Serialize(result.Report, ThesisJson.Options));
+
+        var validator = new ThesisSchemaValidator();
+        var specValidation = validator.ValidateFormatFile(specPath, SchemaPath("thesis-format-spec.schema.json"));
+        var reportValidation = validator.ValidateFormatCandidateReportFile(reportPath, SchemaPath("format-candidate-report.schema.json"));
+
+        Assert.True(specValidation.IsValid, string.Join(Environment.NewLine, specValidation.Errors));
+        Assert.True(reportValidation.IsValid, string.Join(Environment.NewLine, reportValidation.Errors));
+    }
+
+    [Fact]
     public void DocxExtraction_ShouldExtractSectionProperties()
     {
         var result = ExtractSynthetic();
@@ -424,6 +516,20 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void StructurePrompt_ShouldReferenceFormatCandidateReportWhenProvided()
+    {
+        var directory = NewTempDirectory();
+        var extractionPath = ExtractSyntheticToFile(directory);
+        var candidateReportPath = Path.Combine(directory, "structured", "format-candidate-report.json");
+
+        var prompt = new StructurePromptBuilder().Build(extractionPath, candidateReportPath);
+
+        Assert.Contains("Candidate format report", prompt);
+        Assert.Contains(candidateReportPath, prompt);
+        Assert.Contains("human review", prompt);
+    }
+
+    [Fact]
     public void Cli_ExtractDocx_ShouldWriteOutputs()
     {
         var directory = NewTempDirectory();
@@ -597,6 +703,23 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void Cli_ExtractFormatCandidates_ShouldWriteSpecReportAndMarkdown()
+    {
+        var directory = NewTempDirectory();
+        var extractionPath = ExtractSyntheticToFile(directory);
+        var specPath = Path.Combine(directory, "candidate-format-spec.json");
+        var reportPath = Path.Combine(directory, "format-candidate-report.json");
+        var markdownPath = Path.Combine(directory, "format-candidate-report.md");
+
+        var result = CliRunner.Run(RepoRoot(), "extract", "format-candidates", "--extraction", extractionPath, "--out", specPath, "--report", reportPath, "--markdown", markdownPath);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(new ThesisSchemaValidator().ValidateFormatFile(specPath, SchemaPath("thesis-format-spec.schema.json")).IsValid);
+        Assert.True(new ThesisSchemaValidator().ValidateFormatCandidateReportFile(reportPath, SchemaPath("format-candidate-report.schema.json")).IsValid);
+        Assert.Contains("DOCX Format Candidate Report", File.ReadAllText(markdownPath));
+    }
+
+    [Fact]
     public void Cli_ExtractDocx_ShouldWriteStructuredDiagnosticForBadInput()
     {
         var directory = NewTempDirectory();
@@ -636,7 +759,9 @@ public sealed class DocxIntakeStructuringTests
 
         RunIntake(workspace, input);
 
-        Assert.Contains("Codex Structure Review Prompt", File.ReadAllText(Path.Combine(workspace, "reports", "structure-codex-prompt.md")));
+        var prompt = File.ReadAllText(Path.Combine(workspace, "reports", "structure-codex-prompt.md"));
+        Assert.Contains("Codex Structure Review Prompt", prompt);
+        Assert.Contains("format-candidate-report.json", prompt);
     }
 
     [Fact]
@@ -662,6 +787,43 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal("pass", report["extractionStatus"]!.GetValue<string>());
         Assert.Equal("pass", report["structuringStatus"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldGenerateFormatCandidateArtifacts()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+        var candidateFormatPath = Path.Combine(workspace, "structured", "candidate-format-spec.json");
+        var candidateReportPath = Path.Combine(workspace, "structured", "format-candidate-report.json");
+        var candidateMarkdownPath = Path.Combine(workspace, "structured", "format-candidate-report.md");
+
+        RunIntake(workspace, input);
+
+        Assert.True(File.Exists(candidateFormatPath));
+        Assert.True(File.Exists(candidateReportPath));
+        Assert.True(File.Exists(candidateMarkdownPath));
+        Assert.True(new ThesisSchemaValidator().ValidateFormatFile(candidateFormatPath, SchemaPath("thesis-format-spec.schema.json")).IsValid);
+        Assert.True(new ThesisSchemaValidator().ValidateFormatCandidateReportFile(candidateReportPath, SchemaPath("format-candidate-report.schema.json")).IsValid);
+        Assert.Contains("DOCX Format Candidate Report", File.ReadAllText(candidateMarkdownPath));
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldSummarizeFormatCandidateInReport()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+
+        RunIntake(workspace, input);
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        var reportMarkdown = File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.md"));
+
+        Assert.NotEqual("notRun", report["formatCandidateStatus"]!.GetValue<string>());
+        Assert.NotEqual("notRun", report["formatChaosLevel"]!.GetValue<string>());
+        Assert.True(report["formatCandidateGeneratedFieldCount"]!.GetValue<int>() > 0);
+        Assert.True(report["formatCandidateUnresolvedCount"]!.GetValue<int>() >= 0);
+        Assert.Contains("Format candidate", reportMarkdown);
+        Assert.Contains("Candidate fields", reportMarkdown);
     }
 
     [Fact]
@@ -733,6 +895,13 @@ public sealed class DocxIntakeStructuringTests
         return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
     }
 
+    private static DocxExtractionResult ExtractChaotic()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateChaoticDocx(directory);
+        return new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+    }
+
     private static DocxExtractionException AssertExtractionError(DocxExtractionOptions options)
     {
         return Assert.Throws<DocxExtractionException>(() => new DocxExtractionService().Extract(options));
@@ -754,31 +923,55 @@ public sealed class DocxIntakeStructuringTests
         var main = doc.AddMainDocumentPart();
         main.Document = new W.Document(new W.Body());
         AddStyles(main);
+        AddNumbering(main);
         AddNotes(main);
         var body = main.Document.Body!;
         body.Append(
             Paragraph("合成论文题目", styleId: "Title"),
-            Paragraph("摘要", styleId: "Heading1", outlineLevel: 0),
+            Paragraph("摘要", styleId: "Heading1"),
             Paragraph("中文摘要正文，保留原文内容。"),
             Paragraph("关键词：表演；生活化；现实主义"),
-            Paragraph("ABSTRACT", styleId: "Heading1", outlineLevel: 0),
+            Paragraph("ABSTRACT", styleId: "Heading1"),
             Paragraph("English abstract text."),
             Paragraph("Key words: acting; realism"),
             new W.Paragraph(new W.SimpleField { Instruction = "TOC \\o \"1-3\" \\h" }),
-            Paragraph("引言", styleId: "Heading1", outlineLevel: 0),
+            Paragraph("引言", styleId: "Heading1"),
             ParagraphWithRuns(),
             NumberedParagraph("1.1 研究背景"),
             ParagraphWithFootnoteAndEndnote(),
             HyperlinkParagraph(main),
             Table(),
-            Paragraph("参考文献", styleId: "Heading1", outlineLevel: 0),
+            Paragraph("参考文献", styleId: "Heading1"),
             Paragraph("[1] 张三. 合成文献[M]. 北京: 示例出版社, 2026."),
-            Paragraph("致谢", styleId: "Heading1", outlineLevel: 0),
+            Paragraph("致谢", styleId: "Heading1"),
             Paragraph("感谢所有帮助。"),
             new W.Paragraph(new W.SimpleField { Instruction = "PAGE" }),
             new W.Paragraph(new W.SimpleField { Instruction = "REF bmIntro \\h" }),
             new W.Paragraph(new W.BookmarkStart { Name = "bmIntro", Id = "9" }, new W.Run(new W.Text("书签内容")), new W.BookmarkEnd { Id = "9" }),
             new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }, new W.PageMargin { Top = 1440, Bottom = 1440, Left = 1440, Right = 1440 }));
+        main.Document.Save();
+        return path;
+    }
+
+    private static string CreateChaoticDocx(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "chaotic.docx");
+        using var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new W.Document(new W.Body());
+        AddStyles(main);
+        var body = main.Document.Body!;
+        body.Append(DirectHeading("第一章 绪论"));
+        for (var i = 0; i < 12; i++)
+        {
+            body.Append(DirectBodyParagraph($"混乱正文段落 {i + 1}，内容需要保留但格式不应直接成为模板。", (360 + i).ToString()));
+        }
+
+        body.Append(DirectHeading("第二章 分析"));
+        body.Append(new W.Paragraph());
+        body.Append(new W.Paragraph());
+        body.Append(new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
         main.Document.Save();
         return path;
     }
@@ -797,9 +990,45 @@ public sealed class DocxIntakeStructuringTests
     {
         var styles = main.AddNewPart<StyleDefinitionsPart>();
         styles.Styles = new W.Styles(
-            new W.Style(new W.StyleName { Val = "Title" }) { Type = W.StyleValues.Paragraph, StyleId = "Title" },
-            new W.Style(new W.StyleName { Val = "heading 1" }) { Type = W.StyleValues.Paragraph, StyleId = "Heading1" });
+            new W.DocDefaults(
+                new W.RunPropertiesDefault(new W.RunPropertiesBaseStyle(
+                    new W.RunFonts { Ascii = "Times New Roman", HighAnsi = "Times New Roman", EastAsia = "宋体" },
+                    new W.FontSize { Val = "24" })),
+                new W.ParagraphPropertiesDefault(new W.ParagraphPropertiesBaseStyle(
+                    new W.SpacingBetweenLines { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }))),
+            new W.Style(
+                new W.StyleName { Val = "Normal" },
+                new W.StyleRunProperties(new W.RunFonts { Ascii = "Times New Roman", HighAnsi = "Times New Roman", EastAsia = "宋体" }, new W.FontSize { Val = "24" }),
+                new W.StyleParagraphProperties(new W.SpacingBetweenLines { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }))
+            { Type = W.StyleValues.Paragraph, StyleId = "Normal" },
+            new W.Style(
+                new W.StyleName { Val = "Title" },
+                new W.BasedOn { Val = "Normal" },
+                new W.StyleRunProperties(new W.Bold(), new W.FontSize { Val = "36" }))
+            { Type = W.StyleValues.Paragraph, StyleId = "Title" },
+            new W.Style(
+                new W.StyleName { Val = "heading 1" },
+                new W.BasedOn { Val = "Normal" },
+                new W.StyleRunProperties(new W.RunFonts { Ascii = "Times New Roman", HighAnsi = "Times New Roman", EastAsia = "黑体" }, new W.Bold(), new W.FontSize { Val = "32" }),
+                new W.StyleParagraphProperties(new W.OutlineLevel { Val = 0 }, new W.SpacingBetweenLines { Line = "360", LineRule = W.LineSpacingRuleValues.Auto }))
+            { Type = W.StyleValues.Paragraph, StyleId = "Heading1" });
         styles.Styles.Save();
+    }
+
+    private static void AddNumbering(MainDocumentPart main)
+    {
+        var numberingPart = main.AddNewPart<NumberingDefinitionsPart>();
+        numberingPart.Numbering = new W.Numbering(
+            new W.AbstractNum(
+                new W.Level(
+                    new W.StartNumberingValue { Val = 1 },
+                    new W.NumberingFormat { Val = W.NumberFormatValues.Decimal },
+                    new W.LevelText { Val = "%1." },
+                    new W.PreviousParagraphProperties(new W.Indentation { Left = "720", Hanging = "360" }))
+                { LevelIndex = 0 })
+            { AbstractNumberId = 1 },
+            new W.NumberingInstance(new W.AbstractNumId { Val = 1 }) { NumberID = 1 });
+        numberingPart.Numbering.Save();
     }
 
     private static void AddNotes(MainDocumentPart main)
@@ -847,6 +1076,26 @@ public sealed class DocxIntakeStructuringTests
     {
         var rel = main.AddHyperlinkRelationship(new Uri("https://example.com", UriKind.Absolute), true);
         return new W.Paragraph(new W.Hyperlink(new W.Run(new W.Text("OpenAI"))) { Id = rel.Id });
+    }
+
+    private static W.Paragraph DirectHeading(string text)
+    {
+        return new W.Paragraph(
+            new W.ParagraphProperties(
+                new W.Justification { Val = W.JustificationValues.Center },
+                new W.SpacingBetweenLines { Before = "240", After = "120", Line = "360", LineRule = W.LineSpacingRuleValues.Auto }),
+            new W.Run(
+                new W.RunProperties(new W.Bold(), new W.FontSize { Val = "32" }),
+                new W.Text(text)));
+    }
+
+    private static W.Paragraph DirectBodyParagraph(string text, string lineSpacing)
+    {
+        return new W.Paragraph(
+            new W.ParagraphProperties(
+                new W.SpacingBetweenLines { Line = lineSpacing, LineRule = W.LineSpacingRuleValues.Auto },
+                new W.Indentation { FirstLine = "480" }),
+            new W.Run(new W.Text(text)));
     }
 
     private static W.Table Table()

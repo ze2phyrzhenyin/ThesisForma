@@ -60,6 +60,11 @@ public sealed class IntakeDocxReport
     public string ReportVersion { get; set; } = "1.0.0";
     public string InputDocx { get; set; } = string.Empty;
     public string ExtractionStatus { get; set; } = "notRun";
+    public string FormatCandidateStatus { get; set; } = "notRun";
+    public string FormatChaosLevel { get; set; } = "notRun";
+    public double FormatChaosScore { get; set; }
+    public int FormatCandidateGeneratedFieldCount { get; set; }
+    public int FormatCandidateUnresolvedCount { get; set; }
     public string StructuringStatus { get; set; } = "notRun";
     public bool ThesisDocumentDraftValid { get; set; }
     public bool RenderAttempted { get; set; }

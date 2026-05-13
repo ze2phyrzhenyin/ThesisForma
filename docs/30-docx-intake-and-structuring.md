@@ -2,15 +2,32 @@
 
 DOCX intake starts the second phase without changing the renderer contract.
 
-The flow is:
+The standalone flow is:
 
 1. `extract docx` reads `input.docx` with OpenXML and writes extraction evidence.
-2. `structure draft` maps evidence into a draft `ThesisDocument`.
-3. `structure prompt` creates a Codex review prompt for human-guided structure review.
-4. `validate-input` checks the draft against the existing schema and semantic validator.
-5. `render` can produce a formatted DOCX from the draft and a template.
+2. `extract format-candidates` turns effective format clusters into a draft `ThesisFormatSpec` candidate plus an evidence report.
+3. `structure draft` maps evidence into a draft `ThesisDocument`.
+4. `structure prompt` creates a Codex review prompt for human-guided structure review.
+5. `validate-input` checks the draft against the existing schema and semantic validator.
+6. `render` can produce a formatted DOCX from the draft and a template.
 
-Extraction is factual. It records paragraphs, runs, styles, tables, images, fields, notes, bookmarks, numbering, section properties, and candidate roles with evidence paths such as `paragraphs[12]` or `tables[0].rows[1].cells[2]`.
+Extraction is factual. It records paragraphs, runs, styles, tables, images, fields, notes, bookmarks, numbering, section properties, effective paragraph formatting, format signatures, and candidate roles with evidence paths such as `paragraphs[12]` or `tables[0].rows[1].cells[2]`.
+
+Each extracted paragraph includes `effectiveFormat`, a normalized view of style inheritance, numbering level properties, paragraph direct formatting, and single-run direct formatting where it can be represented without hiding mixed-run content. The root `formatSignatures` collection groups paragraphs with the same effective format so template authors can identify candidate body, heading, bibliography, and caption styles from evidence before drafting a `ThesisFormatSpec`.
+
+Messy-source handling is explicit. The root `formatChaos` report scores signature fragmentation, direct paragraph formatting, direct run formatting, missing styles, body-format fragmentation, weak heading styles, and empty paragraph frequency. The root `formatClusters` collection groups similar effective formats by role hints such as `body`, `heading`, `bibliography`, `caption`, and `frontMatter`; clusters are review evidence, not accepted template rules.
+
+`extract format-candidates` is conservative. It emits `candidate-format-spec.json` from high-confidence body, heading, bibliography, and page-setup evidence where available, and writes unresolved items for high chaos, missing clusters, notes, tables, figures, or unsupported surfaces. The candidate is not a template package and must be reviewed before accepted fields are copied into a committed `TemplatePackage`.
+
+`intake docx` runs candidate format generation automatically after extraction. The workspace receives `structured/candidate-format-spec.json`, `structured/format-candidate-report.json`, and `structured/format-candidate-report.md`; `reports/intake-report.json` summarizes candidate status, chaos level, generated field count, and unresolved review count. These candidate files are review evidence, not accepted template fixtures.
+
+Reviewed template proposal is a separate human gate:
+
+1. `template scaffold-candidate-decisions` creates `structured/format-candidate-decisions.json` with one decision entry per generated field.
+2. A reviewer changes each decision to `accept`, `reject`, or `modify`, records a reason, and keeps evidence paths for accepted or modified fields.
+3. `template propose-from-candidate` copies the source template to a fresh output directory and applies only accepted or modified fields to the copied `format-spec.json`.
+4. High-chaos candidates cannot apply accepted or modified fields unless `riskAccepted: true` and `riskAcceptanceReason` are recorded in the decision file.
+5. The proposed template still must pass `template validate`, render validation, coverage, and regression gates before it is treated as accepted.
 
 Structuring is interpretive. It classifies sections and blocks, but it must not rewrite thesis text, polish language, summarize paragraphs, or delete content. Uncertain metadata, heading levels, bibliography boundaries, captions, and section mappings belong in `unresolved-items.json`.
 
@@ -27,6 +44,7 @@ Privacy:
 
 - `onboarding-workspaces/docx-structure-pilot/input/input.docx` may contain user thesis content.
 - `extraction/plain-text.txt` and `structured/thesis-document.draft.json` may contain the full thesis.
+- `structured/candidate-format-spec.json` and `structured/format-candidate-report.json` may contain source-derived format evidence and should be reviewed before any fields are copied into a public template package.
 - Keep these files in ignored onboarding workspaces.
 - Do not copy user content into `examples` or docs.
 
@@ -44,6 +62,8 @@ Current limits:
 - no Microsoft Word dependency;
 - no screenshot-level visual diff;
 - rule-based structuring is a draft, not a guarantee;
+- effective run formatting is summarized conservatively; mixed run-level formatting remains available in each paragraph's `runs`;
+- `formatClusters` reduce noise from messy direct formatting, but they do not replace human review for accepted templates;
 - uncertain items require human review.
 
 Commands:
@@ -54,6 +74,27 @@ dotnet run --project src/ThesisDocx.Cli -- extract docx \
   --out onboarding-workspaces/docx-structure-pilot/extraction/extraction.json \
   --text onboarding-workspaces/docx-structure-pilot/extraction/plain-text.txt \
   --markdown onboarding-workspaces/docx-structure-pilot/extraction/extracted.md
+
+dotnet run --project src/ThesisDocx.Cli -- extract format-candidates \
+  --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json \
+  --out onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json \
+  --report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json \
+  --markdown onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.md
+
+dotnet run --project src/ThesisDocx.Cli -- template scaffold-candidate-decisions \
+  --candidate-format onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json \
+  --candidate-report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json \
+  --reviewer reviewer-id \
+  --out onboarding-workspaces/docx-structure-pilot/structured/format-candidate-decisions.json
+
+dotnet run --project src/ThesisDocx.Cli -- template propose-from-candidate \
+  --template examples/templates/example-university-engineering \
+  --candidate-format onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json \
+  --candidate-report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json \
+  --decisions onboarding-workspaces/docx-structure-pilot/structured/format-candidate-decisions.json \
+  --out onboarding-workspaces/docx-structure-pilot/proposed-template \
+  --report onboarding-workspaces/docx-structure-pilot/reports/template-candidate-proposal-report.json \
+  --markdown onboarding-workspaces/docx-structure-pilot/reports/template-candidate-proposal-report.md
 
 dotnet run --project src/ThesisDocx.Cli -- structure draft \
   --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json \

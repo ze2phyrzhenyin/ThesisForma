@@ -50,6 +50,9 @@ public sealed class DocxExtractionResult
     public List<ExtractedField> Fields { get; set; } = [];
     public List<ExtractedStyleUsage> Styles { get; set; } = [];
     public List<ExtractedNumberingUsage> Numbering { get; set; } = [];
+    public List<ExtractedFormatSignature> FormatSignatures { get; set; } = [];
+    public ExtractedFormatChaosReport FormatChaos { get; set; } = new();
+    public List<ExtractedFormatCluster> FormatClusters { get; set; } = [];
     public List<ExtractedSection> Sections { get; set; } = [];
     public List<ExtractionEvidence> PossibleHeadings { get; set; } = [];
     public List<ExtractionEvidence> PossibleAbstract { get; set; } = [];
@@ -102,6 +105,7 @@ public sealed class ExtractedParagraph
     public string? Indent { get; set; }
     public string? Spacing { get; set; }
     public ExtractedRunSummary RunSummary { get; set; } = new();
+    public ExtractedEffectiveFormat EffectiveFormat { get; set; } = new();
     public string PossibleRole { get; set; } = "body";
     public List<ExtractedRun> Runs { get; set; } = [];
     public string EvidencePath { get; set; } = string.Empty;
@@ -130,6 +134,77 @@ public sealed class ExtractedRun
     public string? Color { get; set; }
     public bool Superscript { get; set; }
     public bool Subscript { get; set; }
+}
+
+public sealed class ExtractedEffectiveFormat
+{
+    public string Signature { get; set; } = string.Empty;
+    public string? StyleId { get; set; }
+    public string? StyleName { get; set; }
+    public List<string> StyleChain { get; set; } = [];
+    public string? Font { get; set; }
+    public string? EastAsiaFont { get; set; }
+    public double? FontSizePt { get; set; }
+    public bool? Bold { get; set; }
+    public bool? Italic { get; set; }
+    public string? Alignment { get; set; }
+    public int? LeftIndentTwips { get; set; }
+    public int? RightIndentTwips { get; set; }
+    public int? FirstLineIndentTwips { get; set; }
+    public int? HangingIndentTwips { get; set; }
+    public int? SpaceBeforeTwips { get; set; }
+    public int? SpaceAfterTwips { get; set; }
+    public string? LineSpacing { get; set; }
+    public string? LineSpacingRule { get; set; }
+    public int? OutlineLevel { get; set; }
+    public string? NumberingId { get; set; }
+    public int? NumberingLevel { get; set; }
+    public string? NumberingFormat { get; set; }
+    public string? NumberingText { get; set; }
+    public bool HasDirectParagraphFormatting { get; set; }
+    public bool HasDirectRunFormatting { get; set; }
+    public List<string> Sources { get; set; } = [];
+}
+
+public sealed class ExtractedFormatSignature
+{
+    public string Id { get; set; } = string.Empty;
+    public string Signature { get; set; } = string.Empty;
+    public int UsageCount { get; set; }
+    public List<string> ParagraphIds { get; set; } = [];
+    public List<string> EvidencePaths { get; set; } = [];
+    public ExtractedEffectiveFormat RepresentativeFormat { get; set; } = new();
+}
+
+public sealed class ExtractedFormatChaosReport
+{
+    public double ChaosScore { get; set; }
+    public string ChaosLevel { get; set; } = "low";
+    public int NonEmptyParagraphCount { get; set; }
+    public int FormatSignatureCount { get; set; }
+    public double FormatSignatureDensity { get; set; }
+    public double DirectParagraphFormattingRatio { get; set; }
+    public double DirectRunFormattingRatio { get; set; }
+    public double UnstyledParagraphRatio { get; set; }
+    public int BodyCandidateParagraphCount { get; set; }
+    public int BodyCandidateSignatureCount { get; set; }
+    public int HeadingCandidateCount { get; set; }
+    public int HeadingWithoutHeadingStyleCount { get; set; }
+    public int EmptyParagraphCount { get; set; }
+    public List<ExtractionIssue> Diagnostics { get; set; } = [];
+}
+
+public sealed class ExtractedFormatCluster
+{
+    public string Id { get; set; } = string.Empty;
+    public string RoleHint { get; set; } = "unknown";
+    public double Confidence { get; set; }
+    public int UsageCount { get; set; }
+    public List<string> SignatureIds { get; set; } = [];
+    public List<string> EvidencePaths { get; set; } = [];
+    public ExtractedEffectiveFormat RepresentativeFormat { get; set; } = new();
+    public List<string> Variance { get; set; } = [];
+    public List<ExtractionIssue> Diagnostics { get; set; } = [];
 }
 
 public sealed class ExtractedTable

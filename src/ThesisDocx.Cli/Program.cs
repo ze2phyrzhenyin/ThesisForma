@@ -30,7 +30,7 @@ using ThesisDocx.Core.Validation.FormatRuleCoverage;
 
 return ThesisDocxCli.Run(args);
 
-internal static class ThesisDocxCli
+internal static partial class ThesisDocxCli
 {
     public static int Run(string[] args)
     {
@@ -387,6 +387,8 @@ internal static class ThesisDocxCli
             "gate" => TemplateGate(options),
             "diagnose" => TemplateDiagnose(options),
             "authoring-report" => TemplateAuthoringReport(options),
+            "scaffold-candidate-decisions" => TemplateScaffoldCandidateDecisions(options),
+            "propose-from-candidate" => TemplateProposeFromCandidate(options),
             _ => Fail($"Unknown template command '{command}'.")
         };
     }
@@ -623,223 +625,61 @@ internal static class ThesisDocxCli
         return report.PublishReadiness == "notReady" ? 2 : 0;
     }
 
-    private static int Requirements(string[] args)
+    private static int TemplateScaffoldCandidateDecisions(Dictionary<string, string> options)
     {
-        if (args.Length == 0)
-        {
-            return Fail("Missing requirements subcommand.");
-        }
-
-        var command = args[0];
-        var options = ParseOptions(args.Skip(1));
-        return command switch
-        {
-            "validate" => RequirementsValidate(options),
-            "report" => RequirementsReport(options),
-            _ => Fail($"Unknown requirements command '{command}'.")
-        };
-    }
-
-    private static int RequirementsValidate(Dictionary<string, string> options)
-    {
-        var requirementsPath = Required(options, "requirements");
-        var schemaPath = Path.Combine(LocateRepoRoot(), "schemas", "requirement-capture.schema.json");
-        var serviceResult = new RequirementsWorkflowService().Validate(new RequirementsValidateRequest
-        {
-            RequirementsPath = requirementsPath,
-            SchemaPath = schemaPath
-        });
-        var result = serviceResult.Validation;
-        if (options.ContainsKey("json"))
-        {
-            if (result is not null)
-            {
-                WriteJsonOutput(options.GetValueOrDefault("out"), result);
-            }
-            else
-            {
-                WriteJsonOutput(options.GetValueOrDefault("out"), serviceResult);
-            }
-        }
-        else if (serviceResult.Success)
-        {
-            Console.WriteLine("Requirements valid");
-        }
-        else if (result is not null)
-        {
-            foreach (var error in result.Errors)
-            {
-                Console.Error.WriteLine(error.ToString());
-            }
-        }
-        else
-        {
-            WriteDiagnostics(serviceResult.Diagnostics);
-        }
-
-        return serviceResult.Success ? 0 : 2;
-    }
-
-    private static int RequirementsReport(Dictionary<string, string> options)
-    {
-        var result = new RequirementsWorkflowService().Report(new RequirementsReportRequest
-        {
-            RequirementsPath = Required(options, "requirements"),
-            TemplatePath = options.GetValueOrDefault("template")
-        });
-        var report = result.Report;
-        if (report is null)
-        {
-            WriteJsonOutput(Required(options, "out"), result);
-            return 2;
-        }
-
-        WriteJsonOutput(Required(options, "out"), report);
-        return report.IsValid ? 0 : 2;
-    }
-
-    private static int Baseline(string[] args)
-    {
-        if (args.Length == 0)
-        {
-            return Fail("Missing baseline subcommand.");
-        }
-
-        var command = args[0];
-        var options = ParseOptions(args.Skip(1));
-        return command switch
-        {
-            "list" => BaselineList(options),
-            "init" => BaselineInit(options),
-            "compare" => BaselineCompare(options),
-            "update" => BaselineUpdate(options),
-            _ => Fail($"Unknown baseline command '{command}'.")
-        };
-    }
-
-    private static int BaselineList(Dictionary<string, string> options)
-    {
-        var entries = new TemplateBaselineManager().List(Required(options, "suite"));
-        foreach (var entry in entries)
-        {
-            Console.WriteLine($"{entry.CaseId}\t{entry.TemplateId}\t{entry.TemplateVersion}");
-        }
-
+        var candidateReportPath = Required(options, "candidate-report");
+        var candidateFormatPath = Required(options, "candidate-format");
+        var outPath = Required(options, "out");
+        var reviewer = Required(options, "reviewer");
+        var defaultDecision = ParseScaffoldDefaultDecisionKind(options.GetValueOrDefault("default-decision") ?? "reject");
+        var candidateReport = ReadJson<DocxFormatCandidateReport>(candidateReportPath);
+        var decisions = new FormatCandidateDecisionScaffolder().Scaffold(
+            candidateReport,
+            candidateFormatPath,
+            candidateReportPath,
+            reviewer,
+            defaultDecision);
+        WriteJsonOutput(outPath, decisions);
+        Console.WriteLine($"Scaffolded {decisions.Decisions.Count} candidate decisions with default decision: {defaultDecision.ToString().ToLowerInvariant()}");
         return 0;
     }
 
-    private static int BaselineInit(Dictionary<string, string> options)
-    {
-        var manifest = new TemplateBaselineManager().Init(Required(options, "suite"), Required(options, "out"));
-        WriteJsonOutput(null, new { manifest.SuiteId, baselineCount = manifest.Baselines.Count });
-        return 0;
-    }
-
-    private static int BaselineCompare(Dictionary<string, string> options)
-    {
-        var outputPath = Required(options, "out");
-        var outputDirectory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outputPath)) ?? Directory.GetCurrentDirectory(), "baseline-compare-artifacts");
-        var result = options.ContainsKey("fixtures")
-            ? new TemplateBaselineManager().CompareFixtures(Required(options, "fixtures"), outputDirectory)
-            : new TemplateBaselineManager().CompareSuite(Required(options, "suite"), outputDirectory);
-        WriteJsonOutput(outputPath, result);
-        return result.Passed ? 0 : 2;
-    }
-
-    private static int BaselineUpdate(Dictionary<string, string> options)
-    {
-        var outputPath = Required(options, "out");
-        var result = new TemplateBaselineManager().Update(
-            Required(options, "suite"),
-            Required(options, "case"),
-            options.GetValueOrDefault("reason") ?? string.Empty,
-            Path.Combine(Path.GetDirectoryName(Path.GetFullPath(outputPath)) ?? Directory.GetCurrentDirectory(), "baseline-update-artifacts"));
-        WriteJsonOutput(outputPath, result);
-        return result.Errors.Count == 0 ? 0 : 2;
-    }
-
-    private static int NegativeFixtures(string[] args)
-    {
-        if (args.Length == 0)
-        {
-            return Fail("Missing negative-fixtures subcommand.");
-        }
-
-        var command = args[0];
-        var options = ParseOptions(args.Skip(1));
-        return command switch
-        {
-            "run" => NegativeFixturesRun(options),
-            _ => Fail($"Unknown negative-fixtures command '{command}'.")
-        };
-    }
-
-    private static int NegativeFixturesRun(Dictionary<string, string> options)
-    {
-        var serviceResult = new NegativeFixturesWorkflowService().Run(new NegativeFixturesRunRequest
-        {
-            ManifestPath = Required(options, "manifest")
-        });
-        var result = serviceResult.Result;
-        if (result is null)
-        {
-            WriteJsonOutput(Required(options, "out"), serviceResult);
-            return 2;
-        }
-
-        WriteJsonOutput(Required(options, "out"), result);
-        Console.WriteLine($"Negative fixtures: {(result.Passed ? "pass" : "fail")} ({result.Cases.Count} cases)");
-        return serviceResult.Success ? 0 : 2;
-    }
-
-    private static int Ci(string[] args)
-    {
-        if (args.Length == 0)
-        {
-            return Fail("Missing ci subcommand.");
-        }
-
-        var command = args[0];
-        var options = ParseOptions(args.Skip(1));
-        return command switch
-        {
-            "quality-report" => CiQualityReport(options),
-            _ => Fail($"Unknown ci command '{command}'.")
-        };
-    }
-
-    private static int CiQualityReport(Dictionary<string, string> options)
+    private static int TemplateProposeFromCandidate(Dictionary<string, string> options)
     {
         var outPath = Required(options, "out");
-        var threshold = options.TryGetValue("threshold", out var rawThreshold)
-            && double.TryParse(rawThreshold, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : 0.85;
-        var result = new CiQualityReportService().Build(new CiQualityReportRequest
+        var reportPath = Required(options, "report");
+        var result = new TemplateCandidateProposalService().Propose(new TemplateCandidateProposalOptions
         {
             TemplatePath = Required(options, "template"),
-            DocumentPath = Required(options, "document"),
-            RequirementsPath = Required(options, "requirements"),
-            SuitePath = Required(options, "suite"),
-            NegativeFixturesPath = Required(options, "negative-fixtures"),
-            Threshold = threshold,
-            OutputDirectory = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? Directory.GetCurrentDirectory()
+            CandidateFormatSpecPath = Required(options, "candidate-format"),
+            CandidateReportPath = Required(options, "candidate-report"),
+            DecisionsPath = Required(options, "decisions"),
+            OutputTemplatePath = outPath
         });
-        var report = result.Report;
-        if (report is null)
-        {
-            WriteJsonOutput(outPath, result);
-            return 2;
-        }
-
-        WriteJsonOutput(outPath, report);
+        WriteJsonOutput(reportPath, result.Report);
         if (options.TryGetValue("markdown", out var markdownPath))
         {
-            WriteTextOutput(markdownPath, new CiQualityMarkdownRenderer().Render(report));
+            WriteTextOutput(markdownPath, TemplateCandidateProposalService.ToMarkdown(result.Report));
         }
 
-        Console.WriteLine($"CI quality status: {report.Status}; merge decision: {report.MergeDecision}; quality score: {report.QualityScore}");
-        return report.Status == "fail" ? 2 : 0;
+        foreach (var issue in result.Report.Issues.Where(issue => string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.Error.WriteLine($"{issue.Code} at {issue.Path}: {issue.Message}");
+        }
+
+        Console.WriteLine($"Template proposal: {result.Report.Status}; accepted: {result.Report.AcceptedCount}; modified: {result.Report.ModifiedCount}; rejected: {result.Report.RejectedCount}");
+        return result.Report.Status == "pass" ? 0 : 2;
+    }
+
+    private static FormatCandidateDecisionKind ParseScaffoldDefaultDecisionKind(string value)
+    {
+        if (!Enum.TryParse<FormatCandidateDecisionKind>(value, ignoreCase: true, out var decision)
+            || decision == FormatCandidateDecisionKind.Modify)
+        {
+            throw new ArgumentException("Invalid --default-decision. Use accept or reject; use modify only after editing a decision entry with an explicit value.");
+        }
+
+        return decision;
     }
 
     private static int Extract(string[] args)
@@ -854,6 +694,7 @@ internal static class ThesisDocxCli
         return command switch
         {
             "docx" => ExtractDocx(options),
+            "format-candidates" => ExtractFormatCandidates(options),
             _ => Fail($"Unknown extract command '{command}'.")
         };
     }
@@ -882,6 +723,24 @@ internal static class ThesisDocxCli
             Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 2;
         }
+    }
+
+    private static int ExtractFormatCandidates(Dictionary<string, string> options)
+    {
+        var extractionPath = Required(options, "extraction");
+        var outPath = Required(options, "out");
+        var reportPath = Required(options, "report");
+        var extraction = ReadJson<DocxExtractionResult>(extractionPath);
+        var result = new DocxFormatCandidateGenerator().Generate(extraction, extractionPath);
+        WriteJsonOutput(outPath, result.CandidateFormatSpec);
+        WriteJsonOutput(reportPath, result.Report);
+        if (options.TryGetValue("markdown", out var markdownPath))
+        {
+            WriteTextOutput(markdownPath, DocxFormatCandidateGenerator.ToMarkdown(result.Report));
+        }
+
+        Console.WriteLine($"Generated {result.Report.GeneratedFieldCount} candidate fields; status: {result.Report.CandidateStatus}; chaos: {result.Report.ChaosLevel}");
+        return 0;
     }
 
     private static int Content(string[] args)
@@ -1016,7 +875,7 @@ internal static class ThesisDocxCli
             # DOCX Structure Pilot Workspace
 
             Place the source Word file at `input/input.docx`.
-            Generated extraction and structured draft files may contain user thesis content and should stay in this ignored workspace.
+            Generated extraction, candidate format, and structured draft files may contain user thesis content or review evidence and should stay in this ignored workspace until reviewed.
             """);
         }
 
@@ -1028,6 +887,9 @@ internal static class ThesisDocxCli
         var mappingPath = Path.Combine(workspace, "structured", "structure-mapping-report.json");
         var unresolvedPath = Path.Combine(workspace, "structured", "unresolved-items.json");
         var evidencePath = Path.Combine(workspace, "structured", "evidence-links.json");
+        var candidateFormatPath = Path.Combine(workspace, "structured", "candidate-format-spec.json");
+        var candidateReportPath = Path.Combine(workspace, "structured", "format-candidate-report.json");
+        var candidateMarkdownPath = Path.Combine(workspace, "structured", "format-candidate-report.md");
         var promptPath = Path.Combine(workspace, "reports", "structure-codex-prompt.md");
         var reportPath = Path.Combine(workspace, "reports", "intake-report.json");
         var reportMarkdownPath = Path.Combine(workspace, "reports", "intake-report.md");
@@ -1073,12 +935,27 @@ internal static class ThesisDocxCli
             report.Warnings.AddRange(privacy.Findings.Where(f => !UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => $"{f.Code}: {f.Message}"));
             report.BlockingIssues.AddRange(privacy.Findings.Where(f => UnifiedDiagnosticMapper.IsError(f.Severity)).Select(f => $"{f.Code}: {f.Message}"));
 
+            var formatCandidate = new DocxFormatCandidateGenerator().Generate(extraction, extractionPath);
+            WriteJsonOutput(candidateFormatPath, formatCandidate.CandidateFormatSpec);
+            WriteJsonOutput(candidateReportPath, formatCandidate.Report);
+            WriteTextOutput(candidateMarkdownPath, DocxFormatCandidateGenerator.ToMarkdown(formatCandidate.Report));
+            report.FormatCandidateStatus = formatCandidate.Report.CandidateStatus;
+            report.FormatChaosLevel = formatCandidate.Report.ChaosLevel;
+            report.FormatChaosScore = formatCandidate.Report.ChaosScore;
+            report.FormatCandidateGeneratedFieldCount = formatCandidate.Report.GeneratedFieldCount;
+            report.FormatCandidateUnresolvedCount = formatCandidate.Report.UnresolvedItems.Count;
+            report.Artifacts.AddRange([candidateFormatPath, candidateReportPath, candidateMarkdownPath]);
+            report.Warnings.AddRange(formatCandidate.Report.Warnings.Select(w => $"formatCandidate: {w}"));
+            report.Warnings.AddRange(formatCandidate.Report.UnresolvedItems
+                .Where(i => !string.Equals(i.Severity, "info", StringComparison.OrdinalIgnoreCase))
+                .Select(i => $"{i.Code}: {i.Message}"));
+
             var structured = new ThesisStructureMapper().Map(extraction, extractionPath);
             new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
             report.StructuringStatus = "pass";
             report.UnresolvedCount = structured.UnresolvedItems.Count;
             report.Artifacts.AddRange([draftPath, mappingPath, unresolvedPath, evidencePath]);
-            WriteTextOutput(promptPath, new StructurePromptBuilder().Build(extractionPath));
+            WriteTextOutput(promptPath, new StructurePromptBuilder().Build(extractionPath, candidateReportPath));
             report.Artifacts.Add(promptPath);
 
             var draft = ReadJson<ThesisDocument>(draftPath);
@@ -1142,7 +1019,7 @@ internal static class ThesisDocxCli
         }
 
         report.RecommendedNextActions = report.BlockingIssues.Count == 0
-            ? ["Review unresolved items and evidence links before using the rendered draft."]
+            ? ["Review format-candidate-report.json, unresolved items, and evidence links before using the rendered draft."]
             : ["Open intake-report.json and fix blocking issues before rendering final output."];
         WriteJsonOutput(reportPath, report);
         WriteTextOutput(reportMarkdownPath, IntakeReportMarkdown(report));
@@ -1155,6 +1032,10 @@ internal static class ThesisDocxCli
         # DOCX Intake Report
 
         - Extraction: `{report.ExtractionStatus}`
+        - Format candidate: `{report.FormatCandidateStatus}`
+        - Format chaos: `{report.FormatChaosLevel}` ({report.FormatChaosScore.ToString("0.###", CultureInfo.InvariantCulture)})
+        - Candidate fields: `{report.FormatCandidateGeneratedFieldCount}`
+        - Candidate unresolved: `{report.FormatCandidateUnresolvedCount}`
         - Structuring: `{report.StructuringStatus}`
         - Draft valid: `{report.ThesisDocumentDraftValid}`
         - Render attempted: `{report.RenderAttempted}`
@@ -1820,6 +1701,8 @@ internal static class ThesisDocxCli
         thesis-docx baseline compare --suite examples/template-regression/template-regression-suite.json --out out/baseline-compare-report.json
         thesis-docx template diagnose --template examples/templates/example-university-engineering --document examples/full-thesis/document.json --requirements examples/requirements/example-engineering-requirements.json --suite examples/template-regression/template-regression-suite.json --out out/template-diagnostic-report.json
         thesis-docx template authoring-report --template examples/templates/example-university-engineering --document examples/full-thesis/document.json --requirements examples/requirements/example-engineering-requirements.json --suite examples/template-regression/template-regression-suite.json --threshold 0.85 --out out/template-authoring-report.json
+        thesis-docx template scaffold-candidate-decisions --candidate-format onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json --candidate-report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json --reviewer reviewer-id --out onboarding-workspaces/docx-structure-pilot/structured/format-candidate-decisions.json
+        thesis-docx template propose-from-candidate --template examples/templates/example-university-engineering --candidate-format onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json --candidate-report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json --decisions onboarding-workspaces/docx-structure-pilot/structured/format-candidate-decisions.json --out out/proposed-template --report out/template-candidate-proposal-report.json --markdown out/template-candidate-proposal-report.md
         thesis-docx negative-fixtures run --manifest examples/negative-fixtures/negative-fixture-manifest.json --out out/negative-fixtures-report.json
         thesis-docx ci quality-report --template examples/templates/example-university-engineering --document examples/full-thesis/document.json --requirements examples/requirements/example-engineering-requirements.json --suite examples/template-regression/template-regression-suite.json --negative-fixtures examples/negative-fixtures/negative-fixture-manifest.json --threshold 0.85 --out out/ci/quality-report.json --markdown out/ci/quality-report.md
         thesis-docx privacy scan --path examples --policy examples/onboarding/example-engineering-pilot/onboarding.json --out out/privacy-scan-examples.json
@@ -1829,6 +1712,7 @@ internal static class ThesisDocxCli
         thesis-docx onboarding package --workspace examples/onboarding/example-engineering-pilot --out out/example-engineering-pilot.template-pilot.zip
         thesis-docx onboarding package-validate --package out/example-engineering-pilot.template-pilot.zip
         thesis-docx extract docx --input onboarding-workspaces/docx-structure-pilot/input/input.docx --out onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --text onboarding-workspaces/docx-structure-pilot/extraction/plain-text.txt --markdown onboarding-workspaces/docx-structure-pilot/extraction/extracted.md
+        thesis-docx extract format-candidates --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json --report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json --markdown onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.md
         thesis-docx structure draft --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/structured/thesis-document.draft.json --report onboarding-workspaces/docx-structure-pilot/structured/structure-mapping-report.json --unresolved onboarding-workspaces/docx-structure-pilot/structured/unresolved-items.json
         thesis-docx structure prompt --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/reports/structure-codex-prompt.md
         thesis-docx intake docx --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering
