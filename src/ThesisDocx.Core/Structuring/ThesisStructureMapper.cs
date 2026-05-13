@@ -4,6 +4,7 @@ using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
+using ThesisDocx.Core.Validation.ContentPreservation;
 
 namespace ThesisDocx.Core.Structuring;
 
@@ -121,6 +122,7 @@ public sealed class ThesisStructureMapper
 
         EnsureRendererScaffoldSections(result);
 
+        var contentPreservation = new ContentPreservationAuditor().AuditDraft(extraction, result.Document);
         result.Report = new ThesisStructureMappingReport
         {
             SourceExtraction = sourceExtraction,
@@ -128,6 +130,7 @@ public sealed class ThesisStructureMapper
             UnresolvedCount = result.UnresolvedItems.Count,
             LowConfidenceCount = result.EvidenceLinks.Count(link => link.Confidence < 0.75),
             EvidenceCoverageRatio = extraction.Paragraphs.Count == 0 ? 0 : Math.Round(result.EvidenceLinks.Select(l => l.EvidencePath).Distinct().Count() / (double)extraction.Paragraphs.Count, 6),
+            ContentPreservation = contentPreservation,
             EvidenceLinks = result.EvidenceLinks,
             RecommendedCodexReviewSteps =
             [
@@ -138,6 +141,8 @@ public sealed class ThesisStructureMapper
             ]
         };
         result.Report.Warnings.AddRange(result.UnresolvedItems.Select(item => $"{item.Code}: {item.Message}").Order(StringComparer.Ordinal));
+        result.Report.Warnings.AddRange(contentPreservation.Warnings.Select(issue => $"{issue.Code}: {issue.Message}").Order(StringComparer.Ordinal));
+        result.Report.BlockingIssues.AddRange(contentPreservation.BlockingIssues.Select(issue => $"{issue.Code}: {issue.Message}").Order(StringComparer.Ordinal));
         return result;
     }
 

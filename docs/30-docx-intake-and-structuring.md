@@ -31,6 +31,8 @@ Reviewed template proposal is a separate human gate:
 
 Structuring is interpretive. It classifies sections and blocks, but it must not rewrite thesis text, polish language, summarize paragraphs, or delete content. Uncertain metadata, heading levels, bibliography boundaries, captions, and section mappings belong in `unresolved-items.json`.
 
+`structure draft` now writes a draft-level content preservation audit into `structure-mapping-report.json` under `contentPreservation`. The audit compares source extraction text, notes, and table text against the generated `ThesisDocument` draft text view, records normalized SHA-256 hashes, reports missing segments, and turns long missing source text into blocking issues. `intake docx` summarizes this as `draftContentPreservationStatus`, `draftContentMissingSegments`, and `draftContentBlockingIssues` in `reports/intake-report.json`.
+
 Codex or another LLM may review `extraction.json` and `extracted.md`, but it should not read or modify `input.docx` directly. The LLM output must include evidence links and must preserve original body text.
 
 Why not ask an LLM to output DOCX directly:

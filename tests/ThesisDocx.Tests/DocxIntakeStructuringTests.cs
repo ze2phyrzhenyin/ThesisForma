@@ -559,7 +559,10 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("sections", File.ReadAllText(documentPath));
-        Assert.True(JsonNode.Parse(File.ReadAllText(reportPath))!["ruleBasedMappedCount"]!.GetValue<int>() > 0);
+        var report = JsonNode.Parse(File.ReadAllText(reportPath))!;
+        Assert.True(report["ruleBasedMappedCount"]!.GetValue<int>() > 0);
+        Assert.NotEqual("fail", report["contentPreservation"]!["status"]!.GetValue<string>());
+        Assert.False(string.IsNullOrWhiteSpace(report["contentPreservation"]!["sourceContentHash"]!.GetValue<string>()));
         Assert.True(JsonNode.Parse(File.ReadAllText(unresolvedPath))!.AsArray().Count > 0);
     }
 
@@ -631,6 +634,52 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void ContentPreservationAuditor_ShouldAuditStructuredDraftText()
+    {
+        var source = ExtractSynthetic();
+        var structured = new ThesisStructureMapper().Map(source, "synthetic-extraction.json");
+
+        var result = new ContentPreservationAuditor().AuditDraft(source, structured.Document);
+
+        Assert.NotEqual("fail", result.Status);
+        Assert.True(result.MatchedSegments > 0);
+        Assert.False(string.IsNullOrWhiteSpace(result.SourceContentHash));
+        Assert.False(string.IsNullOrWhiteSpace(result.RenderedContentHash));
+    }
+
+    [Fact]
+    public void ContentPreservationAuditor_ShouldFailDraftAuditWhenLongSourceTextIsDropped()
+    {
+        var source = ExtractSynthetic();
+        source.Paragraphs.Add(new ExtractedParagraph
+        {
+            Id = "p-long",
+            Index = 999,
+            Text = "这是一段用于结构化草稿保真审计的超长正文内容，结构映射如果没有把它写进 ThesisDocument 草稿，就必须作为阻塞问题报告出来，防止 intake 阶段静默丢失用户原文。",
+            EvidencePath = "paragraphs[999]"
+        });
+        source.PlainText += Environment.NewLine + source.Paragraphs.Last().Text;
+        var draft = new ThesisDocument
+        {
+            Metadata = new ThesisMetadata { Title = "草稿", Author = "作者", College = "学院", Major = "专业", StudentId = "1", Advisor = "导师", Date = "2026-05-13" },
+            Sections =
+            [
+                new ThesisSection
+                {
+                    Id = "body",
+                    Kind = ThesisSectionKind.Body,
+                    Blocks = [new ParagraphBlock { Inlines = [new TextInline { Text = "草稿只保留了一小段内容" }] }]
+                }
+            ]
+        };
+
+        var result = new ContentPreservationAuditor().AuditDraft(source, draft);
+
+        Assert.Equal("fail", result.Status);
+        Assert.Contains(result.BlockingIssues, issue => issue.Code == "content.segment.longMissing");
+    }
+
+    [Fact]
     public void ContentPreservationAuditor_ShouldIgnoreTemplateAddedCoverText()
     {
         var source = ExtractSynthetic();
@@ -671,6 +720,7 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Contains("Content Preservation Audit", markdown);
         Assert.Contains("Matched segments", markdown);
+        Assert.Contains("Source content hash", markdown);
     }
 
     [Fact]
@@ -787,6 +837,7 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal("pass", report["extractionStatus"]!.GetValue<string>());
         Assert.Equal("pass", report["structuringStatus"]!.GetValue<string>());
+        Assert.NotEqual("fail", report["draftContentPreservationStatus"]!.GetValue<string>());
     }
 
     [Fact]
@@ -824,6 +875,24 @@ public sealed class DocxIntakeStructuringTests
         Assert.True(report["formatCandidateUnresolvedCount"]!.GetValue<int>() >= 0);
         Assert.Contains("Format candidate", reportMarkdown);
         Assert.Contains("Candidate fields", reportMarkdown);
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldSummarizeDraftContentPreservationInReport()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+
+        RunIntake(workspace, input);
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        var mapping = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "structured", "structure-mapping-report.json")))!;
+        var reportMarkdown = File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.md"));
+
+        Assert.NotEqual("notRun", report["draftContentPreservationStatus"]!.GetValue<string>());
+        Assert.True(report["draftContentMissingSegments"]!.GetValue<int>() >= 0);
+        Assert.True(report["draftContentBlockingIssues"]!.GetValue<int>() >= 0);
+        Assert.False(string.IsNullOrWhiteSpace(mapping["contentPreservation"]!["sourceContentHash"]!.GetValue<string>()));
+        Assert.Contains("Draft content preservation", reportMarkdown);
     }
 
     [Fact]

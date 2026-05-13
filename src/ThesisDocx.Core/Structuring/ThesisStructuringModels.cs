@@ -1,5 +1,6 @@
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Diagnostics;
+using ThesisDocx.Core.Validation.ContentPreservation;
 
 namespace ThesisDocx.Core.Structuring;
 
@@ -24,6 +25,7 @@ public sealed class ThesisStructureMappingReport
     public int UnresolvedCount { get; set; }
     public int LowConfidenceCount { get; set; }
     public double EvidenceCoverageRatio { get; set; }
+    public ContentPreservationResult ContentPreservation { get; set; } = new();
     public List<string> RecommendedCodexReviewSteps { get; set; } = [];
     public List<string> Warnings { get; set; } = [];
     public List<string> BlockingIssues { get; set; } = [];
@@ -66,6 +68,9 @@ public sealed class IntakeDocxReport
     public int FormatCandidateGeneratedFieldCount { get; set; }
     public int FormatCandidateUnresolvedCount { get; set; }
     public string StructuringStatus { get; set; } = "notRun";
+    public string DraftContentPreservationStatus { get; set; } = "notRun";
+    public int DraftContentMissingSegments { get; set; }
+    public int DraftContentBlockingIssues { get; set; }
     public bool ThesisDocumentDraftValid { get; set; }
     public bool RenderAttempted { get; set; }
     public bool RenderValid { get; set; }

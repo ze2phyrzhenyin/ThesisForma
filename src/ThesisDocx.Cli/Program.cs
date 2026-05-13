@@ -817,8 +817,8 @@ internal static partial class ThesisDocxCli
             var extraction = ReadJson<DocxExtractionResult>(extractionPath);
             var result = new ThesisStructureMapper().Map(extraction, extractionPath);
             new ThesisStructureMapper().WriteOutputs(result, Required(options, "out"), reportPath, Required(options, "unresolved"), options.GetValueOrDefault("evidence"));
-            Console.WriteLine($"Structured draft with {result.Report.RuleBasedMappedCount} mapped items and {result.UnresolvedItems.Count} unresolved items");
-            return 0;
+            Console.WriteLine($"Structured draft with {result.Report.RuleBasedMappedCount} mapped items, {result.UnresolvedItems.Count} unresolved items, content preservation: {result.Report.ContentPreservation.Status}");
+            return result.Report.ContentPreservation.Status == "fail" ? 2 : 0;
         }
         catch (Exception ex)
         {
@@ -953,8 +953,13 @@ internal static partial class ThesisDocxCli
             var structured = new ThesisStructureMapper().Map(extraction, extractionPath);
             new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
             report.StructuringStatus = "pass";
+            report.DraftContentPreservationStatus = structured.Report.ContentPreservation.Status;
+            report.DraftContentMissingSegments = structured.Report.ContentPreservation.MissingSegments.Count;
+            report.DraftContentBlockingIssues = structured.Report.ContentPreservation.BlockingIssues.Count;
             report.UnresolvedCount = structured.UnresolvedItems.Count;
             report.Artifacts.AddRange([draftPath, mappingPath, unresolvedPath, evidencePath]);
+            report.Warnings.AddRange(structured.Report.ContentPreservation.Warnings.Select(issue => $"{issue.Code}: {issue.Message}"));
+            report.BlockingIssues.AddRange(structured.Report.ContentPreservation.BlockingIssues.Select(issue => $"{issue.Code}: {issue.Message}"));
             WriteTextOutput(promptPath, new StructurePromptBuilder().Build(extractionPath, candidateReportPath));
             report.Artifacts.Add(promptPath);
 
@@ -1037,6 +1042,9 @@ internal static partial class ThesisDocxCli
         - Candidate fields: `{report.FormatCandidateGeneratedFieldCount}`
         - Candidate unresolved: `{report.FormatCandidateUnresolvedCount}`
         - Structuring: `{report.StructuringStatus}`
+        - Draft content preservation: `{report.DraftContentPreservationStatus}`
+        - Draft missing segments: `{report.DraftContentMissingSegments}`
+        - Draft content blocking issues: `{report.DraftContentBlockingIssues}`
         - Draft valid: `{report.ThesisDocumentDraftValid}`
         - Render attempted: `{report.RenderAttempted}`
         - Render valid: `{report.RenderValid}`

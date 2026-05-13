@@ -1,7 +1,9 @@
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using ThesisDocx.Core.Diagnostics;
 using ThesisDocx.Core.Extraction;
+using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Utilities;
 
 namespace ThesisDocx.Core.Validation.ContentPreservation;
@@ -12,14 +14,18 @@ public sealed class ContentPreservationAuditor
 
     public ContentPreservationResult Audit(DocxExtractionResult source, DocxExtractionResult rendered)
     {
+        var sourceSearchText = BuildSearchText(source);
+        var renderedSearchText = BuildSearchText(rendered);
         var result = new ContentPreservationResult
         {
             SourceParagraphCount = source.Paragraphs.Count,
             RenderedParagraphCount = rendered.Paragraphs.Count,
             SourceTextLength = source.PlainText.Length,
             RenderedTextLength = rendered.PlainText.Length,
-            NormalizedSourceTextLength = TextNormalizer.Normalize(source.PlainText).Length,
-            NormalizedRenderedTextLength = TextNormalizer.Normalize(rendered.PlainText).Length,
+            NormalizedSourceTextLength = sourceSearchText.Length,
+            NormalizedRenderedTextLength = renderedSearchText.Length,
+            SourceContentHash = Sha256(sourceSearchText),
+            RenderedContentHash = Sha256(renderedSearchText),
             FootnoteComparison = CompareCount("footnotes", CountNonEmpty(source.Footnotes.Select(note => note.Text)), CountNonEmpty(rendered.Footnotes.Select(note => note.Text))),
             EndnoteComparison = CompareCount("endnotes", CountNonEmpty(source.Endnotes.Select(note => note.Text)), CountNonEmpty(rendered.Endnotes.Select(note => note.Text))),
             BibliographyComparison = CompareCount("bibliography candidates", source.PossibleBibliography.Count, rendered.PossibleBibliography.Count),
@@ -29,7 +35,6 @@ public sealed class ContentPreservationAuditor
             FieldComparison = CompareCount("fields", source.Fields.Count, rendered.Fields.Count)
         };
 
-        var renderedText = TextNormalizer.Normalize(rendered.PlainText);
         var sourceSegments = ExtractSegments(source)
             .GroupBy(segment => segment.NormalizedText, StringComparer.Ordinal)
             .Select(group => group.First())
@@ -38,7 +43,7 @@ public sealed class ContentPreservationAuditor
 
         foreach (var segment in sourceSegments)
         {
-            if (renderedText.Contains(segment.NormalizedText, StringComparison.Ordinal))
+            if (renderedSearchText.Contains(segment.NormalizedText, StringComparison.Ordinal))
             {
                 result.MatchedSegments++;
             }
@@ -55,9 +60,8 @@ public sealed class ContentPreservationAuditor
             }
         }
 
-        var sourceText = TextNormalizer.Normalize(source.PlainText);
         foreach (var added in ExtractSegments(rendered)
-            .Where(segment => !sourceText.Contains(segment.NormalizedText, StringComparison.Ordinal))
+            .Where(segment => !sourceSearchText.Contains(segment.NormalizedText, StringComparison.Ordinal))
             .Take(50))
         {
             result.AddedSegments.Add(new ContentSegmentIssue
@@ -121,6 +125,11 @@ public sealed class ContentPreservationAuditor
         return result;
     }
 
+    public ContentPreservationResult AuditDraft(DocxExtractionResult source, ThesisDocument draft)
+    {
+        return Audit(source, DraftExtraction(draft));
+    }
+
     public ContentPreservationResult Audit(string sourceExtractionPath, string renderedExtractionPath)
     {
         var source = JsonSerializer.Deserialize<DocxExtractionResult>(File.ReadAllText(sourceExtractionPath), ThesisJson.Options)
@@ -142,6 +151,8 @@ public sealed class ContentPreservationAuditor
         builder.AppendLine($"Missing segments: `{result.MissingSegments.Count}`");
         builder.AppendLine($"Warnings: `{result.Warnings.Count}`");
         builder.AppendLine($"Blocking issues: `{result.BlockingIssues.Count}`");
+        builder.AppendLine($"Source content hash: `{result.SourceContentHash}`");
+        builder.AppendLine($"Rendered content hash: `{result.RenderedContentHash}`");
         builder.AppendLine();
         builder.AppendLine("## Comparisons");
         builder.AppendLine();
@@ -184,6 +195,253 @@ public sealed class ContentPreservationAuditor
         return builder.ToString();
     }
 
+    private static DocxExtractionResult DraftExtraction(ThesisDocument document)
+    {
+        var extraction = new DocxExtractionResult
+        {
+            InputFileName = "thesis-document.draft.json"
+        };
+        var textSegments = new List<string>();
+        var paragraphIndex = 0;
+        var tableIndex = 0;
+        var footnoteIndex = 0;
+        var endnoteIndex = 0;
+
+        for (var sectionIndex = 0; sectionIndex < document.Sections.Count; sectionIndex++)
+        {
+            var section = document.Sections[sectionIndex];
+            for (var blockIndex = 0; blockIndex < section.Blocks.Count; blockIndex++)
+            {
+                var path = $"draft.sections[{sectionIndex}].blocks[{blockIndex}]";
+                AddDraftBlock(section.Blocks[blockIndex], path, extraction, textSegments, ref paragraphIndex, ref tableIndex, ref footnoteIndex, ref endnoteIndex);
+            }
+        }
+
+        extraction.PlainText = string.Join(Environment.NewLine, textSegments.Where(text => !string.IsNullOrWhiteSpace(text)));
+        return extraction;
+    }
+
+    private static void AddDraftBlock(
+        BlockNode block,
+        string path,
+        DocxExtractionResult extraction,
+        List<string> textSegments,
+        ref int paragraphIndex,
+        ref int tableIndex,
+        ref int footnoteIndex,
+        ref int endnoteIndex)
+    {
+        switch (block)
+        {
+            case ParagraphBlock paragraph:
+                AddDraftParagraph(extraction, textSegments, InlinesText(paragraph.Inlines), path, ref paragraphIndex);
+                AddInlineNotes(paragraph.Inlines, path, extraction, ref footnoteIndex, ref endnoteIndex);
+                break;
+            case HeadingBlock heading:
+                AddDraftParagraph(extraction, textSegments, InlinesText(heading.Inlines), path, ref paragraphIndex);
+                AddInlineNotes(heading.Inlines, path, extraction, ref footnoteIndex, ref endnoteIndex);
+                break;
+            case QuoteBlock quote:
+                AddDraftParagraph(extraction, textSegments, InlinesText(quote.Inlines), path, ref paragraphIndex);
+                AddInlineNotes(quote.Inlines, path, extraction, ref footnoteIndex, ref endnoteIndex);
+                break;
+            case ListBlock list:
+                for (var itemIndex = 0; itemIndex < list.Items.Count; itemIndex++)
+                {
+                    for (var childIndex = 0; childIndex < list.Items[itemIndex].Blocks.Count; childIndex++)
+                    {
+                        AddDraftBlock(list.Items[itemIndex].Blocks[childIndex], $"{path}.items[{itemIndex}].blocks[{childIndex}]", extraction, textSegments, ref paragraphIndex, ref tableIndex, ref footnoteIndex, ref endnoteIndex);
+                    }
+                }
+
+                break;
+            case FigureBlock figure:
+                AddDraftParagraph(extraction, textSegments, figure.Caption, path, ref paragraphIndex);
+                break;
+            case TableBlock table:
+                AddDraftTable(extraction, textSegments, table, path, ref tableIndex);
+                break;
+            case EquationBlock equation:
+                AddDraftParagraph(extraction, textSegments, equation.PlainText ?? equation.Placeholder, path, ref paragraphIndex);
+                if (!string.IsNullOrWhiteSpace(equation.Caption))
+                {
+                    AddDraftParagraph(extraction, textSegments, equation.Caption!, $"{path}.caption", ref paragraphIndex);
+                }
+
+                break;
+            case BibliographyBlock bibliography:
+                foreach (var (entry, index) in bibliography.Entries.Select((entry, index) => (entry, index)))
+                {
+                    AddDraftParagraph(extraction, textSegments, entry.Text, $"{path}.entries[{index}]", ref paragraphIndex);
+                }
+
+                break;
+            case FootnoteBlock footnote:
+                AddDraftFootnote(extraction, InlinesText(footnote.Inlines), footnote.NoteId, path, ref footnoteIndex);
+                break;
+            case EndnoteBlock endnote:
+                AddDraftEndnote(extraction, InlinesText(endnote.Inlines), endnote.NoteId, path, ref endnoteIndex);
+                break;
+        }
+    }
+
+    private static void AddDraftParagraph(DocxExtractionResult extraction, List<string> textSegments, string text, string path, ref int paragraphIndex)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        extraction.Paragraphs.Add(new ExtractedParagraph
+        {
+            Id = $"draft-paragraph-{paragraphIndex}",
+            Index = paragraphIndex,
+            Text = text,
+            EvidencePath = path
+        });
+        textSegments.Add(text);
+        paragraphIndex++;
+    }
+
+    private static void AddDraftTable(DocxExtractionResult extraction, List<string> textSegments, TableBlock table, string path, ref int tableIndex)
+    {
+        var rows = new List<ExtractedTableRow>();
+        var tableText = new List<string>();
+        for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+        {
+            var row = table.Rows[rowIndex];
+            var cells = new List<ExtractedTableCell>();
+            for (var cellIndex = 0; cellIndex < row.Cells.Count; cellIndex++)
+            {
+                var cell = row.Cells[cellIndex];
+                var cellText = !string.IsNullOrWhiteSpace(cell.Text)
+                    ? cell.Text
+                    : string.Join(" ", cell.Blocks.Select(BlockText).Where(text => !string.IsNullOrWhiteSpace(text)));
+                tableText.Add(cellText);
+                cells.Add(new ExtractedTableCell
+                {
+                    RowIndex = rowIndex,
+                    CellIndex = cellIndex,
+                    Text = cellText,
+                    GridSpan = Math.Max(1, cell.GridSpan),
+                    EvidencePath = $"{path}.rows[{rowIndex}].cells[{cellIndex}]"
+                });
+            }
+
+            rows.Add(new ExtractedTableRow { Index = rowIndex, Cells = cells });
+        }
+
+        var joined = string.Join(" ", tableText.Where(text => !string.IsNullOrWhiteSpace(text)));
+        extraction.Tables.Add(new ExtractedTable
+        {
+            Id = $"draft-table-{tableIndex}",
+            Index = tableIndex,
+            Rows = rows,
+            Text = joined,
+            EvidencePath = path
+        });
+        if (!string.IsNullOrWhiteSpace(joined))
+        {
+            textSegments.Add(joined);
+        }
+
+        tableIndex++;
+    }
+
+    private static void AddInlineNotes(IEnumerable<InlineNode> inlines, string path, DocxExtractionResult extraction, ref int footnoteIndex, ref int endnoteIndex)
+    {
+        var index = 0;
+        foreach (var inline in inlines)
+        {
+            switch (inline)
+            {
+                case BookmarkInline bookmark:
+                    AddInlineNotes(bookmark.Inlines, $"{path}.inlines[{index}]", extraction, ref footnoteIndex, ref endnoteIndex);
+                    break;
+                case FootnoteInline footnote:
+                    AddDraftFootnote(extraction, InlinesText(footnote.Inlines), footnote.NoteId, $"{path}.inlines[{index}]", ref footnoteIndex);
+                    break;
+                case EndnoteInline endnote:
+                    AddDraftEndnote(extraction, InlinesText(endnote.Inlines), endnote.NoteId, $"{path}.inlines[{index}]", ref endnoteIndex);
+                    break;
+            }
+
+            index++;
+        }
+    }
+
+    private static void AddDraftFootnote(DocxExtractionResult extraction, string text, string noteId, string path, ref int footnoteIndex)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        extraction.Footnotes.Add(new ExtractedFootnote
+        {
+            Id = $"draft-footnote-{footnoteIndex}",
+            NoteId = noteId,
+            Text = text,
+            EvidencePath = path
+        });
+        footnoteIndex++;
+    }
+
+    private static void AddDraftEndnote(DocxExtractionResult extraction, string text, string noteId, string path, ref int endnoteIndex)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        extraction.Endnotes.Add(new ExtractedEndnote
+        {
+            Id = $"draft-endnote-{endnoteIndex}",
+            NoteId = noteId,
+            Text = text,
+            EvidencePath = path
+        });
+        endnoteIndex++;
+    }
+
+    private static string BlockText(BlockNode block)
+    {
+        return block switch
+        {
+            ParagraphBlock paragraph => InlinesText(paragraph.Inlines),
+            HeadingBlock heading => InlinesText(heading.Inlines),
+            QuoteBlock quote => InlinesText(quote.Inlines),
+            ListBlock list => string.Join(" ", list.Items.SelectMany(item => item.Blocks).Select(BlockText).Where(text => !string.IsNullOrWhiteSpace(text))),
+            FigureBlock figure => figure.Caption,
+            TableBlock table => string.Join(" ", table.Rows.SelectMany(row => row.Cells).Select(cell => !string.IsNullOrWhiteSpace(cell.Text) ? cell.Text : string.Join(" ", cell.Blocks.Select(BlockText))).Where(text => !string.IsNullOrWhiteSpace(text))),
+            EquationBlock equation => equation.PlainText ?? equation.Placeholder,
+            BibliographyBlock bibliography => string.Join(" ", bibliography.Entries.Select(entry => entry.Text).Where(text => !string.IsNullOrWhiteSpace(text))),
+            FootnoteBlock footnote => InlinesText(footnote.Inlines),
+            EndnoteBlock endnote => InlinesText(endnote.Inlines),
+            _ => string.Empty
+        };
+    }
+
+    private static string InlinesText(IEnumerable<InlineNode> inlines)
+    {
+        return string.Join(string.Empty, inlines.Select(InlineText));
+    }
+
+    private static string InlineText(InlineNode inline)
+    {
+        return inline switch
+        {
+            TextInline text => text.Text,
+            HyperlinkInline hyperlink => hyperlink.Text,
+            CitationInline citation => citation.DisplayText,
+            BookmarkInline bookmark => InlinesText(bookmark.Inlines),
+            ReferenceInline reference => reference.FallbackText ?? reference.BookmarkName,
+            FootnoteInline footnote => InlinesText(footnote.Inlines),
+            EndnoteInline endnote => InlinesText(endnote.Inlines),
+            _ => string.Empty
+        };
+    }
+
     private static List<SourceSegment> ExtractSegments(DocxExtractionResult extraction)
     {
         var segments = new List<SourceSegment>();
@@ -208,6 +466,15 @@ public sealed class ContentPreservationAuditor
         }
 
         return segments;
+    }
+
+    private static string BuildSearchText(DocxExtractionResult extraction)
+    {
+        var values = new List<string> { extraction.PlainText };
+        values.AddRange(extraction.Footnotes.Select(note => note.Text));
+        values.AddRange(extraction.Endnotes.Select(note => note.Text));
+        values.AddRange(extraction.Tables.Select(table => table.Text));
+        return TextNormalizer.Normalize(string.Join(Environment.NewLine, values.Where(value => !string.IsNullOrWhiteSpace(value))));
     }
 
     private static void AddSegment(List<SourceSegment> segments, string text, string evidencePath)
@@ -265,6 +532,12 @@ public sealed class ContentPreservationAuditor
         return values.Count(value => !string.IsNullOrWhiteSpace(TextNormalizer.Normalize(value)));
     }
 
+    private static string Sha256(string value)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
     private sealed record SourceSegment(string OriginalText, string NormalizedText, string EvidencePath);
 }
 
@@ -299,6 +572,8 @@ public sealed class ContentPreservationResult
     public int RenderedTextLength { get; set; }
     public int NormalizedSourceTextLength { get; set; }
     public int NormalizedRenderedTextLength { get; set; }
+    public string SourceContentHash { get; set; } = string.Empty;
+    public string RenderedContentHash { get; set; } = string.Empty;
     public int MatchedSegments { get; set; }
     public List<ContentSegmentIssue> MissingSegments { get; set; } = [];
     public List<ContentSegmentIssue> AddedSegments { get; set; } = [];
