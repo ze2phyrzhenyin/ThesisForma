@@ -21,6 +21,7 @@ This directory contains the formal JSON Schema contract for Stage 1 structured i
 - `format-candidate-decisions.schema.json`: validates human review decisions for candidate format fields.
 - `template-candidate-proposal-report.schema.json`: validates proposal reports produced when reviewed candidate fields are applied to a copied template.
 - `structure-repair-plan.schema.json`: constrains Codex-assisted structure repair plans before Core applies them deterministically.
+- `intake-regression-manifest.schema.json`: validates private DOCX intake regression manifests. The manifest may be committed only when it contains no source DOCX paths or thesis content; normal use is in ignored private workspaces.
 
 Both schemas require `schemaVersion`. Supported versions are:
 

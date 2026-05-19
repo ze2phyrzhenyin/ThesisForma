@@ -13,13 +13,15 @@ public sealed class StructureRepairPatchApplier
         ThesisStructureMappingReport mappingReport,
         List<ThesisStructureUnresolvedItem> unresolvedItems,
         List<ThesisStructureEvidenceLink> evidenceLinks,
-        StructureRepairPlan plan)
+        StructureRepairPlan plan,
+        StructureRepairApplyOptions? options = null)
     {
+        options ??= new StructureRepairApplyOptions();
         var applyReport = new StructureRepairApplyReport { PlannedOperationCount = plan.Operations.Count };
         var bindings = BindEvidenceLinks(document, evidenceLinks);
         foreach (var operation in plan.Operations)
         {
-            ApplyOperation(document, unresolvedItems, evidenceLinks, bindings, operation, applyReport);
+            ApplyOperation(document, unresolvedItems, evidenceLinks, bindings, operation, applyReport, options);
         }
 
         RefreshEvidenceLinkPaths(document, bindings);
@@ -39,12 +41,18 @@ public sealed class StructureRepairPatchApplier
         List<ThesisStructureEvidenceLink> evidenceLinks,
         List<EvidenceBinding> bindings,
         StructureRepairOperation operation,
-        StructureRepairApplyReport report)
+        StructureRepairApplyReport report,
+        StructureRepairApplyOptions options)
     {
+        if (!PassesBasicTrustGate(operation, report, options))
+        {
+            return;
+        }
+
         switch (operation.Type)
         {
             case StructureRepairOperationType.MoveBlock:
-                MoveBlock(document, evidenceLinks, bindings, operation, report);
+                MoveBlock(document, evidenceLinks, bindings, operation, report, options);
                 break;
             case StructureRepairOperationType.EnsureSection:
                 EnsureSection(document, operation, report);
@@ -70,12 +78,30 @@ public sealed class StructureRepairPatchApplier
         }
     }
 
+    private static bool PassesBasicTrustGate(StructureRepairOperation operation, StructureRepairApplyReport report, StructureRepairApplyOptions options)
+    {
+        if (operation.Confidence < options.MinimumOperationConfidence)
+        {
+            Reject(report, operation, "structure.repair.lowConfidence", $"Operation confidence {operation.Confidence:0.###} is below {options.MinimumOperationConfidence:0.###}.", trustRejected: true);
+            return false;
+        }
+
+        if (operation.Type == StructureRepairOperationType.MoveBlock && operation.Confidence < options.MinimumMoveConfidence)
+        {
+            Reject(report, operation, "structure.repair.moveLowConfidence", $"moveBlock confidence {operation.Confidence:0.###} is below {options.MinimumMoveConfidence:0.###}.", trustRejected: true);
+            return false;
+        }
+
+        return true;
+    }
+
     private static void MoveBlock(
         ThesisDocument document,
         List<ThesisStructureEvidenceLink> evidenceLinks,
         List<EvidenceBinding> bindings,
         StructureRepairOperation operation,
-        StructureRepairApplyReport report)
+        StructureRepairApplyReport report,
+        StructureRepairApplyOptions options)
     {
         if (string.IsNullOrWhiteSpace(operation.SourceEvidencePath))
         {
@@ -97,10 +123,32 @@ public sealed class StructureRepairPatchApplier
             return;
         }
 
+        if (options.RequireAnchoredMove && string.IsNullOrWhiteSpace(operation.TargetEvidencePath)
+            && string.IsNullOrWhiteSpace(operation.BeforeEvidencePath)
+            && string.IsNullOrWhiteSpace(operation.AfterEvidencePath)
+            && string.IsNullOrWhiteSpace(operation.TargetSectionId))
+        {
+            Reject(report, operation, "structure.repair.moveAnchorMissing", "moveBlock requires a target, before, after, or target section anchor.", trustRejected: true);
+            return;
+        }
+
         var targetSection = ResolveTargetSection(document, bindings, operation, sourceLocation.Value.Section);
         if (targetSection is null)
         {
             Reject(report, operation, "structure.repair.targetSectionNotFound", $"Target section '{operation.TargetSectionId}' was not found.");
+            return;
+        }
+
+        var crossSectionMove = !ReferenceEquals(targetSection, sourceLocation.Value.Section);
+        if (crossSectionMove && operation.Confidence < options.MinimumCrossSectionMoveConfidence)
+        {
+            Reject(report, operation, "structure.repair.crossSectionLowConfidence", $"Cross-section move confidence {operation.Confidence:0.###} is below {options.MinimumCrossSectionMoveConfidence:0.###}.", trustRejected: true);
+            return;
+        }
+
+        if (crossSectionMove && options.RequireHeadingAnchorForCrossSectionMove && !HasHeadingAnchor(bindings, operation))
+        {
+            Reject(report, operation, "structure.repair.crossSectionHeadingAnchorMissing", "Cross-section move requires a heading or chapter anchor.", trustRejected: true);
             return;
         }
 
@@ -168,6 +216,61 @@ public sealed class StructureRepairPatchApplier
         return string.IsNullOrWhiteSpace(evidencePath)
             ? null
             : bindings.FirstOrDefault(binding => string.Equals(binding.Link.EvidencePath, evidencePath, StringComparison.Ordinal) && binding.Block is not null)?.Block;
+    }
+
+    private static bool HasHeadingAnchor(List<EvidenceBinding> bindings, StructureRepairOperation operation)
+    {
+        if (LooksLikeHeading(operation.TargetSectionTitle))
+        {
+            return true;
+        }
+
+        foreach (var evidencePath in AnchorEvidencePaths(operation))
+        {
+            var binding = bindings.FirstOrDefault(item => string.Equals(item.Link.EvidencePath, evidencePath, StringComparison.Ordinal));
+            if (binding is null)
+            {
+                continue;
+            }
+
+            if (binding.Block is HeadingBlock)
+            {
+                return true;
+            }
+
+            if (binding.Link.Reason.Contains("heading", StringComparison.OrdinalIgnoreCase)
+                || binding.Link.Reason.Contains("chapter", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> AnchorEvidencePaths(StructureRepairOperation operation)
+    {
+        if (!string.IsNullOrWhiteSpace(operation.BeforeEvidencePath)) yield return operation.BeforeEvidencePath;
+        if (!string.IsNullOrWhiteSpace(operation.AfterEvidencePath)) yield return operation.AfterEvidencePath;
+        if (!string.IsNullOrWhiteSpace(operation.TargetEvidencePath)) yield return operation.TargetEvidencePath;
+    }
+
+    private static string AnchorEvidencePath(StructureRepairOperation operation)
+    {
+        return AnchorEvidencePaths(operation).FirstOrDefault() ?? string.Empty;
+    }
+
+    private static bool LooksLikeHeading(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Contains("章", StringComparison.Ordinal)
+            || value.Contains("节", StringComparison.Ordinal)
+            || value.Contains("heading", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("chapter", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void EnsureSection(ThesisDocument document, StructureRepairOperation operation, StructureRepairApplyReport report)
@@ -401,6 +504,7 @@ public sealed class StructureRepairPatchApplier
             Status = "applied",
             SourceEvidencePath = operation.SourceEvidencePath,
             TargetSectionId = operation.TargetSectionId,
+            AnchorEvidencePath = AnchorEvidencePath(operation),
             BeforePath = beforePath,
             AfterPath = afterPath,
             Message = message,
@@ -409,8 +513,13 @@ public sealed class StructureRepairPatchApplier
         });
     }
 
-    private static void Reject(StructureRepairApplyReport report, StructureRepairOperation operation, string code, string message)
+    private static void Reject(StructureRepairApplyReport report, StructureRepairOperation operation, string code, string message, bool trustRejected = false)
     {
+        if (trustRejected)
+        {
+            report.RejectedByTrustCount++;
+        }
+
         report.Operations.Add(new StructureRepairOperationAudit
         {
             OperationId = operation.Id,
@@ -418,6 +527,7 @@ public sealed class StructureRepairPatchApplier
             Status = "rejected",
             SourceEvidencePath = operation.SourceEvidencePath,
             TargetSectionId = operation.TargetSectionId,
+            AnchorEvidencePath = AnchorEvidencePath(operation),
             Message = message,
             Reason = operation.Reason,
             Confidence = operation.Confidence

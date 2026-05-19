@@ -10,6 +10,7 @@
 | FixHintRuleCatalog | `schemas/fix-hint-rules.schema.json` | [fix-hint-rules](./fix-hint-rules.md) |
 | FormatCandidateDecisionSet | `schemas/format-candidate-decisions.schema.json` | [format-candidate-decisions](./format-candidate-decisions.md) |
 | DocxFormatCandidateReport | `schemas/format-candidate-report.schema.json` | [format-candidate-report](./format-candidate-report.md) |
+| Intake Regression Manifest | `schemas/intake-regression-manifest.schema.json` | [intake-regression-manifest](./intake-regression-manifest.md) |
 | NegativeFixtureManifest | `schemas/negative-fixture-manifest.schema.json` | [negative-fixture-manifest](./negative-fixture-manifest.md) |
 | OnboardingWorkspaceManifest | `schemas/onboarding-workspace.schema.json` | [onboarding-workspace](./onboarding-workspace.md) |
 | ThesisDocx Machine Report Contract | `schemas/report-contract.schema.json` | [report-contract](./report-contract.md) |

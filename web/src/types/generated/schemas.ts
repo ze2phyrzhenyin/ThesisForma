@@ -544,6 +544,35 @@ export namespace DocxFormatCandidateReportSchema {
   }
 }
 
+export namespace IntakeRegressionManifestSchema {
+  export interface Case {
+    allowedCodexStatuses?: CodexStatus[];
+    expectedStatus?: "pass" | "fail";
+    expectedTextSnippets?: string[];
+    id: string;
+    input: string;
+    maximumUnresolvedCount?: number;
+    minimumStructureQualityScore?: number;
+    requireCodexReview?: boolean;
+    structureMode?: "rule" | "auto" | "codex" | "codex-required";
+    template?: string;
+    workspace?: string;
+  }
+
+  export type CodexStatus = "notRequested" | "skipped" | "pass" | "fallback" | "fail";
+
+  export interface IntakeRegressionManifest {
+    cases: Case[];
+    defaultAllowedCodexStatuses?: CodexStatus[];
+    defaultStructureMode?: "rule" | "auto" | "codex" | "codex-required";
+    defaultTemplate: string;
+    manifestVersion: "1.0.0";
+    minimumStructureQualityScore?: number;
+    name: string;
+    workspaceRoot: string;
+  }
+}
+
 export namespace NegativeFixtureManifestSchema {
   export interface Case {
     command: string;
@@ -1815,6 +1844,7 @@ export type DocxExtractionResult = DocxExtractionResultSchema.DocxExtractionResu
 export type DocxFormatCandidateReport = DocxFormatCandidateReportSchema.DocxFormatCandidateReport;
 export type FixHintRuleCatalog = FixHintRuleCatalogSchema.FixHintRuleCatalog;
 export type FormatCandidateDecisionSet = FormatCandidateDecisionSetSchema.FormatCandidateDecisionSet;
+export type IntakeRegressionManifest = IntakeRegressionManifestSchema.IntakeRegressionManifest;
 export type NegativeFixtureManifest = NegativeFixtureManifestSchema.NegativeFixtureManifest;
 export type OnboardingWorkspaceManifest = OnboardingWorkspaceManifestSchema.OnboardingWorkspaceManifest;
 export type RequirementCapture = RequirementCaptureSchema.RequirementCapture;

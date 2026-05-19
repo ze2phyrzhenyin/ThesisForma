@@ -942,6 +942,7 @@ internal static partial class ThesisDocxCli
         {
             "docx" => IntakeDocx(options),
             "gate" => IntakeGate(options),
+            "regression" => IntakeRegression(options),
             _ => Fail($"Unknown intake command '{command}'.")
         };
     }
@@ -955,6 +956,220 @@ internal static partial class ThesisDocxCli
         }
 
         return IntakeDocx(gateOptions);
+    }
+
+    private static int IntakeRegression(Dictionary<string, string> options)
+    {
+        var manifestPath = Required(options, "manifest");
+        var outPath = Required(options, "out");
+        var markdownPath = options.GetValueOrDefault("markdown");
+        var report = new IntakeRegressionReport
+        {
+            ManifestPath = manifestPath
+        };
+
+        var schemaPath = options.GetValueOrDefault("schema") ?? Path.Combine(LocateRepoRoot(), "schemas", "intake-regression-manifest.schema.json");
+        if (File.Exists(schemaPath))
+        {
+            var schema = new ThesisSchemaValidator().ValidateIntakeRegressionManifestFile(manifestPath, schemaPath);
+            report.Diagnostics.AddRange(schema.Diagnostics);
+            if (!schema.IsValid)
+            {
+                report.Status = "fail";
+                report.BlockingIssues.AddRange(schema.Errors.Select(error => $"{error.Code}: {error.Message}"));
+                WriteJsonOutput(outPath, report);
+                WriteOptionalMarkdown(markdownPath, IntakeRegressionMarkdown(report));
+                return 2;
+            }
+        }
+
+        var manifest = ReadJson<IntakeRegressionManifest>(manifestPath);
+        report.Name = manifest.Name;
+        var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(manifestPath)) ?? Directory.GetCurrentDirectory();
+        foreach (var regressionCase in manifest.Cases.OrderBy(regressionCase => regressionCase.Id, StringComparer.Ordinal))
+        {
+            var result = RunIntakeRegressionCase(options, manifest, regressionCase, manifestDirectory);
+            report.Cases.Add(result);
+            report.Artifacts.Add(result.IntakeReportPath);
+            if (!string.IsNullOrWhiteSpace(result.IntakeReportMarkdownPath))
+            {
+                report.Artifacts.Add(result.IntakeReportMarkdownPath);
+            }
+        }
+
+        report.CaseCount = report.Cases.Count;
+        report.PassedCaseCount = report.Cases.Count(regressionCase => regressionCase.Status == "pass");
+        report.FailedCaseCount = report.Cases.Count - report.PassedCaseCount;
+        report.BlockingIssues.AddRange(report.Cases
+            .Where(regressionCase => regressionCase.Status != "pass")
+            .Select(regressionCase => $"intakeRegression.case.failed: {regressionCase.Id}"));
+        report.Status = report.BlockingIssues.Count == 0 ? "pass" : "fail";
+        report.Artifacts.Add(outPath);
+        WriteOptionalMarkdown(markdownPath, IntakeRegressionMarkdown(report));
+        if (!string.IsNullOrWhiteSpace(markdownPath))
+        {
+            report.Artifacts.Add(markdownPath!);
+        }
+
+        WriteJsonOutput(outPath, report);
+
+        Console.WriteLine($"Intake regression: {report.Status}; passed {report.PassedCaseCount}/{report.CaseCount}");
+        return report.Status == "pass" ? 0 : 2;
+    }
+
+    private static IntakeRegressionCaseResult RunIntakeRegressionCase(
+        Dictionary<string, string> cliOptions,
+        IntakeRegressionManifest manifest,
+        IntakeRegressionCase regressionCase,
+        string manifestDirectory)
+    {
+        var workspaceRoot = ResolveManifestPath(manifestDirectory, string.IsNullOrWhiteSpace(manifest.WorkspaceRoot) ? "intake-regression-workspaces" : manifest.WorkspaceRoot);
+        var workspace = string.IsNullOrWhiteSpace(regressionCase.Workspace)
+            ? Path.Combine(workspaceRoot, regressionCase.Id)
+            : ResolveManifestPath(manifestDirectory, regressionCase.Workspace);
+        var template = ResolveManifestPath(manifestDirectory, string.IsNullOrWhiteSpace(regressionCase.Template) ? manifest.DefaultTemplate : regressionCase.Template);
+        var input = ResolveManifestPath(manifestDirectory, regressionCase.Input);
+        var structureMode = string.IsNullOrWhiteSpace(regressionCase.StructureMode)
+            ? (string.IsNullOrWhiteSpace(manifest.DefaultStructureMode) ? "auto" : manifest.DefaultStructureMode)
+            : regressionCase.StructureMode;
+        var intakeOptions = BuildIntakeCaseOptions(cliOptions, input, workspace, template, structureMode);
+        var result = new IntakeRegressionCaseResult
+        {
+            Id = regressionCase.Id,
+            InputPath = input,
+            WorkspacePath = workspace,
+            TemplatePath = template,
+            ExpectedStatus = string.IsNullOrWhiteSpace(regressionCase.ExpectedStatus) ? "pass" : regressionCase.ExpectedStatus,
+            StructureMode = structureMode,
+            IntakeReportPath = Path.Combine(workspace, "reports", "intake-report.json"),
+            IntakeReportMarkdownPath = Path.Combine(workspace, "reports", "intake-report.md")
+        };
+
+        result.ExitCode = IntakeGate(intakeOptions);
+        if (File.Exists(result.IntakeReportPath))
+        {
+            var intakeReport = ReadJson<IntakeDocxReport>(result.IntakeReportPath);
+            result.StructureMode = intakeReport.StructureMode;
+            result.StructureAnalysisStatus = intakeReport.StructureAnalysisStatus;
+            result.StructureAnalysisRiskLevel = intakeReport.StructureAnalysisRiskLevel;
+            result.StructureQualityScore = intakeReport.StructureQualityScoreAfterCodex > 0
+                ? intakeReport.StructureQualityScoreAfterCodex
+                : intakeReport.StructureQualityScore;
+            result.CodexReviewStatus = intakeReport.CodexReviewStatus;
+            result.UnresolvedCount = intakeReport.UnresolvedCount;
+            result.RenderAttempted = intakeReport.RenderAttempted;
+            result.RenderValid = intakeReport.RenderValid;
+            result.BlockingIssues.AddRange(intakeReport.BlockingIssues);
+            result.Warnings.AddRange(intakeReport.Warnings);
+            result.Artifacts.AddRange(intakeReport.Artifacts);
+        }
+        else
+        {
+            result.BlockingIssues.Add("intakeRegression.reportMissing: intake-report.json was not written.");
+        }
+
+        EvaluateIntakeRegressionCase(manifest, regressionCase, result);
+        result.Status = result.BlockingIssues.Count == 0 ? "pass" : "fail";
+        return result;
+    }
+
+    private static Dictionary<string, string> BuildIntakeCaseOptions(Dictionary<string, string> cliOptions, string input, string workspace, string template, string structureMode)
+    {
+        var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["input"] = input,
+            ["workspace"] = workspace,
+            ["template"] = template,
+            ["structure-mode"] = structureMode
+        };
+
+        foreach (var key in new[] { "codex-command", "codex-model", "codex-profile", "timeout-seconds", "repair-plan-schema", "codex-sandbox", "codex-approval" })
+        {
+            if (cliOptions.TryGetValue(key, out var value))
+            {
+                options[key] = value;
+            }
+        }
+
+        if (cliOptions.TryGetValue("codex-arg", out var codexArguments))
+        {
+            options["codex-arg"] = codexArguments;
+        }
+
+        return options;
+    }
+
+    private static void EvaluateIntakeRegressionCase(IntakeRegressionManifest manifest, IntakeRegressionCase regressionCase, IntakeRegressionCaseResult result)
+    {
+        var expectsPass = !string.Equals(result.ExpectedStatus, "fail", StringComparison.OrdinalIgnoreCase);
+        if (expectsPass && result.ExitCode != 0)
+        {
+            result.BlockingIssues.Add($"intakeRegression.exitCode: expected pass but intake exited {result.ExitCode}.");
+        }
+
+        if (!expectsPass && result.ExitCode == 0)
+        {
+            result.BlockingIssues.Add("intakeRegression.exitCode: expected fail but intake passed.");
+        }
+
+        var minimumScore = regressionCase.MinimumStructureQualityScore ?? manifest.MinimumStructureQualityScore;
+        if (minimumScore > 0 && result.StructureQualityScore < minimumScore)
+        {
+            result.BlockingIssues.Add($"intakeRegression.structureQualityScore: {result.StructureQualityScore} is below {minimumScore}.");
+        }
+
+        if (regressionCase.MaximumUnresolvedCount.HasValue && result.UnresolvedCount > regressionCase.MaximumUnresolvedCount.Value)
+        {
+            result.BlockingIssues.Add($"intakeRegression.unresolvedCount: {result.UnresolvedCount} is above {regressionCase.MaximumUnresolvedCount.Value}.");
+        }
+
+        if (regressionCase.RequireCodexReview && result.CodexReviewStatus != "pass")
+        {
+            result.BlockingIssues.Add($"intakeRegression.codexRequired: Codex review status was {result.CodexReviewStatus}.");
+        }
+
+        var allowedCodexStatuses = regressionCase.AllowedCodexStatuses.Count > 0
+            ? regressionCase.AllowedCodexStatuses
+            : manifest.DefaultAllowedCodexStatuses;
+        if (allowedCodexStatuses.Count > 0 && !allowedCodexStatuses.Contains(result.CodexReviewStatus, StringComparer.OrdinalIgnoreCase))
+        {
+            result.BlockingIssues.Add($"intakeRegression.codexStatus: Codex review status {result.CodexReviewStatus} was not allowed.");
+        }
+
+        if (regressionCase.ExpectedTextSnippets.Count > 0)
+        {
+            var textPath = Path.Combine(result.WorkspacePath, "extraction", "plain-text.txt");
+            var text = File.Exists(textPath) ? File.ReadAllText(textPath) : string.Empty;
+            for (var i = 0; i < regressionCase.ExpectedTextSnippets.Count; i++)
+            {
+                if (!text.Contains(regressionCase.ExpectedTextSnippets[i], StringComparison.Ordinal))
+                {
+                    result.BlockingIssues.Add($"intakeRegression.expectedTextSnippetMissing: expected snippet index {i} was not found.");
+                }
+            }
+        }
+    }
+
+    private static string IntakeRegressionMarkdown(IntakeRegressionReport report)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("# Intake Regression Report");
+        builder.AppendLine();
+        builder.AppendLine($"Status: **{report.Status}**");
+        builder.AppendLine($"Cases: **{report.PassedCaseCount}/{report.CaseCount} passed**");
+        builder.AppendLine();
+        builder.AppendLine("## Cases");
+        foreach (var regressionCase in report.Cases)
+        {
+            builder.AppendLine($"- `{regressionCase.Id}`: `{regressionCase.Status}`; score `{regressionCase.StructureQualityScore}/100`; codex `{regressionCase.CodexReviewStatus}`; unresolved `{regressionCase.UnresolvedCount}`");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("## Blocking Issues");
+        builder.AppendLine(report.BlockingIssues.Count == 0
+            ? "- None"
+            : string.Join(Environment.NewLine, report.BlockingIssues.Select(issue => "- " + issue)));
+        return builder.ToString();
     }
 
     private static int IntakeDocx(Dictionary<string, string> options)
@@ -991,6 +1206,7 @@ internal static partial class ThesisDocxCli
         var candidateMarkdownPath = Path.Combine(workspace, "structured", "format-candidate-report.md");
         var promptPath = Path.Combine(workspace, "reports", "structure-codex-prompt.md");
         var codexReviewPath = Path.Combine(workspace, "reports", "structure-codex-review.json");
+        var structureReviewMarkdownPath = Path.Combine(workspace, "reports", "structure-review.md");
         var reportPath = Path.Combine(workspace, "reports", "intake-report.json");
         var reportMarkdownPath = Path.Combine(workspace, "reports", "intake-report.md");
         var canUseDraftForRender = true;
@@ -1073,6 +1289,7 @@ internal static partial class ThesisDocxCli
             report.StructureAnalysisStatus = structureAnalysis.Status;
             report.StructureAnalysisRiskLevel = structureAnalysis.RiskLevel;
             report.StructureQualityScore = structureAnalysis.QualityScore;
+            report.StructureQualityScoreBeforeCodex = structureAnalysis.QualityScore;
             report.StructureAnalysisIssueCount = structureAnalysis.IssueCount;
             report.StructureAnalysisRecommendedCodexReview = structureAnalysis.RecommendCodexReview;
             report.Artifacts.Add(analysisPath);
@@ -1109,6 +1326,11 @@ internal static partial class ThesisDocxCli
                     report.DraftContentPreservationStatus = codexReview.DraftContentPreservationStatus;
                     report.DraftContentMissingSegments = codexReview.DraftContentMissingSegments;
                     report.DraftContentBlockingIssues = codexReview.DraftContentBlockingIssues;
+                    if (codexReview.StructureQualityScoreAfterRepair > 0)
+                    {
+                        report.StructureQualityScoreAfterCodex = codexReview.StructureQualityScoreAfterRepair;
+                        report.StructureQualityScoreDelta = codexReview.StructureQualityScoreDelta;
+                    }
                 }
                 else
                 {
@@ -1197,6 +1419,8 @@ internal static partial class ThesisDocxCli
         report.RecommendedNextActions = report.BlockingIssues.Count == 0
             ? ["Review format-candidate-report.json, unresolved items, and evidence links before using the rendered draft."]
             : ["Open intake-report.json and fix blocking issues before rendering final output."];
+        WriteTextOutput(structureReviewMarkdownPath, StructureReviewMarkdown(report));
+        report.Artifacts.Add(structureReviewMarkdownPath);
         WriteJsonOutput(reportPath, report);
         WriteTextOutput(reportMarkdownPath, IntakeReportMarkdown(report));
         return report.BlockingIssues.Count == 0 ? 0 : 2;
@@ -1214,6 +1438,7 @@ internal static partial class ThesisDocxCli
         - Candidate unresolved: `{report.FormatCandidateUnresolvedCount}`
         - Structure mode: `{report.StructureMode}`
         - Structure analysis: `{report.StructureAnalysisStatus}` / `{report.StructureAnalysisRiskLevel}` (`{report.StructureAnalysisIssueCount}` issues, score `{report.StructureQualityScore}/100`)
+        - Structure score after Codex: `{(report.StructureQualityScoreAfterCodex > 0 ? report.StructureQualityScoreAfterCodex.ToString(CultureInfo.InvariantCulture) : "notRun")}` (delta `{report.StructureQualityScoreDelta}`)
         - Structuring: `{report.StructuringStatus}`
         - Codex review: `{report.CodexReviewStatus}`
         - Draft content preservation: `{report.DraftContentPreservationStatus}`
@@ -1227,9 +1452,47 @@ internal static partial class ThesisDocxCli
         ## Blocking Issues
         {(report.BlockingIssues.Count == 0 ? "- None" : string.Join(Environment.NewLine, report.BlockingIssues.Select(i => "- " + i)))}
 
+        ## Warnings
+        {(report.Warnings.Count == 0 ? "- None" : string.Join(Environment.NewLine, report.Warnings.Take(20).Select(i => "- " + i)))}
+
         ## Next Actions
         {string.Join(Environment.NewLine, report.RecommendedNextActions.Select(a => "- " + a))}
         """;
+    }
+
+    private static string StructureReviewMarkdown(IntakeDocxReport report)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine("# Structure Review");
+        builder.AppendLine();
+        builder.AppendLine($"Structure mode: `{report.StructureMode}`");
+        builder.AppendLine($"Risk: `{report.StructureAnalysisRiskLevel}`");
+        builder.AppendLine($"Score before Codex: `{report.StructureQualityScore}/100`");
+        if (report.StructureQualityScoreAfterCodex > 0)
+        {
+            builder.AppendLine($"Score after Codex: `{report.StructureQualityScoreAfterCodex}/100` (delta `{report.StructureQualityScoreDelta}`)");
+        }
+
+        builder.AppendLine($"Codex review: `{report.CodexReviewStatus}`");
+        builder.AppendLine($"Unresolved items: `{report.UnresolvedCount}`");
+        builder.AppendLine($"Content preservation: `{report.DraftContentPreservationStatus}`");
+        builder.AppendLine();
+        builder.AppendLine("## Review Checklist");
+        builder.AppendLine("- Confirm headings and chapter boundaries against `extraction/extracted.md`.");
+        builder.AppendLine("- Inspect `structured/evidence-links.json` before accepting moved blocks.");
+        builder.AppendLine("- If Codex ran, review `reports/structure-repair-plan.json` and `reports/structure-repair-apply-report.json`.");
+        builder.AppendLine("- Keep the workspace private; draft and evidence files may contain thesis content.");
+        builder.AppendLine();
+        builder.AppendLine("## Blocking Issues");
+        builder.AppendLine(report.BlockingIssues.Count == 0
+            ? "- None"
+            : string.Join(Environment.NewLine, report.BlockingIssues.Select(issue => "- " + issue)));
+        builder.AppendLine();
+        builder.AppendLine("## Top Warnings");
+        builder.AppendLine(report.Warnings.Count == 0
+            ? "- None"
+            : string.Join(Environment.NewLine, report.Warnings.Take(20).Select(issue => "- " + issue)));
+        return builder.ToString();
     }
 
     private static CodexStructureReviewOptions CreateCodexReviewOptions(
@@ -1981,6 +2244,26 @@ internal static partial class ThesisDocxCli
             .Where(value => !string.IsNullOrWhiteSpace(value));
     }
 
+    private static string ResolveManifestPath(string manifestDirectory, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        return Path.IsPathRooted(path)
+            ? Path.GetFullPath(path)
+            : Path.GetFullPath(Path.Combine(manifestDirectory, path));
+    }
+
+    private static void WriteOptionalMarkdown(string? path, string markdown)
+    {
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            WriteTextOutput(path, markdown);
+        }
+    }
+
     private static string Required(Dictionary<string, string> options, string key)
     {
         return options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
@@ -2031,6 +2314,7 @@ internal static partial class ThesisDocxCli
         thesis-docx structure codex-review --workspace onboarding-workspaces/docx-structure-pilot --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --template examples/templates/example-university-engineering
         thesis-docx intake docx --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering --structure-mode codex-required
         thesis-docx intake gate --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering
+        thesis-docx intake regression --manifest onboarding-workspaces/private-intake-regression/intake-regression.json --out out/intake-regression-report.json --markdown out/intake-regression-report.md
         thesis-docx content audit --source-extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --rendered-extraction out/rendered-extraction.json --out out/content-preservation-audit.json --markdown out/content-preservation-audit.md
         """);
     }

@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/intake-regression-manifest.schema.json",
+  "title": "Intake Regression Manifest",
+  "description": "Private DOCX intake regression manifest. Source DOCX files and generated workspaces stay outside committed examples.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifestVersion", "name", "workspaceRoot", "defaultTemplate", "cases"],
+  "properties": {
+    "manifestVersion": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaultTemplate": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaultStructureMode": {
+      "type": "string",
+      "enum": ["rule", "auto", "codex", "codex-required"]
+    },
+    "minimumStructureQualityScore": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "defaultAllowedCodexStatuses": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/codexStatus" }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/case" }
+    }
+  },
+  "definitions": {
+    "codexStatus": {
+      "type": "string",
+      "enum": ["notRequested", "skipped", "pass", "fallback", "fail"]
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+        },
+        "input": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "structureMode": {
+          "type": "string",
+          "enum": ["rule", "auto", "codex", "codex-required"]
+        },
+        "expectedStatus": {
+          "type": "string",
+          "enum": ["pass", "fail"]
+        },
+        "minimumStructureQualityScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "maximumUnresolvedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requireCodexReview": {
+          "type": "boolean"
+        },
+        "allowedCodexStatuses": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/codexStatus" }
+        },
+        "expectedTextSnippets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

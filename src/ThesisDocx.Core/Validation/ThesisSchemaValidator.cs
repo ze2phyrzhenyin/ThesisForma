@@ -103,6 +103,11 @@ public sealed class ThesisSchemaValidator
         return ValidateJsonFile(planPath, schemaPath, "structureRepairPlan");
     }
 
+    public ThesisInputValidationResult ValidateIntakeRegressionManifestFile(string manifestPath, string schemaPath)
+    {
+        return ValidateJsonFile(manifestPath, schemaPath, "intakeRegressionManifest");
+    }
+
     private static ThesisInputValidationResult ValidateJsonFile(string jsonPath, string schemaPath, string rootName)
     {
         var result = new ThesisInputValidationResult { Source = "ThesisSchemaValidator" };

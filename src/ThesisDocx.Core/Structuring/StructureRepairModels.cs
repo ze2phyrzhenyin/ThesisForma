@@ -71,6 +71,7 @@ public sealed class StructureRepairApplyReport
     public int PlannedOperationCount { get; set; }
     public int AppliedOperationCount { get; set; }
     public int RejectedOperationCount { get; set; }
+    public int RejectedByTrustCount { get; set; }
     public int MovedBlockCount { get; set; }
     public int AddedSectionCount { get; set; }
     public int AddedUnresolvedCount { get; set; }
@@ -89,9 +90,19 @@ public sealed class StructureRepairOperationAudit
     public string Status { get; set; } = "applied";
     public string SourceEvidencePath { get; set; } = string.Empty;
     public string TargetSectionId { get; set; } = string.Empty;
+    public string AnchorEvidencePath { get; set; } = string.Empty;
     public string BeforePath { get; set; } = string.Empty;
     public string AfterPath { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public double Confidence { get; set; }
+}
+
+public sealed class StructureRepairApplyOptions
+{
+    public double MinimumOperationConfidence { get; set; } = 0.7;
+    public double MinimumMoveConfidence { get; set; } = 0.82;
+    public double MinimumCrossSectionMoveConfidence { get; set; } = 0.85;
+    public bool RequireAnchoredMove { get; set; } = true;
+    public bool RequireHeadingAnchorForCrossSectionMove { get; set; } = true;
 }

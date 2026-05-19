@@ -64,6 +64,7 @@ public sealed class CodexStructureReviewRunner
             report.StructureAnalysisPath = options.StructureAnalysisPath;
             report.StructureAnalysisRiskLevel = analysis.RiskLevel;
             report.StructureQualityScore = analysis.QualityScore;
+            report.StructureQualityScoreBeforeRepair = analysis.QualityScore;
             report.StructureAnalysisRecommendedCodexReview = analysis.RecommendCodexReview;
             report.StructureAnalysisIssueCount = analysis.IssueCount;
             report.Artifacts.Add(options.StructureAnalysisPath);
@@ -199,17 +200,38 @@ public sealed class CodexStructureReviewRunner
         var unresolvedCopy = Clone(unresolvedItems);
         var evidenceCopy = Clone(evidenceLinks);
         var applyReport = new StructureRepairPatchApplier().Apply(documentCopy, mappingCopy, unresolvedCopy, evidenceCopy, repairPlan);
+        var reviewed = new ThesisStructuringResult
+        {
+            Document = documentCopy,
+            Report = mappingCopy,
+            UnresolvedItems = unresolvedCopy,
+            EvidenceLinks = evidenceCopy
+        };
+        var postRepairAnalysis = new StructureBoundaryAnalyzer().Analyze(extraction, reviewed);
+        var postRepairAnalysisPath = PostRepairAnalysisPath(options.StructureAnalysisPath);
+        WriteJson(postRepairAnalysisPath, postRepairAnalysis);
         WriteJson(options.RepairApplyReportPath, applyReport);
+        report.PostRepairStructureAnalysisPath = postRepairAnalysisPath;
         report.RepairApplyReportPath = options.RepairApplyReportPath;
         report.AppliedOperationCount = applyReport.AppliedOperationCount;
         report.RejectedOperationCount = applyReport.RejectedOperationCount;
         report.MovedBlockCount = applyReport.MovedBlockCount;
+        report.StructureAnalysisRiskLevelAfterRepair = postRepairAnalysis.RiskLevel;
+        report.StructureQualityScoreAfterRepair = postRepairAnalysis.QualityScore;
+        report.StructureQualityScoreDelta = postRepairAnalysis.QualityScore - report.StructureQualityScoreBeforeRepair;
+        report.StructureAnalysisIssueCountAfterRepair = postRepairAnalysis.IssueCount;
+        report.Artifacts.Add(postRepairAnalysisPath);
         report.Artifacts.Add(options.RepairApplyReportPath);
         report.Diagnostics.AddRange(applyReport.Diagnostics);
         if (applyReport.Status != "pass")
         {
             report.BlockingIssues.AddRange(applyReport.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}"));
             return;
+        }
+
+        if (applyReport.AppliedOperationCount > 0 && postRepairAnalysis.QualityScore <= report.StructureQualityScoreBeforeRepair)
+        {
+            AddWarning(report, "structure.codex.noQualityImprovement", "$.structureAnalysis", $"Repair plan applied {applyReport.AppliedOperationCount} operation(s), but structure quality score changed from {report.StructureQualityScoreBeforeRepair} to {postRepairAnalysis.QualityScore}.", "Review structure-repair-apply-report.json before trusting the draft.");
         }
 
         WriteJson(options.DocumentPath, documentCopy);
@@ -337,6 +359,13 @@ public sealed class CodexStructureReviewRunner
         {
             report.Artifacts.Add(options.EvidencePath!);
         }
+    }
+
+    private static string PostRepairAnalysisPath(string structureAnalysisPath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(structureAnalysisPath)) ?? Directory.GetCurrentDirectory();
+        var name = Path.GetFileNameWithoutExtension(structureAnalysisPath);
+        return Path.Combine(directory, $"{name}.after-repair.json");
     }
 
     private static bool TryLoadRepairPlan(CodexStructureReviewReport report, out StructureRepairPlan repairPlan)

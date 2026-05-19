@@ -50,7 +50,9 @@ Codex or another LLM may review `extraction.json` and `extracted.md`, but it sho
 
 `structure codex-review` is the automated form of that review. It first regenerates the rule-based draft, writes `reports/structure-analysis.json`, writes a repair prompt, then invokes `codex exec` in the private workspace. The prompt tells Codex to repair section and chapter boundaries only when evidence supports the move, including cases where content after `第三章` was grouped under `第二章`.
 
-Codex does not directly edit the draft. It must return JSON matching `schemas/structure-repair-plan.schema.json`; Core writes this to `reports/structure-repair-plan.json` and applies operations deterministically. Supported operations are `moveBlock`, `ensureSection`, `addUnresolvedItem`, `removeUnresolvedItem`, and `updateHeadingLevel`. Core writes `reports/structure-repair-apply-report.json` with applied/rejected operation counts, moved block counts, diagnostics, and evidence paths. Direct edits to structured artifacts are detected and rejected.
+Codex does not directly edit the draft. It must return JSON matching `schemas/structure-repair-plan.schema.json`; Core writes this to `reports/structure-repair-plan.json` and applies operations deterministically. Supported operations are `moveBlock`, `ensureSection`, `addUnresolvedItem`, `removeUnresolvedItem`, and `updateHeadingLevel`. Core writes `reports/structure-repair-apply-report.json` with applied/rejected operation counts, moved block counts, trust-rejected counts, diagnostics, and evidence paths. Direct edits to structured artifacts are detected and rejected.
+
+Repair operations must clear local trust gates before they are applied. Low-confidence operations are rejected; `moveBlock` operations require a target/before/after/section anchor; cross-section moves require higher confidence and a heading/chapter anchor. After applying a valid repair plan, Core reruns structure analysis and writes `reports/structure-analysis.after-repair.json`; if operations were applied without improving the structure quality score, the Codex review report records a warning for human review.
 
 `intake docx --structure-mode <mode>` controls when Codex runs:
 
@@ -63,7 +65,9 @@ Codex does not directly edit the draft. It must return JSON matching `schemas/st
 
 `intake docx --codex-review` runs the same Codex step after rule-based structuring and before template validation/rendering. The intake report records `structureMode`, `structureAnalysisStatus`, `structureAnalysisRiskLevel`, `structureQualityScore`, `codexReviewStatus`, `codexReviewExitCode`, and `codexReviewReportPath`; `reports/structure-codex-review.json` records the Codex command, exit code, prompt path, repair plan path, application report path, content-preservation audit result, warnings, blocking issues, and short stdout/stderr excerpts. If Codex exits non-zero, times out, corrupts JSON, directly edits artifacts, returns rejected operations, or fails content preservation in `codex-required` mode, intake treats the draft as untrusted and does not render it.
 
-`intake gate` is the unified intake quality entry point for pilot workspaces. It accepts the same `--input`, `--workspace`, `--template`, and Codex options as `intake docx`, defaults to `--structure-mode auto`, and runs the full deterministic gate: extraction, privacy scan, format candidate generation, rule-based structuring, structure risk scoring, optional Codex repair, schema validation, content-preservation audit, template resolve, draft render, and OpenXML validation.
+`intake gate` is the unified intake quality entry point for pilot workspaces. It accepts the same `--input`, `--workspace`, `--template`, and Codex options as `intake docx`, defaults to `--structure-mode auto`, and runs the full deterministic gate: extraction, privacy scan, format candidate generation, rule-based structuring, structure risk scoring, optional Codex repair, schema validation, content-preservation audit, template resolve, draft render, and OpenXML validation. It also writes `reports/structure-review.md`, a short human review checklist for evidence links, repair plans, unresolved items, and privacy boundaries.
+
+`intake regression` runs `intake gate` across a private manifest validated by `schemas/intake-regression-manifest.schema.json`. Use it for ignored real-DOCX workspaces, not committed examples. Each case can set an input DOCX, workspace, template, structure mode, minimum structure score, maximum unresolved count, expected pass/fail status, allowed Codex statuses, and optional text snippets that must remain extractable. The JSON report records only case ids, paths, scores, statuses, and issue codes; source DOCX files and thesis text stay in the private workspace.
 
 The default command is `codex exec --sandbox workspace-write --ask-for-approval never --skip-git-repo-check --output-schema schemas/structure-repair-plan.schema.json`. Use `--codex-command`, `--codex-model`, `--codex-profile`, `--timeout-seconds`, `--repair-plan-schema`, or repeated `--codex-arg` only in private developer workspaces.
 
@@ -154,4 +158,9 @@ dotnet run --project src/ThesisDocx.Cli -- intake gate \
   --input onboarding-workspaces/docx-structure-pilot/input/input.docx \
   --workspace onboarding-workspaces/docx-structure-pilot \
   --template examples/templates/example-university-engineering
+
+dotnet run --project src/ThesisDocx.Cli -- intake regression \
+  --manifest onboarding-workspaces/private-intake-regression/intake-regression.json \
+  --out out/intake-regression-report.json \
+  --markdown out/intake-regression-report.md
 ```

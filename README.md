@@ -365,11 +365,18 @@ dotnet run --project src/ThesisDocx.Cli -- intake gate \
   --input onboarding-workspaces/docx-structure-pilot/input/input.docx \
   --workspace onboarding-workspaces/docx-structure-pilot \
   --template examples/templates/example-university-engineering
+
+dotnet run --project src/ThesisDocx.Cli -- intake regression \
+  --manifest onboarding-workspaces/private-intake-regression/intake-regression.json \
+  --out out/intake-regression-report.json \
+  --markdown out/intake-regression-report.md
 ```
 
 `--structure-mode codex-required` is an explicit private-workspace AI review step. It calls Codex CLI to propose a schema-constrained structure repair plan, then Core applies that plan deterministically. This can repair evidence-backed structure mistakes, such as chapter content grouped under the wrong heading, and blocks rendering if Codex fails, directly edits artifacts, returns rejected operations, or breaks content preservation. `--structure-mode auto` runs the same step only when structure diagnostics flag medium/high risk.
 
 `intake gate` is the single intake quality entry point. It defaults to `--structure-mode auto`, writes `structureQualityScore` into `intake-report.json`, and still uses the same deterministic extraction, schema validation, content-preservation audit, template resolve, render, and OpenXML validation path.
+
+`intake regression` runs the same gate across a private manifest for real DOCX smoke/regression cases. Keep the manifest and source files in ignored workspaces unless every path and snippet is fictional.
 
 Extraction evidence and draft JSON may contain the full user thesis. Keep them in ignored onboarding workspaces and do not copy them into `examples` or docs. See `docs/30-docx-intake-and-structuring.md`.
 

@@ -71,6 +71,9 @@ public sealed class IntakeDocxReport
     public string StructureAnalysisStatus { get; set; } = "notRun";
     public string StructureAnalysisRiskLevel { get; set; } = "notRun";
     public int StructureQualityScore { get; set; }
+    public int StructureQualityScoreBeforeCodex { get; set; }
+    public int StructureQualityScoreAfterCodex { get; set; }
+    public int StructureQualityScoreDelta { get; set; }
     public int StructureAnalysisIssueCount { get; set; }
     public bool StructureAnalysisRecommendedCodexReview { get; set; }
     public string StructuringStatus { get; set; } = "notRun";
@@ -102,6 +105,7 @@ public sealed class CodexStructureReviewOptions
     public string PromptPath { get; set; } = string.Empty;
     public string ReviewReportPath { get; set; } = string.Empty;
     public string StructureAnalysisPath { get; set; } = string.Empty;
+    public string PostRepairStructureAnalysisPath { get; set; } = string.Empty;
     public string RepairPlanPath { get; set; } = string.Empty;
     public string RepairPlanSchemaPath { get; set; } = string.Empty;
     public string RepairApplyReportPath { get; set; } = string.Empty;
@@ -135,6 +139,7 @@ public sealed class CodexStructureReviewReport
     public string PromptPath { get; set; } = string.Empty;
     public string LastMessagePath { get; set; } = string.Empty;
     public string StructureAnalysisPath { get; set; } = string.Empty;
+    public string PostRepairStructureAnalysisPath { get; set; } = string.Empty;
     public string RepairPlanPath { get; set; } = string.Empty;
     public string RepairPlanSchemaPath { get; set; } = string.Empty;
     public string RepairApplyReportPath { get; set; } = string.Empty;
@@ -145,9 +150,14 @@ public sealed class CodexStructureReviewReport
     public string DraftHashAfter { get; set; } = string.Empty;
     public bool DirectArtifactEditDetected { get; set; }
     public string StructureAnalysisRiskLevel { get; set; } = "notRun";
+    public string StructureAnalysisRiskLevelAfterRepair { get; set; } = "notRun";
     public int StructureQualityScore { get; set; }
+    public int StructureQualityScoreBeforeRepair { get; set; }
+    public int StructureQualityScoreAfterRepair { get; set; }
+    public int StructureQualityScoreDelta { get; set; }
     public bool StructureAnalysisRecommendedCodexReview { get; set; }
     public int StructureAnalysisIssueCount { get; set; }
+    public int StructureAnalysisIssueCountAfterRepair { get; set; }
     public int PlannedOperationCount { get; set; }
     public int AppliedOperationCount { get; set; }
     public int RejectedOperationCount { get; set; }

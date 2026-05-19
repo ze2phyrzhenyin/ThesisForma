@@ -760,6 +760,35 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void IntakeRegressionManifest_ShouldValidateAgainstSchema()
+    {
+        var directory = NewTempDirectory();
+        var manifestPath = Path.Combine(directory, "intake-regression.json");
+        var manifest = new IntakeRegressionManifest
+        {
+            Name = "private synthetic intake regression",
+            WorkspaceRoot = "workspaces",
+            DefaultTemplate = TemplatePath(),
+            DefaultStructureMode = "auto",
+            Cases =
+            [
+                new IntakeRegressionCase
+                {
+                    Id = "synthetic",
+                    Input = "input/synthetic.docx",
+                    StructureMode = "auto",
+                    MinimumStructureQualityScore = 1
+                }
+            ]
+        };
+        File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest, ThesisJson.Options));
+
+        var result = new ThesisSchemaValidator().ValidateIntakeRegressionManifestFile(manifestPath, SchemaPath("intake-regression-manifest.schema.json"));
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors.Select(error => error.ToString())));
+    }
+
+    [Fact]
     public void StructureRepairPatchApplier_ShouldMoveBlockByEvidencePathAndRefreshLinks()
     {
         var document = WrongChapterDocument();
@@ -795,6 +824,40 @@ public sealed class DocxIntakeStructuringTests
         Assert.Equal(["第二章 分析", "第三章 结果", "第三章的正文被错误放在第二章末尾。"], texts);
         Assert.Contains(evidenceLinks, link => link.EvidencePath == "paragraphs[1]" && link.StructuredPath == "$.sections[0].blocks[2]");
         Assert.Equal(1, apply.MovedBlockCount);
+    }
+
+    [Fact]
+    public void StructureRepairPatchApplier_ShouldRejectLowConfidenceMove()
+    {
+        var document = WrongChapterDocument();
+        var evidenceLinks = new List<ThesisStructureEvidenceLink>
+        {
+            new() { EvidencePath = "paragraphs[0]", StructuredPath = "$.sections[0].blocks[0]", Reason = "heading mapped", Confidence = 0.9 },
+            new() { EvidencePath = "paragraphs[1]", StructuredPath = "$.sections[0].blocks[1]", Reason = "body paragraph", Confidence = 0.7 },
+            new() { EvidencePath = "paragraphs[2]", StructuredPath = "$.sections[0].blocks[2]", Reason = "heading mapped", Confidence = 0.9 }
+        };
+        var plan = new StructureRepairPlan
+        {
+            Summary = "Low confidence move should not be trusted.",
+            Operations =
+            [
+                new StructureRepairOperation
+                {
+                    Id = "low-confidence-move",
+                    Type = StructureRepairOperationType.MoveBlock,
+                    SourceEvidencePath = "paragraphs[1]",
+                    AfterEvidencePath = "paragraphs[2]",
+                    Reason = "Insufficiently certain move.",
+                    Confidence = 0.4
+                }
+            ]
+        };
+
+        var apply = new StructureRepairPatchApplier().Apply(document, new ThesisStructureMappingReport(), [], evidenceLinks, plan);
+
+        Assert.Equal("fail", apply.Status);
+        Assert.Equal(1, apply.RejectedByTrustCount);
+        Assert.Contains(apply.Diagnostics, diagnostic => diagnostic.Code == "structure.repair.lowConfidence");
     }
 
     [Fact]
@@ -1242,6 +1305,8 @@ public sealed class DocxIntakeStructuringTests
         Assert.Equal("pass", report["codexReviewStatus"]!.GetValue<string>());
         Assert.Equal(0, report["codexReviewExitCode"]!.GetValue<int>());
         Assert.Contains("structure-codex-review.json", report["codexReviewReportPath"]!.GetValue<string>());
+        Assert.True(report["structureQualityScoreAfterCodex"]!.GetValue<int>() > 0);
+        Assert.True(File.Exists(Path.Combine(workspace, "reports", "structure-review.md")));
         Assert.True(report["renderAttempted"]!.GetValue<bool>());
     }
 
@@ -1314,6 +1379,66 @@ public sealed class DocxIntakeStructuringTests
         Assert.Equal("auto", report["structureMode"]!.GetValue<string>());
         Assert.NotEqual("notRun", report["structureAnalysisStatus"]!.GetValue<string>());
         Assert.True(report["structureQualityScore"]!.GetValue<int>() > 0);
+    }
+
+    [Fact]
+    public void IntakeRegression_ShouldRunManifestCases()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = NewTempDirectory();
+        var inputDirectory = Path.Combine(directory, "input");
+        var input = CreateSyntheticDocx(inputDirectory);
+        var fakeCodex = CreateFakeCodexCommand(directory);
+        var manifestPath = Path.Combine(directory, "intake-regression.json");
+        var reportPath = Path.Combine(directory, "report.json");
+        var markdownPath = Path.Combine(directory, "report.md");
+        var manifest = new IntakeRegressionManifest
+        {
+            Name = "private synthetic intake regression",
+            WorkspaceRoot = "workspaces",
+            DefaultTemplate = Path.GetRelativePath(directory, TemplatePath()),
+            DefaultStructureMode = "auto",
+            MinimumStructureQualityScore = 1,
+            Cases =
+            [
+                new IntakeRegressionCase
+                {
+                    Id = "synthetic",
+                    Input = Path.GetRelativePath(directory, input),
+                    StructureMode = "auto",
+                    MaximumUnresolvedCount = 20,
+                    ExpectedTextSnippets = ["中文摘要正文"]
+                }
+            ]
+        };
+        File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest, ThesisJson.Options));
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "intake",
+            "regression",
+            "--manifest",
+            manifestPath,
+            "--out",
+            reportPath,
+            "--markdown",
+            markdownPath,
+            "--codex-command",
+            fakeCodex,
+            "--timeout-seconds",
+            "10");
+
+        Assert.Equal(0, result.ExitCode);
+        var report = JsonNode.Parse(File.ReadAllText(reportPath))!;
+        Assert.Equal("pass", report["status"]!.GetValue<string>());
+        Assert.Equal(1, report["caseCount"]!.GetValue<int>());
+        Assert.True(report["cases"]![0]!["structureQualityScore"]!.GetValue<int>() > 0);
+        Assert.True(File.Exists(markdownPath));
+        Assert.True(File.Exists(Path.Combine(directory, "workspaces", "synthetic", "reports", "structure-review.md")));
     }
 
     [Fact]
