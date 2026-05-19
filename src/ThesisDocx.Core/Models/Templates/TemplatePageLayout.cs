@@ -10,6 +10,8 @@ public sealed class TemplatePageLayout
 
     public PageTemplateInsertPosition InsertPosition { get; set; } = PageTemplateInsertPosition.ReplaceSectionContent;
 
+    public string? TargetSectionId { get; set; }
+
     public PageSetupSpec? PageSetupOverride { get; set; }
 
     public List<PageLayoutBlock> Blocks { get; set; } = [];
@@ -22,7 +24,10 @@ public enum PageTemplateTargetSectionType
     Abstract,
     Toc,
     Body,
-    Appendix
+    Appendix,
+    Acknowledgements,
+    Bibliography,
+    TeacherComments
 }
 
 public enum PageTemplateInsertPosition
@@ -41,6 +46,7 @@ public enum PageTemplateInsertPosition
 [JsonDerivedType(typeof(DeclarationTextLayoutBlock), "declarationText")]
 [JsonDerivedType(typeof(PageBreakLayoutBlock), "pageBreak")]
 [JsonDerivedType(typeof(RuleLayoutBlock), "rule")]
+[JsonDerivedType(typeof(HandwritingAreaLayoutBlock), "handwritingArea")]
 public abstract class PageLayoutBlock;
 
 public sealed class SpacerLayoutBlock : PageLayoutBlock
@@ -57,6 +63,10 @@ public sealed class TextLayoutBlock : PageLayoutBlock
     public TextAlignment Alignment { get; set; } = TextAlignment.Center;
 
     public FontFormatSpec? FontOverride { get; set; }
+
+    public ParagraphFormatSpec? Paragraph { get; set; }
+
+    public bool SkipWhenEmpty { get; set; }
 
     public double? SpacingBeforePt { get; set; }
 
@@ -78,6 +88,10 @@ public sealed class MetadataFieldLayoutBlock : PageLayoutBlock
     public bool Underline { get; set; }
 
     public TextAlignment Alignment { get; set; } = TextAlignment.Left;
+
+    public FontFormatSpec? LabelFont { get; set; }
+
+    public FontFormatSpec? ValueFont { get; set; }
 }
 
 public enum MetadataFieldLayoutKind
@@ -109,6 +123,12 @@ public sealed class FieldTableLayoutBlock : PageLayoutBlock
     public double LabelColumnWidthCm { get; set; } = 3;
 
     public double ValueColumnWidthCm { get; set; } = 9;
+
+    public double? RowHeightPt { get; set; }
+
+    public FontFormatSpec? LabelFont { get; set; }
+
+    public FontFormatSpec? ValueFont { get; set; }
 }
 
 public enum FieldTableBorderMode
@@ -139,4 +159,17 @@ public sealed class RuleLayoutBlock : PageLayoutBlock
     public double? SpacingBeforePt { get; set; }
 
     public double? SpacingAfterPt { get; set; }
+}
+
+public sealed class HandwritingAreaLayoutBlock : PageLayoutBlock
+{
+    public string Label { get; set; } = string.Empty;
+
+    public double HeightCm { get; set; } = 4;
+
+    public string BorderColor { get; set; } = "000000";
+
+    public double BorderThicknessPt { get; set; } = 0.75;
+
+    public TextAlignment LabelAlignment { get; set; } = TextAlignment.Left;
 }

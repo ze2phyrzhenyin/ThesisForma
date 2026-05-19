@@ -14,6 +14,7 @@
 | OnboardingWorkspaceManifest | `schemas/onboarding-workspace.schema.json` | [onboarding-workspace](./onboarding-workspace.md) |
 | ThesisDocx Machine Report Contract | `schemas/report-contract.schema.json` | [report-contract](./report-contract.md) |
 | RequirementCapture | `schemas/requirement-capture.schema.json` | [requirement-capture](./requirement-capture.md) |
+| Structure Repair Plan | `schemas/structure-repair-plan.schema.json` | [structure-repair-plan](./structure-repair-plan.md) |
 | TemplateBaselineManifest | `schemas/template-baseline-manifest.schema.json` | [template-baseline-manifest](./template-baseline-manifest.md) |
 | TemplateCandidateProposalReport | `schemas/template-candidate-proposal-report.schema.json` | [template-candidate-proposal-report](./template-candidate-proposal-report.md) |
 | TemplatePackage | `schemas/template-package.schema.json` | [template-package](./template-package.md) |

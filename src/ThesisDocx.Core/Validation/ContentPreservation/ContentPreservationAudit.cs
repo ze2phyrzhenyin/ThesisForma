@@ -32,6 +32,7 @@ public sealed class ContentPreservationAuditor
             HeadingComparison = CompareCount("heading candidates", source.PossibleHeadings.Count, rendered.PossibleHeadings.Count),
             TableComparison = CompareCount("tables", source.Tables.Count, rendered.Tables.Count),
             FigureComparison = CompareCount("figures", source.Figures.Count, rendered.Figures.Count),
+            DrawingObjectComparison = CompareCount("drawing objects", source.DrawingObjects.Count, rendered.DrawingObjects.Count),
             FieldComparison = CompareCount("fields", source.Fields.Count, rendered.Fields.Count)
         };
 
@@ -80,6 +81,7 @@ public sealed class ContentPreservationAuditor
         AddCountWarnings(result, result.EndnoteComparison);
         AddCountWarnings(result, result.TableComparison);
         AddCountWarnings(result, result.FigureComparison);
+        AddCountWarnings(result, result.DrawingObjectComparison);
         AddCountWarnings(result, result.FieldComparison);
 
         result.BlockingIssues = result.MissingSegments
@@ -164,6 +166,7 @@ public sealed class ContentPreservationAuditor
             result.HeadingComparison,
             result.TableComparison,
             result.FigureComparison,
+            result.DrawingObjectComparison,
             result.FieldComparison
         })
         {
@@ -204,6 +207,7 @@ public sealed class ContentPreservationAuditor
         var textSegments = new List<string>();
         var paragraphIndex = 0;
         var tableIndex = 0;
+        var figureIndex = 0;
         var footnoteIndex = 0;
         var endnoteIndex = 0;
 
@@ -213,7 +217,7 @@ public sealed class ContentPreservationAuditor
             for (var blockIndex = 0; blockIndex < section.Blocks.Count; blockIndex++)
             {
                 var path = $"draft.sections[{sectionIndex}].blocks[{blockIndex}]";
-                AddDraftBlock(section.Blocks[blockIndex], path, extraction, textSegments, ref paragraphIndex, ref tableIndex, ref footnoteIndex, ref endnoteIndex);
+                AddDraftBlock(section.Blocks[blockIndex], path, extraction, textSegments, ref paragraphIndex, ref tableIndex, ref figureIndex, ref footnoteIndex, ref endnoteIndex);
             }
         }
 
@@ -228,6 +232,7 @@ public sealed class ContentPreservationAuditor
         List<string> textSegments,
         ref int paragraphIndex,
         ref int tableIndex,
+        ref int figureIndex,
         ref int footnoteIndex,
         ref int endnoteIndex)
     {
@@ -250,16 +255,20 @@ public sealed class ContentPreservationAuditor
                 {
                     for (var childIndex = 0; childIndex < list.Items[itemIndex].Blocks.Count; childIndex++)
                     {
-                        AddDraftBlock(list.Items[itemIndex].Blocks[childIndex], $"{path}.items[{itemIndex}].blocks[{childIndex}]", extraction, textSegments, ref paragraphIndex, ref tableIndex, ref footnoteIndex, ref endnoteIndex);
+                        AddDraftBlock(list.Items[itemIndex].Blocks[childIndex], $"{path}.items[{itemIndex}].blocks[{childIndex}]", extraction, textSegments, ref paragraphIndex, ref tableIndex, ref figureIndex, ref footnoteIndex, ref endnoteIndex);
                     }
                 }
 
                 break;
             case FigureBlock figure:
+                AddDraftFigure(extraction, figure, path, ref figureIndex);
                 AddDraftParagraph(extraction, textSegments, figure.Caption, path, ref paragraphIndex);
                 break;
             case TableBlock table:
-                AddDraftTable(extraction, textSegments, table, path, ref tableIndex);
+                AddDraftTable(extraction, textSegments, table, path, ref paragraphIndex, ref tableIndex, ref figureIndex);
+                break;
+            case PreservedObjectBlock preserved:
+                AddDraftPreservedObject(extraction, textSegments, preserved, path);
                 break;
             case EquationBlock equation:
                 AddDraftParagraph(extraction, textSegments, equation.PlainText ?? equation.Placeholder, path, ref paragraphIndex);
@@ -303,8 +312,34 @@ public sealed class ContentPreservationAuditor
         paragraphIndex++;
     }
 
-    private static void AddDraftTable(DocxExtractionResult extraction, List<string> textSegments, TableBlock table, string path, ref int tableIndex)
+    private static void AddDraftFigure(DocxExtractionResult extraction, FigureBlock figure, string path, ref int figureIndex)
     {
+        extraction.Figures.Add(new ExtractedFigure
+        {
+            Id = $"draft-figure-{figureIndex}",
+            Index = figureIndex,
+            ContentType = figure.ImageContentType,
+            ArtifactPath = figure.ImagePath,
+            WidthCm = figure.WidthCm,
+            HeightCm = figure.HeightCm,
+            Crop = figure.Crop is null
+                ? null
+                : new ExtractedFigureCrop
+                {
+                    LeftPercent = figure.Crop.LeftPercent,
+                    TopPercent = figure.Crop.TopPercent,
+                    RightPercent = figure.Crop.RightPercent,
+                    BottomPercent = figure.Crop.BottomPercent
+                },
+            SuggestedCaption = figure.Caption,
+            EvidencePath = path
+        });
+        figureIndex++;
+    }
+
+    private static void AddDraftTable(DocxExtractionResult extraction, List<string> textSegments, TableBlock table, string path, ref int paragraphIndex, ref int tableIndex, ref int figureIndex)
+    {
+        AddDraftParagraph(extraction, textSegments, table.Caption, $"{path}.caption", ref paragraphIndex);
         var rows = new List<ExtractedTableRow>();
         var tableText = new List<string>();
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
@@ -318,12 +353,21 @@ public sealed class ContentPreservationAuditor
                     ? cell.Text
                     : string.Join(" ", cell.Blocks.Select(BlockText).Where(text => !string.IsNullOrWhiteSpace(text)));
                 tableText.Add(cellText);
+                var figureIds = new List<string>();
+                foreach (var figure in cell.Blocks.OfType<FigureBlock>())
+                {
+                    var id = $"draft-figure-{figureIndex}";
+                    AddDraftFigure(extraction, figure, $"{path}.rows[{rowIndex}].cells[{cellIndex}].blocks[{cell.Blocks.IndexOf(figure)}]", ref figureIndex);
+                    figureIds.Add(id);
+                }
+
                 cells.Add(new ExtractedTableCell
                 {
                     RowIndex = rowIndex,
                     CellIndex = cellIndex,
                     Text = cellText,
                     GridSpan = Math.Max(1, cell.GridSpan),
+                    FigureIds = figureIds,
                     EvidencePath = $"{path}.rows[{rowIndex}].cells[{cellIndex}]"
                 });
             }
@@ -346,6 +390,42 @@ public sealed class ContentPreservationAuditor
         }
 
         tableIndex++;
+    }
+
+    private static void AddDraftPreservedObject(DocxExtractionResult extraction, List<string> textSegments, PreservedObjectBlock preserved, string path)
+    {
+        var text = preserved.ExtractedText ?? string.Empty;
+        extraction.DrawingObjects.Add(new ExtractedDrawingObject
+        {
+            Id = $"draft-drawing-object-{extraction.DrawingObjects.Count}",
+            Index = extraction.DrawingObjects.Count,
+            ObjectType = preserved.ObjectType.ToString(),
+            RelationshipIds = preserved.RelationshipIds,
+            Parts = preserved.Parts.Select(ToExtractedPart).ToList(),
+            GraphicDataUri = preserved.GraphicDataUri,
+            WidthCm = preserved.WidthCm,
+            HeightCm = preserved.HeightCm,
+            AnchorType = preserved.AnchorType,
+            Text = text,
+            RawXml = preserved.RawXml,
+            EvidencePath = path
+        });
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            textSegments.Add(text);
+        }
+    }
+
+    private static ExtractedPreservedObjectPart ToExtractedPart(PreservedObjectPart part)
+    {
+        return new ExtractedPreservedObjectPart
+        {
+            RelationshipId = part.RelationshipId,
+            RelationshipType = part.RelationshipType,
+            ContentType = part.ContentType,
+            DataBase64 = part.DataBase64,
+            Children = part.Children.Select(ToExtractedPart).ToList()
+        };
     }
 
     private static void AddInlineNotes(IEnumerable<InlineNode> inlines, string path, DocxExtractionResult extraction, ref int footnoteIndex, ref int endnoteIndex)
@@ -414,6 +494,7 @@ public sealed class ContentPreservationAuditor
             ListBlock list => string.Join(" ", list.Items.SelectMany(item => item.Blocks).Select(BlockText).Where(text => !string.IsNullOrWhiteSpace(text))),
             FigureBlock figure => figure.Caption,
             TableBlock table => string.Join(" ", table.Rows.SelectMany(row => row.Cells).Select(cell => !string.IsNullOrWhiteSpace(cell.Text) ? cell.Text : string.Join(" ", cell.Blocks.Select(BlockText))).Where(text => !string.IsNullOrWhiteSpace(text))),
+            PreservedObjectBlock preserved => preserved.ExtractedText ?? string.Empty,
             EquationBlock equation => equation.PlainText ?? equation.Placeholder,
             BibliographyBlock bibliography => string.Join(" ", bibliography.Entries.Select(entry => entry.Text).Where(text => !string.IsNullOrWhiteSpace(text))),
             FootnoteBlock footnote => InlinesText(footnote.Inlines),
@@ -473,6 +554,11 @@ public sealed class ContentPreservationAuditor
             AddSegment(segments, table.Text, table.EvidencePath);
         }
 
+        foreach (var drawingObject in extraction.DrawingObjects)
+        {
+            AddSegment(segments, drawingObject.Text, drawingObject.EvidencePath);
+        }
+
         return segments;
     }
 
@@ -482,6 +568,7 @@ public sealed class ContentPreservationAuditor
         values.AddRange(extraction.Footnotes.Select(note => note.Text));
         values.AddRange(extraction.Endnotes.Select(note => note.Text));
         values.AddRange(extraction.Tables.Select(table => table.Text));
+        values.AddRange(extraction.DrawingObjects.Select(drawingObject => drawingObject.Text));
         return TextNormalizer.Normalize(string.Join(Environment.NewLine, values.Where(value => !string.IsNullOrWhiteSpace(value))));
     }
 
@@ -592,6 +679,7 @@ public sealed class ContentPreservationResult
     public ContentCountComparison HeadingComparison { get; set; } = new();
     public ContentCountComparison TableComparison { get; set; } = new();
     public ContentCountComparison FigureComparison { get; set; } = new();
+    public ContentCountComparison DrawingObjectComparison { get; set; } = new();
     public ContentCountComparison FieldComparison { get; set; } = new();
     public List<ContentPreservationIssue> Warnings { get; set; } = [];
     public List<ContentPreservationIssue> BlockingIssues { get; set; } = [];

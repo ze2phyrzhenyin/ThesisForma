@@ -14,6 +14,7 @@ public sealed class SchemaVersionSupportTests
     [Theory]
     [InlineData("1.0.0")]
     [InlineData("1.1.0")]
+    [InlineData("1.2.0")]
     public void ThesisDocumentVersions_ShouldDeclareSupportedRange(string version)
     {
         var result = new SchemaVersionSupport().CheckThesisDocument(version);
@@ -43,7 +44,8 @@ public sealed class SchemaVersionSupportTests
 
     [Theory]
     [InlineData("thesisDocument", "1.0.0", "supported")]
-    [InlineData("thesisDocument", "1.1.0", "current")]
+    [InlineData("thesisDocument", "1.1.0", "supported")]
+    [InlineData("thesisDocument", "1.2.0", "current")]
     [InlineData("thesisFormatSpec", "1.0.0", "supported")]
     [InlineData("thesisFormatSpec", "1.2.0", "current")]
     [InlineData("templatePackage", "1.0.0", "current")]
@@ -135,10 +137,10 @@ public sealed class SchemaVersionSupportTests
         var report = SchemaVersionReport.ForDocument("1.0.0");
 
         report.MergeFrom(SchemaVersionReport.ForFormat("1.2.0"));
-        report.MergeFrom(SchemaVersionReport.ForDocument("1.1.0"));
+        report.MergeFrom(SchemaVersionReport.ForDocument("1.2.0"));
 
         Assert.Equal(2, report.Checks.Count);
-        Assert.Contains(report.Checks, check => check.Kind == "thesisDocument" && check.Version == "1.1.0");
+        Assert.Contains(report.Checks, check => check.Kind == "thesisDocument" && check.Version == "1.2.0");
         Assert.Contains(report.Checks, check => check.Kind == "thesisFormatSpec" && check.Version == "1.2.0");
     }
 

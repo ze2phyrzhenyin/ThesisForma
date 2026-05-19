@@ -10,9 +10,11 @@ entries:
 - word/endnotes.xml
 - word/footer1.xml
 - word/footer2.xml
+- word/footer3.xml
 - word/footnotes.xml
 - word/header1.xml
 - word/header2.xml
+- word/header3.xml
 - word/numbering.xml
 - word/settings.xml
 - word/styles.xml
@@ -37,6 +39,7 @@ numberingLevelTexts:
 fieldCodes:
 - PAGE \* MERGEFORMAT
 - PAGE \* MERGEFORMAT
+- PAGE \* MERGEFORMAT
 - REF bm-chapter-1 \h
 - REF bm-eq-energy \h
 - REF bm-table-format-rules \h
@@ -44,6 +47,8 @@ fieldCodes:
 - TOC \o "1-2" \h \z \u
 sectionPageNumberFormats:
 - none
+- upperRoman
+- upperRoman
 - upperRoman
 - decimal
 bookmarks:
@@ -76,8 +81,8 @@ tableWidthTypes:
 tableBorders:
 - top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil
 - top:single|bottom:single|left:single|right:single|insideH:single|insideV:single
-paragraphCount=69
-tableCount=2
+paragraphCount=72
+tableCount=3
 drawingCount=2
 equationCount=3
 equationOmmlElementCount=3
@@ -88,5 +93,5 @@ tableHasCantSplitRows=True
 tableHasNestedCellBlocks=False
 tableHasCellNoteReferences=False
 templateRuleParagraphCount=1
-headerCount=2
-footerCount=2
+headerCount=3
+footerCount=3

@@ -21,6 +21,7 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `complianceRules` | ComplianceRule[] | no |  |  |
 | `degreeType` | string | no |  |  |
 | `description` | string | no |  |  |
+| `documentOverrides` | DocumentOverrides | no |  |  |
 | `extends` | object | no |  |  |
 | `formatSpec` | object | no |  |  |
 | `formatSpecRef` | RelativePath | no |  |  |
@@ -48,6 +49,13 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `required` | boolean | no |  |  |
 | `type` | enum(image, font, staticDocxFragment, text) | yes | enum: image, font, staticDocxFragment, text |  |
 
+### BlockFormatOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `font` | FontOverride | no |  |  |
+| `paragraph` | ParagraphOverride | no |  |  |
+
 ### ComplianceRule
 
 | Field | Type | Required | Enum / Default | Description |
@@ -64,6 +72,18 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `signatureFields` | MetadataFieldBlock[] | no |  |  |
 | `type` | enum(declarationText) | yes | enum: declarationText |  |
 
+### DocumentOverrides
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `bodyParagraph` | ParagraphOverride | no |  |  |
+| `defaultFont` | FontOverride | no |  |  |
+| `headerFooter` | object | no |  |  |
+| `headings` | object | no |  |  |
+| `sectionFormats` | object | no |  |  |
+| `sectionInstances` | object | no |  |  |
+| `toc` | object | no |  |  |
+
 ### FieldTableBlock
 
 | Field | Type | Required | Enum / Default | Description |
@@ -71,9 +91,55 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `borderMode` | enum(none, full, bottomLine, custom) | no | enum: none, full, bottomLine, custom |  |
 | `columns` | integer | no |  |  |
 | `labelColumnWidthCm` | number | no |  |  |
+| `labelFont` | Font | no |  |  |
+| `rowHeightPt` | number | no |  |  |
 | `rows` | MetadataFieldBlock[][] | yes |  |  |
 | `type` | enum(fieldTable) | yes | enum: fieldTable |  |
 | `valueColumnWidthCm` | number | no |  |  |
+| `valueFont` | Font | no |  |  |
+
+### Font
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `bold` | boolean | no |  |  |
+| `eastAsia` | string | yes |  |  |
+| `italic` | boolean | no |  |  |
+| `latin` | string | yes |  |  |
+| `sizePt` | number | yes |  |  |
+
+### FontOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `bold` | boolean | no |  |  |
+| `eastAsia` | string | no |  |  |
+| `italic` | boolean | no |  |  |
+| `latin` | string | no |  |  |
+| `sizePt` | number | no |  |  |
+
+### HandwritingAreaBlock
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `borderColor` | string | no |  |  |
+| `borderThicknessPt` | number | no |  |  |
+| `heightCm` | number | no |  |  |
+| `label` | string | no |  |  |
+| `labelAlignment` | Alignment | no |  |  |
+| `type` | enum(handwritingArea) | yes | enum: handwritingArea |  |
+
+### HeadingOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `alignment` | Alignment | no |  |  |
+| `font` | FontOverride | no |  |  |
+| `numbered` | boolean | no |  |  |
+| `outlineLevel` | integer | no |  |  |
+| `pageBreakBefore` | boolean | no |  |  |
+| `spaceAfterPt` | number | no |  |  |
+| `spaceBeforePt` | number | no |  |  |
 
 ### ImageBlock
 
@@ -91,10 +157,12 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | --- | --- | --- | --- | --- |
 | `alignment` | Alignment | no |  |  |
 | `label` | string | yes |  |  |
+| `labelFont` | Font | no |  |  |
 | `layout` | enum(inline, labelValueLine, tableRow) | no | enum: inline, labelValueLine, tableRow |  |
 | `sourcePath` | string | no |  |  |
 | `type` | enum(metadataField) | yes | enum: metadataField |  |
 | `underline` | boolean | no |  |  |
+| `valueFont` | Font | no |  |  |
 | `valueTemplate` | string | no |  |  |
 | `variableName` | Id | no |  |  |
 
@@ -127,7 +195,21 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `id` | Id | yes |  |  |
 | `insertPosition` | enum(beforeSection, afterSection, replaceSectionContent) | yes | enum: beforeSection, afterSection, replaceSectionContent |  |
 | `pageSetupOverride` | PageSetupOverride | no |  |  |
-| `targetSectionType` | enum(cover, declaration, abstract, toc, body, appendix) | yes | enum: cover, declaration, abstract, toc, body, appendix |  |
+| `targetSectionId` | Id | no |  |  |
+| `targetSectionType` | enum(cover, declaration, abstract, toc, body, appendix, acknowledgements, bibliography, teacherComments) | yes | enum: cover, declaration, abstract, toc, body, appendix, acknowledgements, bibliography, teacherComments |  |
+
+### ParagraphOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `alignment` | Alignment | no |  |  |
+| `firstLineIndentChars` | number | no |  |  |
+| `hangingIndentCm` | number | no |  |  |
+| `lineSpacingExactPt` | number \| null | no |  |  |
+| `lineSpacingMultiple` | number | no |  |  |
+| `spaceAfterPt` | number | no |  |  |
+| `spaceBeforePt` | number | no |  |  |
+| `widowControl` | boolean | no |  |  |
 
 ### RuleBlock
 
@@ -139,6 +221,33 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | `spacingBeforePt` | number | no |  |  |
 | `thicknessPt` | number | no |  |  |
 | `type` | enum(rule) | yes | enum: rule |  |
+
+### SectionFormatOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `includeFooter` | boolean | no |  |  |
+| `includeHeader` | boolean | no |  |  |
+| `pageNumberStyle` | enum(none, decimal, lowerRoman, upperRoman) | no | enum: none, decimal, lowerRoman, upperRoman |  |
+| `restartPageNumbering` | boolean | no |  |  |
+| `startPageNumber` | integer | no |  |  |
+
+### SectionInstanceOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `blockOverrides` | object | no |  |  |
+| `defaultFont` | FontOverride | no |  |  |
+| `footerText` | string | no |  |  |
+| `headerText` | string | no |  |  |
+| `includeFooter` | boolean | no |  |  |
+| `includeHeader` | boolean | no |  |  |
+| `pageNumberStyle` | enum(none, decimal, lowerRoman, upperRoman) | no | enum: none, decimal, lowerRoman, upperRoman |  |
+| `paragraph` | ParagraphOverride | no |  |  |
+| `restartPageNumbering` | boolean | no |  |  |
+| `startPageNumber` | integer | no |  |  |
+| `titleFont` | FontOverride | no |  |  |
+| `titleParagraph` | ParagraphOverride | no |  |  |
 
 ### SpacerBlock
 
@@ -153,6 +262,8 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | --- | --- | --- | --- | --- |
 | `alignment` | Alignment | no |  |  |
 | `fontOverride` | object | no |  |  |
+| `paragraph` | ParagraphOverride | no |  |  |
+| `skipWhenEmpty` | boolean | no |  |  |
 | `spacingAfterPt` | number | no |  |  |
 | `spacingBeforePt` | number | no |  |  |
 | `style` | string | no |  |  |
@@ -181,6 +292,7 @@ Required fields: `id`, `locale`, `name`, `templateSchemaVersion`, `version`
 | --- | --- | --- | --- |
 | `#/definitions/layoutBlock` | `oneOf` | `declarationText` | DeclarationTextBlock |
 | `#/definitions/layoutBlock` | `oneOf` | `fieldTable` | FieldTableBlock |
+| `#/definitions/layoutBlock` | `oneOf` | `handwritingArea` | HandwritingAreaBlock |
 | `#/definitions/layoutBlock` | `oneOf` | `image` | ImageBlock |
 | `#/definitions/layoutBlock` | `oneOf` | `metadataField` | MetadataFieldBlock |
 | `#/definitions/layoutBlock` | `oneOf` | `pageBreak` | PageBreakBlock |

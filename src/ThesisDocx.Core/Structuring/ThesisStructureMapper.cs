@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Utilities;
@@ -18,7 +19,7 @@ public sealed class ThesisStructureMapper
         var result = new ThesisStructuringResult();
         result.Document = new ThesisDocument
         {
-            SchemaVersion = ThesisSchemaVersions.Version110,
+            SchemaVersion = ThesisSchemaVersions.Version120,
             Metadata = BuildMetadata(extraction, result),
             Sections = []
         };
@@ -26,69 +27,120 @@ public sealed class ThesisStructureMapper
         var current = NewSection(ThesisSectionKind.Body, "正文", "body");
         var bibliographyEntries = new List<BibliographyEntryNode>();
         var mappedFigureIds = new HashSet<string>(StringComparer.Ordinal);
+        var mappedTableIds = new HashSet<string>(StringComparer.Ordinal);
+        var mappedDrawingObjectIds = new HashSet<string>(StringComparer.Ordinal);
         var noteContext = BuildNoteContext(extraction);
+        var paragraphsByEvidencePath = extraction.Paragraphs
+            .GroupBy(paragraph => paragraph.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var tablesByEvidencePath = extraction.Tables
+            .GroupBy(table => table.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         var figuresByEvidencePath = extraction.Figures
             .GroupBy(figure => figure.EvidencePath, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
-        foreach (var paragraph in extraction.Paragraphs.Where(p => !string.IsNullOrWhiteSpace(p.Text)))
+        var drawingObjectsByEvidencePath = extraction.DrawingObjects
+            .GroupBy(drawingObject => drawingObject.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+        var consumedCaptionEvidencePaths = extraction.Figures
+            .Select(figure => figure.CaptionEvidencePath)
+            .Concat(extraction.Tables.Select(table => table.CaptionEvidencePath))
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(StringComparer.Ordinal);
+        var processedParagraphEvidencePaths = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var block in extraction.Blocks.OrderBy(block => block.Index))
         {
+            if (block.Type == "paragraph" && paragraphsByEvidencePath.TryGetValue(block.EvidencePath, out var orderedParagraph))
+            {
+                processedParagraphEvidencePaths.Add(orderedParagraph.EvidencePath);
+                if (!string.IsNullOrWhiteSpace(orderedParagraph.Text))
+                {
+                    current = MapParagraph(orderedParagraph, current);
+                }
+                else
+                {
+                    AddFiguresForEvidence(result, current, figuresByEvidencePath, mappedFigureIds, orderedParagraph.EvidencePath);
+                    AddPreservedObjectsForEvidence(result, current, drawingObjectsByEvidencePath, mappedDrawingObjectIds, orderedParagraph.EvidencePath);
+                }
+            }
+            else if (block.Type == "table" && tablesByEvidencePath.TryGetValue(block.EvidencePath, out var orderedTable))
+            {
+                AddTable(current, orderedTable, result, figuresByEvidencePath, mappedFigureIds, mappedTableIds);
+            }
+        }
+
+        foreach (var paragraph in extraction.Paragraphs
+            .Where(p => !processedParagraphEvidencePaths.Contains(p.EvidencePath))
+            .Where(p => !string.IsNullOrWhiteSpace(p.Text)))
+        {
+            current = MapParagraph(paragraph, current);
+        }
+
+        ThesisSection MapParagraph(ExtractedParagraph paragraph, ThesisSection active)
+        {
+            if (consumedCaptionEvidencePaths.Contains(paragraph.EvidencePath))
+            {
+                return active;
+            }
+
             var text = paragraph.Text.Trim();
             var role = Classify(text, paragraph);
             switch (role)
             {
                 case "cover":
-                    current = AddSection(result, ThesisSectionKind.Cover, "封面", "cover", paragraph);
-                    AddParagraph(current, paragraph, result, noteContext, role, 0.75);
+                    active = AddSection(result, ThesisSectionKind.Cover, "封面", "cover", paragraph);
+                    AddParagraph(active, paragraph, result, noteContext, role, 0.75);
                     break;
                 case "declaration":
-                    current = AddSection(result, ThesisSectionKind.OriginalityStatement, text, "declaration", paragraph);
-                    AddHeading(current, paragraph, result, noteContext, 1, 0.85);
+                    active = AddSection(result, ThesisSectionKind.OriginalityStatement, text, "declaration", paragraph);
+                    AddHeading(active, paragraph, result, noteContext, 1, 0.85);
                     break;
                 case "abstractZh":
                 case "abstractEn":
-                    current = AddSection(result, ThesisSectionKind.Abstract, text, $"abstract-{result.Document.Sections.Count}", paragraph);
-                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
+                    active = AddSection(result, ThesisSectionKind.Abstract, text, $"abstract-{result.Document.Sections.Count}", paragraph);
+                    AddHeading(active, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "toc":
-                    current = AddSection(result, ThesisSectionKind.Toc, text, "toc", paragraph);
-                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
+                    active = AddSection(result, ThesisSectionKind.Toc, text, "toc", paragraph);
+                    AddHeading(active, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "bibliography":
-                    if (current.Kind != ThesisSectionKind.Bibliography)
+                    if (active.Kind != ThesisSectionKind.Bibliography)
                     {
-                        current = AddSection(result, ThesisSectionKind.Bibliography, text, "bibliography", paragraph);
-                        AddHeading(current, paragraph, result, noteContext, 1, 0.9);
+                        active = AddSection(result, ThesisSectionKind.Bibliography, text, "bibliography", paragraph);
+                        AddHeading(active, paragraph, result, noteContext, 1, 0.9);
                     }
                     break;
                 case "acknowledgements":
-                    current = AddSection(result, ThesisSectionKind.Acknowledgements, text, "acknowledgements", paragraph);
-                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
+                    active = AddSection(result, ThesisSectionKind.Acknowledgements, text, "acknowledgements", paragraph);
+                    AddHeading(active, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "appendix":
-                    current = AddSection(result, ThesisSectionKind.Appendix, text, "appendix", paragraph);
-                    AddHeading(current, paragraph, result, noteContext, 1, 0.9);
+                    active = AddSection(result, ThesisSectionKind.Appendix, text, "appendix", paragraph);
+                    AddHeading(active, paragraph, result, noteContext, 1, 0.9);
                     break;
                 case "heading":
-                    if (!result.Document.Sections.Contains(current))
+                    if (!result.Document.Sections.Contains(active))
                     {
-                        result.Document.Sections.Add(current);
+                        result.Document.Sections.Add(active);
                     }
-                    AddHeading(current, paragraph, result, noteContext, GuessHeadingLevel(paragraph, text), 0.8);
+                    AddHeading(active, paragraph, result, noteContext, GuessHeadingLevel(paragraph, text), 0.8);
                     break;
                 case "bibliographyItem":
-                    if (current.Kind != ThesisSectionKind.Bibliography)
+                    if (active.Kind != ThesisSectionKind.Bibliography)
                     {
-                        current = AddSection(result, ThesisSectionKind.Bibliography, "参考文献", "bibliography", paragraph);
+                        active = AddSection(result, ThesisSectionKind.Bibliography, "参考文献", "bibliography", paragraph);
                     }
                     bibliographyEntries.Add(new BibliographyEntryNode { Id = $"bib{bibliographyEntries.Count + 1}", Text = text });
-                    AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(current)}].blocks[bibliography].entries[{bibliographyEntries.Count - 1}]", paragraph.EvidencePath, "bibliography item", 0.8);
+                    AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(active)}].blocks[bibliography].entries[{bibliographyEntries.Count - 1}]", paragraph.EvidencePath, "bibliography item", 0.8);
                     break;
                 default:
-                    if (!result.Document.Sections.Contains(current))
+                    if (!result.Document.Sections.Contains(active))
                     {
-                        result.Document.Sections.Add(current);
+                        result.Document.Sections.Add(active);
                     }
-                    AddParagraph(current, paragraph, result, noteContext, "body paragraph", 0.7);
+                    AddParagraph(active, paragraph, result, noteContext, "body paragraph", 0.7);
                     if (paragraph.PossibleRole == "headingCandidate")
                     {
                         AddUnresolved(result, "structure.headingLevel.unconfirmed", "Possible heading requires review.", paragraph.EvidencePath, "Confirm heading level and section boundary.");
@@ -96,7 +148,9 @@ public sealed class ThesisStructureMapper
                     break;
             }
 
-            AddFiguresForEvidence(result, current, figuresByEvidencePath, mappedFigureIds, paragraph.EvidencePath);
+            AddFiguresForEvidence(result, active, figuresByEvidencePath, mappedFigureIds, paragraph.EvidencePath);
+            AddPreservedObjectsForEvidence(result, active, drawingObjectsByEvidencePath, mappedDrawingObjectIds, paragraph.EvidencePath);
+            return active;
         }
 
         foreach (var figure in extraction.Figures.Where(figure => !mappedFigureIds.Contains(figure.Id)))
@@ -109,29 +163,14 @@ public sealed class ThesisStructureMapper
             AddFigure(current, figure, result, mappedFigureIds, "figure extracted from drawing evidence without a nearby non-empty paragraph", 0.65);
         }
 
-        foreach (var table in extraction.Tables)
+        foreach (var table in extraction.Tables.Where(table => !mappedTableIds.Contains(table.Id)))
         {
-            if (!result.Document.Sections.Contains(current))
-            {
-                result.Document.Sections.Add(current);
-            }
+            AddTable(current, table, result, figuresByEvidencePath, mappedFigureIds, mappedTableIds);
+        }
 
-            current.Blocks.Add(new TableBlock
-            {
-                Id = SafeId($"table{table.Index + 1}"),
-                Caption = $"表 {table.Index + 1}",
-                CaptionPosition = CaptionPosition.Before,
-                Rows = table.Rows.Select(row => new TableRowNode
-                {
-                    Cells = row.Cells.Select(cell => new TableCellNode
-                    {
-                        Text = cell.Text,
-                        GridSpan = Math.Max(1, cell.GridSpan),
-                        VerticalMerge = ToVerticalMerge(cell.VerticalMerge)
-                    }).ToList()
-                }).ToList()
-            });
-            AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(current)}].blocks[{current.Blocks.Count - 1}]", table.EvidencePath, "table structure copied", 0.8);
+        foreach (var drawingObject in extraction.DrawingObjects.Where(drawingObject => !mappedDrawingObjectIds.Contains(drawingObject.Id)))
+        {
+            AddPreservedObject(current, drawingObject, result, mappedDrawingObjectIds);
         }
 
         if (bibliographyEntries.Count > 0)
@@ -334,6 +373,136 @@ public sealed class ThesisStructureMapper
         AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", paragraph.EvidencePath, reason, confidence);
     }
 
+    private static void AddTable(
+        ThesisSection section,
+        ExtractedTable table,
+        ThesisStructuringResult result,
+        IReadOnlyDictionary<string, List<ExtractedFigure>> figuresByEvidencePath,
+        HashSet<string> mappedFigureIds,
+        HashSet<string> mappedTableIds)
+    {
+        if (!mappedTableIds.Add(table.Id))
+        {
+            return;
+        }
+
+        if (!result.Document.Sections.Contains(section))
+        {
+            result.Document.Sections.Add(section);
+        }
+
+        var figuresById = figuresByEvidencePath.Values.SelectMany(figures => figures)
+            .GroupBy(figure => figure.Id, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        section.Blocks.Add(CreateTableBlock(table, figuresById, mappedFigureIds));
+        AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", table.EvidencePath, "table structure copied in source order", 0.86);
+        if (table.CaptionEvidencePath is not null)
+        {
+            AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}].caption", table.CaptionEvidencePath, "table caption mapped from nearby paragraph", 0.82);
+        }
+    }
+
+    private static TableBlock CreateTableBlock(ExtractedTable table, IReadOnlyDictionary<string, ExtractedFigure> figuresById, HashSet<string> mappedFigureIds)
+    {
+        return new TableBlock
+        {
+            Id = SafeId(string.IsNullOrWhiteSpace(table.Id) ? $"table{Math.Max(0, table.Index) + 1}" : table.Id),
+            Caption = string.IsNullOrWhiteSpace(table.SuggestedCaption) ? $"表 {table.Index + 1}" : table.SuggestedCaption!,
+            CaptionPosition = string.Equals(table.CaptionPosition, "after", StringComparison.OrdinalIgnoreCase) ? CaptionPosition.After : CaptionPosition.Before,
+            Width = TableWidth(table),
+            Alignment = TableAlignment(table.Alignment),
+            Borders = ParseBorders(table.Borders, includeInside: true),
+            Rows = table.Rows.Select(row => new TableRowNode
+            {
+                IsHeader = row.IsHeader,
+                CantSplit = row.CantSplit,
+                HeightPt = row.HeightTwips.HasValue ? UnitConverter.TwipsToPoints(row.HeightTwips.Value) : null,
+                Cells = row.Cells.Select(cell => ToTableCell(cell, figuresById, mappedFigureIds)).ToList()
+            }).ToList()
+        };
+    }
+
+    private static TableCellNode ToTableCell(ExtractedTableCell cell, IReadOnlyDictionary<string, ExtractedFigure> figuresById, HashSet<string> mappedFigureIds)
+    {
+        var blocks = new List<BlockNode>();
+        if ((cell.FigureIds.Count > 0 || cell.NestedTables.Count > 0) && !string.IsNullOrWhiteSpace(cell.Text))
+        {
+            blocks.Add(new ParagraphBlock { Inlines = [new TextInline { Text = cell.Text }] });
+        }
+
+        foreach (var figureId in cell.FigureIds)
+        {
+            if (!figuresById.TryGetValue(figureId, out var figure))
+            {
+                continue;
+            }
+
+            mappedFigureIds.Add(figure.Id);
+            blocks.Add(CreateFigureBlock(figure));
+        }
+
+        foreach (var nestedTable in cell.NestedTables)
+        {
+            blocks.Add(CreateTableBlock(nestedTable, figuresById, mappedFigureIds));
+        }
+
+        return new TableCellNode
+        {
+            Text = blocks.Count == 0 ? cell.Text : string.Empty,
+            Blocks = blocks,
+            GridSpan = Math.Max(1, cell.GridSpan),
+            VerticalMerge = ToVerticalMerge(cell.VerticalMerge),
+            Width = cell.WidthTwips.HasValue ? new TableWidthSpec { Type = TableWidthKind.Dxa, Value = cell.WidthTwips.Value } : null,
+            VerticalAlignment = TableCellAlignment(cell.VerticalAlignment),
+            Shading = NormalizeShading(cell.Shading),
+            Borders = ParseBorders(cell.Borders, includeInside: false)
+        };
+    }
+
+    private static TableWidthSpec? TableWidth(ExtractedTable table)
+    {
+        if (table.WidthTwips.HasValue)
+        {
+            return new TableWidthSpec { Type = TableWidthKind.Dxa, Value = table.WidthTwips.Value };
+        }
+
+        if (table.WidthPercent.HasValue)
+        {
+            return new TableWidthSpec { Type = TableWidthKind.Percent, Value = table.WidthPercent.Value };
+        }
+
+        return null;
+    }
+
+    private static TextAlignment? TableAlignment(string? alignment)
+    {
+        return alignment?.ToLowerInvariant() switch
+        {
+            "center" => TextAlignment.Center,
+            "right" => TextAlignment.Right,
+            _ => null
+        };
+    }
+
+    private static TableCellVerticalAlignment? TableCellAlignment(string? alignment)
+    {
+        return alignment?.ToLowerInvariant() switch
+        {
+            "center" => TableCellVerticalAlignment.Center,
+            "bottom" => TableCellVerticalAlignment.Bottom,
+            "top" => TableCellVerticalAlignment.Top,
+            _ => null
+        };
+    }
+
+    private static string? NormalizeShading(string? shading)
+    {
+        return string.IsNullOrWhiteSpace(shading) || string.Equals(shading, "auto", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : shading;
+    }
+
     private static void AddFiguresForEvidence(
         ThesisStructuringResult result,
         ThesisSection current,
@@ -365,18 +534,246 @@ public sealed class ThesisStructureMapper
             return;
         }
 
+        if (!result.Document.Sections.Contains(section))
+        {
+            result.Document.Sections.Add(section);
+        }
+
         section.Blocks.Add(new FigureBlock
         {
             Id = SafeId($"figure{figure.Index + 1}"),
             Caption = string.IsNullOrWhiteSpace(figure.SuggestedCaption) ? $"图 {figure.Index + 1}" : figure.SuggestedCaption!,
             ImagePath = figure.ArtifactPath,
-            ImageContentType = SupportedImageContentType(figure.ContentType) ? figure.ContentType! : "image/png"
+            ImageContentType = SupportedImageContentType(figure.ContentType) ? figure.ContentType! : "image/png",
+            WidthCm = figure.WidthCm,
+            HeightCm = figure.HeightCm,
+            Crop = ToFigureCrop(figure.Crop)
         });
         AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", figure.EvidencePath, reason, confidence);
+        if (figure.CaptionEvidencePath is not null)
+        {
+            AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}].caption", figure.CaptionEvidencePath, "figure caption mapped from nearby paragraph", 0.82);
+        }
+
         if (string.IsNullOrWhiteSpace(figure.ArtifactPath))
         {
             AddUnresolved(result, "figure.artifact.missing", "Figure drawing was extracted but no image artifact path was available.", figure.EvidencePath, "Review the source DOCX image relationship and decide whether to attach an image manually.");
         }
+    }
+
+    private static void AddPreservedObjectsForEvidence(
+        ThesisStructuringResult result,
+        ThesisSection current,
+        IReadOnlyDictionary<string, List<ExtractedDrawingObject>> drawingObjectsByEvidencePath,
+        HashSet<string> mappedDrawingObjectIds,
+        string evidencePath)
+    {
+        if (!drawingObjectsByEvidencePath.TryGetValue(evidencePath, out var drawingObjects))
+        {
+            return;
+        }
+
+        foreach (var drawingObject in drawingObjects)
+        {
+            AddPreservedObject(current, drawingObject, result, mappedDrawingObjectIds);
+        }
+    }
+
+    private static void AddPreservedObject(
+        ThesisSection section,
+        ExtractedDrawingObject drawingObject,
+        ThesisStructuringResult result,
+        HashSet<string> mappedDrawingObjectIds)
+    {
+        if (!mappedDrawingObjectIds.Add(drawingObject.Id))
+        {
+            return;
+        }
+
+        if (!result.Document.Sections.Contains(section))
+        {
+            result.Document.Sections.Add(section);
+        }
+
+        section.Blocks.Add(new PreservedObjectBlock
+        {
+            Id = SafeId(drawingObject.Id),
+            ObjectType = ToPreservedObjectType(drawingObject.ObjectType),
+            PreservationMode = PreservationMode(drawingObject),
+            RawXml = drawingObject.RawXml,
+            GraphicDataUri = drawingObject.GraphicDataUri,
+            RelationshipIds = drawingObject.RelationshipIds,
+            Parts = drawingObject.Parts.Select(ToPreservedObjectPart).ToList(),
+            WidthCm = drawingObject.WidthCm,
+            HeightCm = drawingObject.HeightCm,
+            AnchorType = drawingObject.AnchorType,
+            ExtractedText = string.IsNullOrWhiteSpace(drawingObject.Text) ? null : drawingObject.Text,
+            EvidencePath = drawingObject.EvidencePath
+        });
+        AddEvidence(result, $"$.sections[{result.Document.Sections.IndexOf(section)}].blocks[{section.Blocks.Count - 1}]", drawingObject.EvidencePath, "preserved drawing object mapped from extraction evidence", 0.8);
+        AddUnresolved(
+            result,
+            $"preservedObject.{drawingObject.ObjectType}.reviewRequired",
+            $"Source DOCX contains a {drawingObject.ObjectType} object preserved with mode '{PreservationMode(drawingObject)}'.",
+            drawingObject.EvidencePath,
+            "Review the preserved object and choose extractText, passthrough, or replacement with a supported structured block before final acceptance.");
+    }
+
+    private static PreservedObjectMode PreservationMode(ExtractedDrawingObject drawingObject)
+    {
+        if (!string.IsNullOrWhiteSpace(drawingObject.RawXml)
+            && (drawingObject.RelationshipIds.Count == 0 || RootRelationshipsCovered(drawingObject))
+            && ToPreservedObjectType(drawingObject.ObjectType) is PreservedObjectType.TextBox or PreservedObjectType.Shape or PreservedObjectType.Chart or PreservedObjectType.SmartArt or PreservedObjectType.Drawing)
+        {
+            return PreservedObjectMode.Passthrough;
+        }
+
+        return string.IsNullOrWhiteSpace(drawingObject.Text)
+            ? PreservedObjectMode.ReviewOnly
+            : PreservedObjectMode.ExtractText;
+    }
+
+    private static bool RootRelationshipsCovered(ExtractedDrawingObject drawingObject)
+    {
+        var rootPartIds = drawingObject.Parts.Select(part => part.RelationshipId).ToHashSet(StringComparer.Ordinal);
+        return drawingObject.RelationshipIds.Count > 0 && drawingObject.RelationshipIds.All(rootPartIds.Contains);
+    }
+
+    private static PreservedObjectPart ToPreservedObjectPart(ExtractedPreservedObjectPart part)
+    {
+        return new PreservedObjectPart
+        {
+            RelationshipId = part.RelationshipId,
+            RelationshipType = part.RelationshipType,
+            ContentType = part.ContentType,
+            DataBase64 = part.DataBase64,
+            Children = part.Children.Select(ToPreservedObjectPart).ToList()
+        };
+    }
+
+    private static PreservedObjectType ToPreservedObjectType(string objectType)
+    {
+        return objectType.ToLowerInvariant() switch
+        {
+            "chart" => PreservedObjectType.Chart,
+            "smartart" => PreservedObjectType.SmartArt,
+            "shape" => PreservedObjectType.Shape,
+            "textbox" => PreservedObjectType.TextBox,
+            "picture" => PreservedObjectType.Picture,
+            _ => PreservedObjectType.Drawing
+        };
+    }
+
+    private static FigureBlock CreateFigureBlock(ExtractedFigure figure)
+    {
+        return new FigureBlock
+        {
+            Id = SafeId($"figure{figure.Index + 1}"),
+            Caption = string.IsNullOrWhiteSpace(figure.SuggestedCaption) ? $"图 {figure.Index + 1}" : figure.SuggestedCaption!,
+            ImagePath = figure.ArtifactPath,
+            ImageContentType = SupportedImageContentType(figure.ContentType) ? figure.ContentType! : "image/png",
+            WidthCm = figure.WidthCm,
+            HeightCm = figure.HeightCm,
+            Crop = ToFigureCrop(figure.Crop)
+        };
+    }
+
+    private static FigureCropSpec? ToFigureCrop(ExtractedFigureCrop? crop)
+    {
+        if (crop is null)
+        {
+            return null;
+        }
+
+        return new FigureCropSpec
+        {
+            LeftPercent = crop.LeftPercent,
+            TopPercent = crop.TopPercent,
+            RightPercent = crop.RightPercent,
+            BottomPercent = crop.BottomPercent
+        };
+    }
+
+    private static TableBordersSpec? ParseBorders(string? outerXml, bool includeInside)
+    {
+        if (string.IsNullOrWhiteSpace(outerXml))
+        {
+            return null;
+        }
+
+        XElement root;
+        try
+        {
+            root = XElement.Parse(outerXml);
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
+
+        var borders = new TableBordersSpec
+        {
+            Top = ParseBorder(root, "top"),
+            Bottom = ParseBorder(root, "bottom"),
+            Left = ParseBorder(root, "left"),
+            Right = ParseBorder(root, "right"),
+            InsideH = includeInside ? ParseBorder(root, "insideH") : null,
+            InsideV = includeInside ? ParseBorder(root, "insideV") : null
+        };
+        return borders.Top is not null || borders.Bottom is not null || borders.Left is not null || borders.Right is not null || borders.InsideH is not null || borders.InsideV is not null
+            ? borders
+            : null;
+    }
+
+    private static BorderSpec? ParseBorder(XElement root, string localName)
+    {
+        var element = root.Elements().FirstOrDefault(child => child.Name.LocalName == localName);
+        if (element is null)
+        {
+            return null;
+        }
+
+        var style = AttributeValue(element, "val");
+        if (string.IsNullOrWhiteSpace(style))
+        {
+            return null;
+        }
+
+        return new BorderSpec
+        {
+            Style = BorderStyle(style),
+            Size = IntAttribute(element, "sz") ?? 4,
+            Color = NormalizeBorderColor(AttributeValue(element, "color")),
+            Space = IntAttribute(element, "space") ?? 0
+        };
+    }
+
+    private static string? AttributeValue(XElement element, string localName)
+    {
+        return element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == localName)?.Value;
+    }
+
+    private static int? IntAttribute(XElement element, string localName)
+    {
+        return int.TryParse(AttributeValue(element, localName), out var value) ? value : null;
+    }
+
+    private static BorderStyleKind BorderStyle(string value)
+    {
+        return value.ToLowerInvariant() switch
+        {
+            "nil" => BorderStyleKind.Nil,
+            "none" => BorderStyleKind.None,
+            "double" => BorderStyleKind.Double,
+            "dotted" or "dotdash" or "dotdotdash" => BorderStyleKind.Dotted,
+            "dashed" or "dashsmallgap" or "dashdotstroked" => BorderStyleKind.Dashed,
+            _ => BorderStyleKind.Single
+        };
+    }
+
+    private static string NormalizeBorderColor(string? color)
+    {
+        return color is { Length: 6 } && color.All(Uri.IsHexDigit) ? color : "000000";
     }
 
     private static List<InlineNode> ToInlines(ExtractedParagraph paragraph, NoteReferenceContext noteContext, ThesisStructuringResult result)

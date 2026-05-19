@@ -55,7 +55,7 @@ public sealed class CliJsonContractTests
         File.WriteAllText(
             documentPath,
             File.ReadAllText(Path.Combine(root, "examples", "simple-thesis", "document.json"))
-                .Replace("\"schemaVersion\": \"1.0.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
+                .Replace("\"schemaVersion\": \"1.2.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
 
         var result = CliRunner.Run(
             root,
@@ -161,7 +161,7 @@ public sealed class CliJsonContractTests
         File.WriteAllText(
             documentPath,
             File.ReadAllText(Path.Combine(root, "examples", "simple-thesis", "document.json"))
-                .Replace("\"schemaVersion\": \"1.0.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
+                .Replace("\"schemaVersion\": \"1.2.0\"", "\"schemaVersion\": \"9.9.9\"", StringComparison.Ordinal));
 
         var result = CliRunner.Run(
             root,

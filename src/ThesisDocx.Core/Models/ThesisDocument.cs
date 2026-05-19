@@ -54,7 +54,8 @@ public enum ThesisSectionKind
     Body,
     Acknowledgements,
     Bibliography,
-    Appendix
+    Appendix,
+    TeacherComments
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -65,6 +66,7 @@ public enum ThesisSectionKind
 [JsonDerivedType(typeof(TableBlock), "table")]
 [JsonDerivedType(typeof(QuoteBlock), "quote")]
 [JsonDerivedType(typeof(EquationBlock), "equation")]
+[JsonDerivedType(typeof(PreservedObjectBlock), "preservedObject")]
 [JsonDerivedType(typeof(PageBreakBlock), "pageBreak")]
 [JsonDerivedType(typeof(SectionBreakBlock), "sectionBreak")]
 [JsonDerivedType(typeof(BibliographyBlock), "bibliography")]
@@ -120,6 +122,19 @@ public sealed class FigureBlock : BlockNode
     public double? WidthCm { get; set; }
 
     public double? HeightCm { get; set; }
+
+    public FigureCropSpec? Crop { get; set; }
+}
+
+public sealed class FigureCropSpec
+{
+    public double? LeftPercent { get; set; }
+
+    public double? TopPercent { get; set; }
+
+    public double? RightPercent { get; set; }
+
+    public double? BottomPercent { get; set; }
 }
 
 public sealed class TableBlock : BlockNode
@@ -319,6 +334,61 @@ public sealed class EquationBlock : BlockNode
     public bool? AllowWordUpdate { get; set; }
 }
 
+public sealed class PreservedObjectBlock : BlockNode
+{
+    public PreservedObjectType ObjectType { get; set; } = PreservedObjectType.Drawing;
+
+    public PreservedObjectMode PreservationMode { get; set; } = PreservedObjectMode.ReviewOnly;
+
+    public string? RawXml { get; set; }
+
+    public string? GraphicDataUri { get; set; }
+
+    public List<string> RelationshipIds { get; set; } = [];
+
+    public List<PreservedObjectPart> Parts { get; set; } = [];
+
+    public double? WidthCm { get; set; }
+
+    public double? HeightCm { get; set; }
+
+    public string? AnchorType { get; set; }
+
+    public string? ExtractedText { get; set; }
+
+    public string? EvidencePath { get; set; }
+}
+
+public enum PreservedObjectType
+{
+    Chart,
+    SmartArt,
+    Shape,
+    TextBox,
+    Picture,
+    Drawing
+}
+
+public enum PreservedObjectMode
+{
+    ReviewOnly,
+    ExtractText,
+    Passthrough
+}
+
+public sealed class PreservedObjectPart
+{
+    public string RelationshipId { get; set; } = string.Empty;
+
+    public string RelationshipType { get; set; } = string.Empty;
+
+    public string ContentType { get; set; } = string.Empty;
+
+    public string DataBase64 { get; set; } = string.Empty;
+
+    public List<PreservedObjectPart> Children { get; set; } = [];
+}
+
 public enum EquationSourceType
 {
     Omml,
@@ -452,11 +522,11 @@ public static class ThesisSchemaVersions
     public const string Version100 = "1.0.0";
     public const string Version110 = "1.1.0";
     public const string Version120 = "1.2.0";
-    public const string Current = Version110;
+    public const string Current = Version120;
 
     public static bool IsSupported(string? schemaVersion)
     {
-        return schemaVersion is Version100 or Version110;
+        return schemaVersion is Version100 or Version110 or Version120;
     }
 
     public static bool IsSupportedFormat(string? schemaVersion)

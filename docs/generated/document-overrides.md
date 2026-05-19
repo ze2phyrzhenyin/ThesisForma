@@ -28,6 +28,13 @@ Required fields: none
 
 ## Definitions
 
+### BlockFormatOverride
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `font` | FontOverride | no |  |  |
+| `paragraph` | ParagraphOverride | no |  |  |
+
 ### FontOverride
 
 | Field | Type | Required | Enum / Default | Description |
@@ -77,6 +84,7 @@ Required fields: none
 
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
+| `blockOverrides` | object | no |  |  |
 | `defaultFont` | FontOverride | no |  |  |
 | `footerText` | string | no |  |  |
 | `headerText` | string | no |  |  |
@@ -86,3 +94,5 @@ Required fields: none
 | `paragraph` | ParagraphOverride | no |  |  |
 | `restartPageNumbering` | boolean | no |  |  |
 | `startPageNumber` | integer | no |  |  |
+| `titleFont` | FontOverride | no |  |  |
+| `titleParagraph` | ParagraphOverride | no |  |  |

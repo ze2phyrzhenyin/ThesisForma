@@ -6,15 +6,17 @@
     "docProps/custom.xml",
     "media/image.png",
     "media/image2.png",
-    "package/services/metadata/core-properties/5a23da97e4bc4221b55eaad2f87304d0.psmdcp",
+    "package/services/metadata/core-properties/7f7476c2e3654dc7b306753fda7a306d.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
     "word/footer1.xml",
     "word/footer2.xml",
+    "word/footer3.xml",
     "word/footnotes.xml",
     "word/header1.xml",
     "word/header2.xml",
+    "word/header3.xml",
     "word/numbering.xml",
     "word/settings.xml",
     "word/styles.xml"
@@ -25,15 +27,17 @@
     "docProps/custom.xml",
     "media/image.png",
     "media/image2.png",
-    "package/services/metadata/core-properties/5a23da97e4bc4221b55eaad2f87304d0.psmdcp",
+    "package/services/metadata/core-properties/7f7476c2e3654dc7b306753fda7a306d.psmdcp",
     "word/_rels/document.xml.rels",
     "word/document.xml",
     "word/endnotes.xml",
     "word/footer1.xml",
     "word/footer2.xml",
+    "word/footer3.xml",
     "word/footnotes.xml",
     "word/header1.xml",
     "word/header2.xml",
+    "word/header3.xml",
     "word/numbering.xml",
     "word/settings.xml",
     "word/styles.xml"
@@ -139,6 +143,7 @@
   "fieldCodes": [
     "PAGE \\* MERGEFORMAT",
     "PAGE \\* MERGEFORMAT",
+    "PAGE \\* MERGEFORMAT",
     "REF bm-chapter-1 \\h",
     "REF bm-eq-energy \\h",
     "REF bm-table-format-rules \\h",
@@ -178,6 +183,28 @@
     },
     {
       "index": 2,
+      "pageNumberFormat": "upperRoman",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304"
+    },
+    {
+      "index": 3,
+      "pageNumberFormat": "upperRoman",
+      "pageNumberStart": 1,
+      "widthTwips": "11906",
+      "heightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304"
+    },
+    {
+      "index": 4,
       "pageNumberFormat": "decimal",
       "pageNumberStart": 1,
       "widthTwips": "11906",
@@ -202,6 +229,12 @@
       "hasHeaderLine": false
     },
     {
+      "kind": "footer",
+      "relationshipId": "rIdFooterFrontMatter_abstract_cn",
+      "hasPageField": true,
+      "hasHeaderLine": false
+    },
+    {
       "kind": "header",
       "relationshipId": "rIdHeaderBody",
       "hasPageField": false,
@@ -212,10 +245,18 @@
       "relationshipId": "rIdHeaderFrontMatter",
       "hasPageField": false,
       "hasHeaderLine": false
+    },
+    {
+      "kind": "header",
+      "relationshipId": "rIdHeaderFrontMatter_abstract_cn",
+      "hasPageField": false,
+      "hasHeaderLine": false
     }
   ],
   "sectionPageNumberFormats": [
     "none",
+    "upperRoman",
+    "upperRoman",
     "upperRoman",
     "decimal"
   ],
@@ -281,7 +322,7 @@
     ]
   },
   "tables": {
-    "count": 2,
+    "count": 3,
     "captions": [
       "\u88681 \u683C\u5F0F\u89C4\u5219\u6458\u8981"
     ],
@@ -339,10 +380,10 @@
     "ruleParagraphCount": 1
   },
   "openXmlValidatorErrorCount": 0,
-  "paragraphCount": 69,
-  "tableCount": 2,
+  "paragraphCount": 72,
+  "tableCount": 3,
   "drawingCount": 2,
   "figuresCount": 2,
-  "headerCount": 2,
-  "footerCount": 2
+  "headerCount": 3,
+  "footerCount": 3
 }

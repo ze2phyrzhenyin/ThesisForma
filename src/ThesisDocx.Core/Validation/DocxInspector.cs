@@ -116,9 +116,12 @@ public sealed class DocxInspector
             .Any(table =>
             {
                 var tableText = string.Concat(table.Descendants<W.Text>().Select(t => t.Text));
-                return tableText.Contains("学号", StringComparison.Ordinal)
-                    && (tableText.Contains("作者", StringComparison.Ordinal) || tableText.Contains("姓名", StringComparison.Ordinal))
-                    && (tableText.Contains("导师", StringComparison.Ordinal) || tableText.Contains("Advisor", StringComparison.OrdinalIgnoreCase));
+                var compact = string.Concat(tableText.Where(ch => !char.IsWhiteSpace(ch) && ch != '\u3000'));
+                return compact.Contains("学号", StringComparison.Ordinal)
+                    && (compact.Contains("作者", StringComparison.Ordinal) || compact.Contains("姓名", StringComparison.Ordinal))
+                    && (compact.Contains("导师", StringComparison.Ordinal)
+                        || compact.Contains("指导教师", StringComparison.Ordinal)
+                        || compact.Contains("Advisor", StringComparison.OrdinalIgnoreCase));
             }) == true;
     }
 
@@ -128,7 +131,9 @@ public sealed class DocxInspector
             || (text.Contains("声明", StringComparison.Ordinal)
                 && (text.Contains("独立完成", StringComparison.Ordinal)
                     || text.Contains("学术规范", StringComparison.Ordinal)
-                    || text.Contains("原创", StringComparison.Ordinal)));
+                    || text.Contains("原创", StringComparison.Ordinal)
+                    || text.Contains("独创", StringComparison.Ordinal)
+                    || text.Contains("本人郑重声明", StringComparison.Ordinal)));
     }
 
     private static List<string> SplitCsv(string? value)

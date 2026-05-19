@@ -31,7 +31,7 @@
       "allowedDiffCategories": [],
       "forbiddenDiffCategories": [],
       "lastUpdatedAt": "2000-01-01T00:00:00Z",
-      "notes": "Initialized baseline.; Add fictional humanities template regression baseline.; Accepted note styles, table cell block evidence, and page template rule rendering"
+      "notes": "Initialized baseline.; Add fictional humanities template regression baseline.; Accepted note styles, table cell block evidence, and page template rule rendering; Update humanities example baseline for template documentOverrides and new page-template fields"
     },
     {
       "caseId": "shnu-humanities-public-source-full",

@@ -19,7 +19,7 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
 | `metadata` | Metadata | yes |  |  |
-| `schemaVersion` | enum(1.0.0, 1.1.0) | yes | enum: 1.0.0, 1.1.0 | Structured input contract version. |
+| `schemaVersion` | enum(1.0.0, 1.1.0, 1.2.0) | yes | enum: 1.0.0, 1.1.0, 1.2.0 | Structured input contract version. |
 | `sections` | Section[] | yes |  | Ordered thesis sections. |
 
 ## Definitions
@@ -140,6 +140,7 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
 | `caption` | string | yes |  |  |
+| `crop` | FigureCrop | no |  |  |
 | `heightCm` | number | no |  |  |
 | `id` | Id | no |  |  |
 | `imageContentType` | enum(image/png, image/jpeg, image/jpg, image/gif, image/bmp, image/tiff) | yes | enum: image/png, image/jpeg, image/jpg, image/gif, image/bmp, image/tiff |  |
@@ -147,6 +148,15 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | `imagePath` | string | no |  |  |
 | `type` | enum(figure) | yes | enum: figure |  |
 | `widthCm` | number | no |  |  |
+
+### FigureCrop
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `bottomPercent` | number | no |  |  |
+| `leftPercent` | number | no |  |  |
+| `rightPercent` | number | no |  |  |
+| `topPercent` | number | no |  |  |
 
 ### Font
 
@@ -248,6 +258,34 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | `styleId` | string | no |  |  |
 | `type` | enum(paragraph) | yes | enum: paragraph |  |
 
+### PreservedObjectBlock
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `anchorType` | enum(inline, anchor) | no | enum: inline, anchor |  |
+| `evidencePath` | string | no |  |  |
+| `extractedText` | string | no |  |  |
+| `graphicDataUri` | string | no |  |  |
+| `heightCm` | number | no |  |  |
+| `id` | Id | no |  |  |
+| `objectType` | enum(chart, smartArt, shape, textBox, picture, drawing) | yes | enum: chart, smartArt, shape, textBox, picture, drawing |  |
+| `parts` | PreservedObjectPart[] | no |  |  |
+| `preservationMode` | enum(reviewOnly, extractText, passthrough) | yes | enum: reviewOnly, extractText, passthrough |  |
+| `rawXml` | string | no |  |  |
+| `relationshipIds` | string[] | no |  |  |
+| `type` | enum(preservedObject) | yes | enum: preservedObject |  |
+| `widthCm` | number | no |  |  |
+
+### PreservedObjectPart
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `children` | PreservedObjectPart[] | no |  |  |
+| `contentType` | string | yes |  |  |
+| `dataBase64` | string | yes |  |  |
+| `relationshipId` | string | yes |  |  |
+| `relationshipType` | string | yes |  |  |
+
 ### QuoteBlock
 
 | Field | Type | Required | Enum / Default | Description |
@@ -270,7 +308,7 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | --- | --- | --- | --- | --- |
 | `blocks` | Block[] | yes |  |  |
 | `id` | Id | no |  |  |
-| `kind` | enum(cover, originalityStatement, abstract, toc, body, acknowledgements, bibliography, appendix) | yes | enum: cover, originalityStatement, abstract, toc, body, acknowledgements, bibliography, appendix |  |
+| `kind` | enum(cover, originalityStatement, abstract, toc, body, acknowledgements, bibliography, appendix, teacherComments) | yes | enum: cover, originalityStatement, abstract, toc, body, acknowledgements, bibliography, appendix, teacherComments |  |
 | `startOnNewPage` | boolean | no |  |  |
 | `title` | string | no |  |  |
 
@@ -359,6 +397,7 @@ Required fields: `metadata`, `schemaVersion`, `sections`
 | `#/definitions/block` | `oneOf` | `heading` | HeadingBlock |
 | `#/definitions/block` | `oneOf` | `list` | ListBlock |
 | `#/definitions/block` | `oneOf` | `pageBreak` | PageBreakBlock |
+| `#/definitions/block` | `oneOf` | `preservedObject` | PreservedObjectBlock |
 | `#/definitions/block` | `oneOf` | `quote` | QuoteBlock |
 | `#/definitions/block` | `oneOf` | `sectionBreak` | SectionBreakBlock |
 | `#/definitions/block` | `oneOf` | `table` | TableBlock |

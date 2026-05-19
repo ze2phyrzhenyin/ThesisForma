@@ -24,7 +24,7 @@ Before using a real college source, rehearse the same closed loop with a fiction
 
 ## Boundaries
 
-- No AI parsing is implemented in Stage 1.
+- No AI parsing is part of the deterministic renderer contract. The DOCX intake prototype may run an explicit private-workspace Codex review, but the result still requires evidence links and human review.
 - No Microsoft Word automation is used.
 - No screenshot or pixel-level visual diff is used.
 - Diff and gate reports are quality gates, not legal or academic certification.

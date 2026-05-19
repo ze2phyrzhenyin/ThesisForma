@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thesisdocx.local/schemas/structure-repair-plan.schema.json",
+  "title": "Structure Repair Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["planVersion", "summary", "operations"],
+  "properties": {
+    "planVersion": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/operation" }
+    },
+    "reviewerNotes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "definitions": {
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "reason", "confidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": ["moveBlock", "ensureSection", "addUnresolvedItem", "removeUnresolvedItem", "updateHeadingLevel"]
+        },
+        "sourceEvidencePath": { "type": "string" },
+        "targetEvidencePath": { "type": "string" },
+        "targetSectionId": { "type": "string" },
+        "targetSectionTitle": { "type": "string" },
+        "targetSectionKind": {
+          "type": "string",
+          "enum": ["cover", "originalityStatement", "abstract", "toc", "body", "acknowledgements", "bibliography", "appendix", "teacherComments"]
+        },
+        "beforeEvidencePath": { "type": "string" },
+        "afterEvidencePath": { "type": "string" },
+        "headingLevel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "unresolvedCode": { "type": "string" },
+        "unresolvedMessage": { "type": "string" },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "recommendedAction": { "type": "string" },
+        "reason": { "type": "string", "minLength": 1 },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

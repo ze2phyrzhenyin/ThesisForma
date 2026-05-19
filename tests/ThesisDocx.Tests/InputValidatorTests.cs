@@ -44,6 +44,56 @@ public sealed class InputValidatorTests
     }
 
     [Fact]
+    public void InputValidator_ShouldRejectBibliographyYearSortViolations()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        format.Bibliography.SortOrder = BibliographySortOrder.YearAscending;
+        var bibliography = document.Sections.SelectMany(s => s.Blocks).OfType<BibliographyBlock>().Single();
+        bibliography.Entries =
+        [
+            new BibliographyEntryNode { Id = "ref-new", Text = "作者. 新文献[M]. 北京：出版社，2021." },
+            new BibliographyEntryNode { Id = "ref-old", Text = "作者. 旧文献[J]. 刊名，2020." }
+        ];
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "bibliography.sort.yearOrder");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldAcceptChronologicalBibliographyInEitherDirection()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        format.Bibliography.SortOrder = BibliographySortOrder.Chronological;
+        var bibliography = document.Sections.SelectMany(s => s.Blocks).OfType<BibliographyBlock>().Single();
+        bibliography.Entries =
+        [
+            new BibliographyEntryNode { Id = "ref-new", Text = "作者. 新文献[M]. 北京：出版社，2021." },
+            new BibliographyEntryNode { Id = "ref-old", Text = "作者. 旧文献[J]. 刊名，2020." }
+        ];
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.DoesNotContain(result.Errors, error => error.Code == "bibliography.sort.yearOrder");
+    }
+
+    [Fact]
+    public void InputValidator_ShouldRejectConfiguredBodyTextCountRange()
+    {
+        var (document, format, baseDir) = LoadSimple();
+        format.Validation.BodyTextCount = new TextCountValidationSpec
+        {
+            Min = 10_000,
+            Unit = TextCountUnit.NonWhitespaceCharacters,
+            SectionKinds = [ThesisSectionKind.Body]
+        };
+
+        var result = new ThesisInputValidator().Validate(document, format, baseDir);
+
+        Assert.Contains(result.Errors, error => error.Code == "textCount.body.tooShort");
+    }
+
+    [Fact]
     public void InputValidator_ShouldCatchHeadingLevelJump()
     {
         var (document, format, baseDir) = LoadSimple();

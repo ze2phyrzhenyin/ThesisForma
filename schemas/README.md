@@ -20,12 +20,13 @@ This directory contains the formal JSON Schema contract for Stage 1 structured i
 - `format-candidate-report.schema.json`: validates evidence reports for draft format specs inferred from DOCX extraction clusters.
 - `format-candidate-decisions.schema.json`: validates human review decisions for candidate format fields.
 - `template-candidate-proposal-report.schema.json`: validates proposal reports produced when reviewed candidate fields are applied to a copied template.
+- `structure-repair-plan.schema.json`: constrains Codex-assisted structure repair plans before Core applies them deterministically.
 
 Both schemas require `schemaVersion`. Supported versions are:
 
-- `1.0.0`: original Stage 1 contract, still used by `examples/simple-thesis`.
+- `1.0.0`: original Stage 1 contract.
 - `1.1.0`: compatible document/format extension for OMML equations and advanced table fields, used by `examples/full-thesis`.
-- `1.2.0`: compatible `ThesisFormatSpec` extension used by template examples, declarative note styles, and bounded page-template blocks such as `rule`.
+- `1.2.0`: compatible `ThesisDocument` extension for relationship-backed preserved object part graphs, and compatible `ThesisFormatSpec` extension used by template examples, declarative note styles, and bounded page-template blocks such as `rule`.
 
 `TemplatePackage` has a separate `templateSchemaVersion`; the current supported value is `1.0.0`.
 

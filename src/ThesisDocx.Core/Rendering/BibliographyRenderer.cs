@@ -28,7 +28,33 @@ public sealed class BibliographyRenderer
                     {
                         Hanging = UnitConverter.CentimetersToTwips(_format.Bibliography.EntryParagraph.HangingIndentCm).ToString()
                     }),
-                new W.Run(new W.Text(entry.Text) { Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve }));
+                CreateRun(entry.Text));
         }
+    }
+
+    private W.Run CreateRun(string text)
+    {
+        var run = new W.Run();
+        var properties = CreateRunProperties();
+        if (properties is not null)
+        {
+            run.AppendChild(properties);
+        }
+
+        run.AppendChild(new W.Text(text) { Space = DocumentFormat.OpenXml.SpaceProcessingModeValues.Preserve });
+        return run;
+    }
+
+    private W.RunProperties? CreateRunProperties()
+    {
+        if (_format.Bibliography.EntryFont is null)
+        {
+            return null;
+        }
+
+        return new W.RunProperties(
+            StyleBuilder.CreateRunFonts(_format.Bibliography.EntryFont),
+            new W.FontSize { Val = UnitConverter.PointsToHalfPoints(_format.Bibliography.EntryFont.SizePt).ToString() },
+            new W.FontSizeComplexScript { Val = UnitConverter.PointsToHalfPoints(_format.Bibliography.EntryFont.SizePt).ToString() });
     }
 }

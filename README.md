@@ -12,7 +12,7 @@ The fourth-round engine also accepts reusable template packages:
 
 `ThesisDocument + TemplatePackage -> resolved ThesisFormatSpec + page templates + valid DOCX`
 
-This stage does not infer structure with AI or rewrite thesis content. The repository includes a DOCX intake prototype, but the supported contract remains structured content plus template data feeding the deterministic renderer.
+This stage does not make AI inference part of the deterministic renderer and must not rewrite thesis content. The repository includes a DOCX intake prototype with an explicit private-workspace Codex review mode, but the supported contract remains structured content plus template data feeding the deterministic renderer.
 
 ## Why This Shape
 
@@ -210,7 +210,7 @@ Formal schemas live in `schemas/` and are validated with the `NJsonSchema` NuGet
 
 ## Not Supported Yet
 
-- AI parsing of messy user documents.
+- Unbounded AI parsing that silently rewrites or guesses messy user documents.
 - Web upload UI.
 - Word field updating after generation.
 - full LaTeX-to-OMML conversion beyond the small safe subset.
@@ -350,11 +350,26 @@ dotnet run --project src/ThesisDocx.Cli -- structure draft \
   --report onboarding-workspaces/docx-structure-pilot/structured/structure-mapping-report.json \
   --unresolved onboarding-workspaces/docx-structure-pilot/structured/unresolved-items.json
 
+dotnet run --project src/ThesisDocx.Cli -- structure codex-review \
+  --workspace onboarding-workspaces/docx-structure-pilot \
+  --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json \
+  --template examples/templates/example-university-engineering
+
 dotnet run --project src/ThesisDocx.Cli -- intake docx \
+  --input onboarding-workspaces/docx-structure-pilot/input/input.docx \
+  --workspace onboarding-workspaces/docx-structure-pilot \
+  --template examples/templates/example-university-engineering \
+  --structure-mode codex-required
+
+dotnet run --project src/ThesisDocx.Cli -- intake gate \
   --input onboarding-workspaces/docx-structure-pilot/input/input.docx \
   --workspace onboarding-workspaces/docx-structure-pilot \
   --template examples/templates/example-university-engineering
 ```
+
+`--structure-mode codex-required` is an explicit private-workspace AI review step. It calls Codex CLI to propose a schema-constrained structure repair plan, then Core applies that plan deterministically. This can repair evidence-backed structure mistakes, such as chapter content grouped under the wrong heading, and blocks rendering if Codex fails, directly edits artifacts, returns rejected operations, or breaks content preservation. `--structure-mode auto` runs the same step only when structure diagnostics flag medium/high risk.
+
+`intake gate` is the single intake quality entry point. It defaults to `--structure-mode auto`, writes `structureQualityScore` into `intake-report.json`, and still uses the same deterministic extraction, schema validation, content-preservation audit, template resolve, render, and OpenXML validation path.
 
 Extraction evidence and draft JSON may contain the full user thesis. Keep them in ignored onboarding workspaces and do not copy them into `examples` or docs. See `docs/30-docx-intake-and-structuring.md`.
 

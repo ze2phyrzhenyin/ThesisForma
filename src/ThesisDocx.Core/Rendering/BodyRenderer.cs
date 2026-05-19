@@ -20,6 +20,7 @@ public sealed class BodyRenderer
     private readonly FigureRenderer _figureRenderer;
     private readonly BibliographyRenderer _bibliographyRenderer;
     private readonly EquationRenderer _equationRenderer;
+    private readonly PreservedObjectRenderer _preservedObjectRenderer;
     private readonly ThesisDocument _document;
     private readonly ThesisFormatSpec _format;
     private readonly DocxRenderContext? _context;
@@ -48,6 +49,7 @@ public sealed class BodyRenderer
         _figureRenderer = new FigureRenderer(relationshipManager, format, captionRenderer);
         _bibliographyRenderer = new BibliographyRenderer(format);
         _equationRenderer = new EquationRenderer(format, relationshipManager);
+        _preservedObjectRenderer = new PreservedObjectRenderer(_paragraphRenderer, relationshipManager);
         _pageTemplateRenderer = new PageTemplateRenderer(relationshipManager);
     }
 
@@ -59,15 +61,20 @@ public sealed class BodyRenderer
     public void RenderSection(W.Body body, ThesisSection section)
     {
         _currentSectionOverride = FindSectionOverride(section);
-        var pageTemplate = FindPageTemplate(section.Kind);
-        if (pageTemplate is not null && pageTemplate.InsertPosition == PageTemplateInsertPosition.BeforeSection)
+        var pageTemplates = FindPageTemplates(section.Kind, section.Id).ToList();
+        foreach (var pageTemplate in pageTemplates.Where(layout => layout.InsertPosition == PageTemplateInsertPosition.BeforeSection))
         {
             RenderPageTemplate(body, pageTemplate);
         }
 
-        if (pageTemplate is not null && pageTemplate.InsertPosition == PageTemplateInsertPosition.ReplaceSectionContent)
+        var replacementTemplates = pageTemplates.Where(layout => layout.InsertPosition == PageTemplateInsertPosition.ReplaceSectionContent).ToList();
+        if (replacementTemplates.Count > 0)
         {
-            RenderPageTemplate(body, pageTemplate);
+            foreach (var pageTemplate in replacementTemplates)
+            {
+                RenderPageTemplate(body, pageTemplate);
+            }
+
             return;
         }
 
@@ -84,11 +91,11 @@ public sealed class BodyRenderer
         }
         else if ((section.Kind is ThesisSectionKind.Abstract or ThesisSectionKind.OriginalityStatement) && !string.IsNullOrWhiteSpace(section.Title))
         {
-            body.AppendChild(ApplyCurrentSectionOverrides(_paragraphRenderer.CreatePlainParagraph(section.Title!, StyleIds.TocTitle, TextAlignment.Center)));
+            body.AppendChild(ApplyTitleOverrides(_paragraphRenderer.CreatePlainParagraph(section.Title!, StyleIds.TocTitle, TextAlignment.Center)));
         }
         else if (section.Kind == ThesisSectionKind.Bibliography && !string.IsNullOrWhiteSpace(section.Title))
         {
-            body.AppendChild(ApplyCurrentSectionOverrides(_headingRenderer.CreateHeading(new HeadingBlock
+            body.AppendChild(ApplyTitleOverrides(_headingRenderer.CreateHeading(new HeadingBlock
             {
                 Level = 1,
                 Numbered = false,
@@ -96,25 +103,25 @@ public sealed class BodyRenderer
             })));
         }
 
-        foreach (var block in section.Blocks)
+        for (var blockIndex = 0; blockIndex < section.Blocks.Count; blockIndex++)
         {
-            foreach (var element in RenderBlock(block))
+            foreach (var element in RenderBlock(section.Blocks[blockIndex], blockIndex))
             {
                 body.AppendChild(element);
             }
         }
 
-        if (pageTemplate is not null && pageTemplate.InsertPosition == PageTemplateInsertPosition.AfterSection)
+        foreach (var pageTemplate in pageTemplates.Where(layout => layout.InsertPosition == PageTemplateInsertPosition.AfterSection))
         {
             RenderPageTemplate(body, pageTemplate);
         }
     }
 
-    private TemplatePageLayout? FindPageTemplate(ThesisSectionKind kind)
+    private IEnumerable<TemplatePageLayout> FindPageTemplates(ThesisSectionKind kind, string? sectionId)
     {
         if (_context is null)
         {
-            return null;
+            yield break;
         }
 
         var target = kind switch
@@ -124,9 +131,20 @@ public sealed class BodyRenderer
             ThesisSectionKind.Abstract => PageTemplateTargetSectionType.Abstract,
             ThesisSectionKind.Toc => PageTemplateTargetSectionType.Toc,
             ThesisSectionKind.Appendix => PageTemplateTargetSectionType.Appendix,
+            ThesisSectionKind.Acknowledgements => PageTemplateTargetSectionType.Acknowledgements,
+            ThesisSectionKind.Bibliography => PageTemplateTargetSectionType.Bibliography,
+            ThesisSectionKind.TeacherComments => PageTemplateTargetSectionType.TeacherComments,
             _ => PageTemplateTargetSectionType.Body
         };
-        return _context.PageTemplates.FirstOrDefault(layout => layout.TargetSectionType == target);
+        foreach (var layout in _context.PageTemplates
+            .Where(layout => layout.TargetSectionType == target)
+            .Where(layout => string.IsNullOrWhiteSpace(layout.TargetSectionId)
+                || string.Equals(layout.TargetSectionId, sectionId, StringComparison.Ordinal))
+            .OrderBy(layout => string.IsNullOrWhiteSpace(layout.TargetSectionId) ? 1 : 0)
+            .ThenBy(layout => layout.Id, StringComparer.Ordinal))
+        {
+            yield return layout;
+        }
     }
 
     private void RenderPageTemplate(W.Body body, TemplatePageLayout layout)
@@ -149,16 +167,16 @@ public sealed class BodyRenderer
         }
     }
 
-    private IEnumerable<OpenXmlElement> RenderBlock(BlockNode block)
+    private IEnumerable<OpenXmlElement> RenderBlock(BlockNode block, int blockIndex)
     {
         switch (block)
         {
             case ParagraphBlock paragraph:
-                yield return ApplyCurrentSectionOverrides(_paragraphRenderer.CreateParagraph(paragraph));
+                yield return ApplyBlockOverrides(ApplyCurrentSectionOverrides(_paragraphRenderer.CreateParagraph(paragraph)), blockIndex);
                 break;
             case HeadingBlock heading:
                 _equationRenderer.NotifyHeading(heading);
-                yield return ApplyCurrentSectionOverrides(_headingRenderer.CreateHeading(heading));
+                yield return ApplyBlockOverrides(ApplyCurrentSectionOverrides(_headingRenderer.CreateHeading(heading)), blockIndex);
                 break;
             case ListBlock list:
                 foreach (var paragraph in RenderList(list))
@@ -190,6 +208,13 @@ public sealed class BodyRenderer
                 break;
             case EquationBlock equation:
                 foreach (var element in _equationRenderer.Render(equation))
+                {
+                    yield return element;
+                }
+
+                break;
+            case PreservedObjectBlock preserved:
+                foreach (var element in _preservedObjectRenderer.Render(preserved))
                 {
                     yield return element;
                 }
@@ -292,6 +317,31 @@ public sealed class BodyRenderer
         return paragraph;
     }
 
+    private W.Paragraph ApplyTitleOverrides(W.Paragraph paragraph)
+    {
+        if (_currentSectionOverride is null)
+        {
+            return paragraph;
+        }
+
+        ApplyParagraphOverride(paragraph, _currentSectionOverride.TitleParagraph);
+        ApplyDefaultFontOverride(paragraph, _currentSectionOverride.TitleFont);
+        return paragraph;
+    }
+
+    private W.Paragraph ApplyBlockOverrides(W.Paragraph paragraph, int blockIndex)
+    {
+        if (_currentSectionOverride?.BlockOverrides is null
+            || !_currentSectionOverride.BlockOverrides.TryGetValue(blockIndex, out var blockOverride))
+        {
+            return paragraph;
+        }
+
+        ApplyParagraphOverride(paragraph, blockOverride.Paragraph);
+        ApplyDefaultFontOverride(paragraph, blockOverride.Font);
+        return paragraph;
+    }
+
     private static bool CanApplySectionDirectFormatting(W.Paragraph paragraph)
     {
         var styleId = paragraph.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
@@ -308,10 +358,12 @@ public sealed class BodyRenderer
 
         var merged = DocumentOverridesFormatMerger.MergeParagraph(_format.BodyParagraph, overrideSpec);
         paragraph.ParagraphProperties ??= new W.ParagraphProperties();
+        var outlineLevel = (W.OutlineLevel?)paragraph.ParagraphProperties.GetFirstChild<W.OutlineLevel>()?.CloneNode(true);
         paragraph.ParagraphProperties.RemoveAllChildren<W.WidowControl>();
         paragraph.ParagraphProperties.RemoveAllChildren<W.SpacingBetweenLines>();
         paragraph.ParagraphProperties.RemoveAllChildren<W.Indentation>();
         paragraph.ParagraphProperties.RemoveAllChildren<W.Justification>();
+        paragraph.ParagraphProperties.RemoveAllChildren<W.OutlineLevel>();
 
         paragraph.ParagraphProperties.AppendChild(StyleBuilder.CreateSpacing(merged));
 
@@ -333,6 +385,10 @@ public sealed class BodyRenderer
         }
 
         paragraph.ParagraphProperties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(merged.Alignment) });
+        if (outlineLevel is not null)
+        {
+            paragraph.ParagraphProperties.AppendChild(outlineLevel);
+        }
     }
 
     private void ApplyDefaultFontOverride(W.Paragraph paragraph, FontOverrideSpec? overrideSpec)
@@ -362,31 +418,26 @@ public sealed class BodyRenderer
             runProperties.RemoveAllChildren<W.RunFonts>();
             runProperties.RemoveAllChildren<W.FontSize>();
             runProperties.RemoveAllChildren<W.FontSizeComplexScript>();
+            runProperties.RemoveAllChildren<W.Bold>();
+            runProperties.RemoveAllChildren<W.BoldComplexScript>();
+            runProperties.RemoveAllChildren<W.Italic>();
+            runProperties.RemoveAllChildren<W.ItalicComplexScript>();
             runProperties.InsertAt(StyleBuilder.CreateRunFonts(merged), 0);
+
+            if (merged.Bold)
+            {
+                runProperties.AppendChild(new W.Bold());
+                runProperties.AppendChild(new W.BoldComplexScript());
+            }
+
+            if (merged.Italic)
+            {
+                runProperties.AppendChild(new W.Italic());
+                runProperties.AppendChild(new W.ItalicComplexScript());
+            }
+
             runProperties.AppendChild(new W.FontSize { Val = UnitConverter.PointsToHalfPoints(merged.SizePt).ToString() });
             runProperties.AppendChild(new W.FontSizeComplexScript { Val = UnitConverter.PointsToHalfPoints(merged.SizePt).ToString() });
-
-            if (overrideSpec.Bold.HasValue)
-            {
-                runProperties.RemoveAllChildren<W.Bold>();
-                runProperties.RemoveAllChildren<W.BoldComplexScript>();
-                if (overrideSpec.Bold.Value)
-                {
-                    runProperties.AppendChild(new W.Bold());
-                    runProperties.AppendChild(new W.BoldComplexScript());
-                }
-            }
-
-            if (overrideSpec.Italic.HasValue)
-            {
-                runProperties.RemoveAllChildren<W.Italic>();
-                runProperties.RemoveAllChildren<W.ItalicComplexScript>();
-                if (overrideSpec.Italic.Value)
-                {
-                    runProperties.AppendChild(new W.Italic());
-                    runProperties.AppendChild(new W.ItalicComplexScript());
-                }
-            }
         }
     }
 }

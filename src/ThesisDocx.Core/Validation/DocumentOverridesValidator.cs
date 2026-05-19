@@ -107,8 +107,27 @@ public sealed partial class DocumentOverridesValidator
             }
 
             ValidateSectionFormat(instance, path, diagnostics);
+            ValidateFont(instance.TitleFont, $"{path}.titleFont", diagnostics);
+            ValidateParagraph(instance.TitleParagraph, $"{path}.titleParagraph", diagnostics);
             ValidateFont(instance.DefaultFont, $"{path}.defaultFont", diagnostics);
             ValidateParagraph(instance.Paragraph, $"{path}.paragraph", diagnostics);
+            ValidateBlockOverrides(instance.BlockOverrides, $"{path}.blockOverrides", diagnostics);
+        }
+    }
+
+    private static void ValidateBlockOverrides(Dictionary<int, BlockFormatOverrideSpec>? blocks, string path, List<UnifiedDiagnostic> diagnostics)
+    {
+        if (blocks is null)
+        {
+            return;
+        }
+
+        foreach (var (index, block) in blocks)
+        {
+            var blockPath = $"{path}.{index}";
+            CheckRange(index, 0, 9999, blockPath, "overrides.block.index.range", "Block override index must be non-negative.", diagnostics);
+            ValidateFont(block.Font, $"{blockPath}.font", diagnostics);
+            ValidateParagraph(block.Paragraph, $"{blockPath}.paragraph", diagnostics);
         }
     }
 

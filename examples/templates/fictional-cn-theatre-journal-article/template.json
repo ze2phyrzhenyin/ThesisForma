@@ -1,0 +1,243 @@
+{
+  "templateSchemaVersion": "1.0.0",
+  "id": "fictional-cn-theatre-journal-article",
+  "name": "Fictional CN Theatre Journal Article",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "Fictional Chinese theatre-studies journal article template inspired by common academic article front matter. It is not a verified template for any real journal.",
+  "school": "Fictional Academic Press",
+  "college": "Fictional Theatre Studies Journal",
+  "degreeType": "journalArticle",
+  "tags": ["example", "journal-article", "theatre-studies", "zh-CN"],
+  "formatSpecRef": "format-spec.json",
+  "documentOverrides": {
+    "sectionInstances": {
+      "article-body": {
+        "blockOverrides": {
+          "0": {
+            "paragraph": {
+              "lineSpacingMultiple": 1.15,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 4,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "both",
+              "widowControl": true
+            }
+          },
+          "1": {
+            "paragraph": {
+              "lineSpacingMultiple": 1.15,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 4,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "both",
+              "widowControl": true
+            }
+          },
+          "2": {
+            "paragraph": {
+              "lineSpacingMultiple": 1.15,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 4,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "left",
+              "widowControl": true
+            }
+          },
+          "3": {
+            "paragraph": {
+              "lineSpacingMultiple": 1.15,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 6,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "left",
+              "widowControl": true
+            }
+          },
+          "4": {
+            "font": {
+              "eastAsia": "宋体",
+              "latin": "Times New Roman",
+              "sizePt": 9.5,
+              "bold": false,
+              "italic": false
+            },
+            "paragraph": {
+              "lineSpacingMultiple": 1.0,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 4,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "both",
+              "widowControl": true
+            }
+          },
+          "5": {
+            "font": {
+              "eastAsia": "宋体",
+              "latin": "Times New Roman",
+              "sizePt": 9.5,
+              "bold": false,
+              "italic": false
+            },
+            "paragraph": {
+              "lineSpacingMultiple": 1.0,
+              "spaceBeforePt": 0,
+              "spaceAfterPt": 8,
+              "firstLineIndentChars": 0,
+              "hangingIndentCm": 0,
+              "alignment": "both",
+              "widowControl": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "variables": [
+    {
+      "name": "journalName",
+      "label": "Journal Name",
+      "type": "string",
+      "required": false,
+      "defaultValue": "中文戏剧研究辑刊",
+      "description": "Fictional journal name rendered in the article heading.",
+      "displayOrder": 1
+    },
+    {
+      "name": "issueLabel",
+      "label": "Issue Label",
+      "type": "string",
+      "required": false,
+      "defaultValue": "2026年第1期",
+      "description": "Issue marker rendered below the author line.",
+      "displayOrder": 2
+    }
+  ],
+  "assets": [],
+  "pageTemplates": [
+    {
+      "id": "article-title-block",
+      "targetSectionType": "body",
+      "targetSectionId": "article-body",
+      "insertPosition": "beforeSection",
+      "pageSetupOverride": {
+        "paperSize": "a4",
+        "orientation": "portrait",
+        "topMarginCm": 2.3,
+        "bottomMarginCm": 2.1,
+        "leftMarginCm": 2.6,
+        "rightMarginCm": 2.4,
+        "gutterCm": 0,
+        "headerDistanceCm": 1.2,
+        "footerDistanceCm": 1.4,
+        "columns": 1
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "value": "{{metadata.title}}",
+          "style": "ThesisTocTitle",
+          "alignment": "center",
+          "spacingBeforePt": 6,
+          "spacingAfterPt": 6,
+          "fontOverride": {
+            "eastAsia": "黑体",
+            "latin": "Times New Roman",
+            "sizePt": 18,
+            "bold": true,
+            "italic": false
+          }
+        },
+        {
+          "type": "text",
+          "value": "{{metadata.subtitle}}",
+          "style": "ThesisBody",
+          "alignment": "center",
+          "skipWhenEmpty": true,
+          "spacingAfterPt": 4,
+          "fontOverride": {
+            "eastAsia": "楷体",
+            "latin": "Times New Roman",
+            "sizePt": 12,
+            "bold": false,
+            "italic": false
+          }
+        },
+        {
+          "type": "text",
+          "value": "{{metadata.author}}",
+          "style": "ThesisBody",
+          "alignment": "center",
+          "spacingAfterPt": 3,
+          "fontOverride": {
+            "eastAsia": "宋体",
+            "latin": "Times New Roman",
+            "sizePt": 12,
+            "bold": false,
+            "italic": false
+          }
+        },
+        {
+          "type": "text",
+          "value": "{{variables.journalName}} · {{variables.issueLabel}}",
+          "style": "ThesisBody",
+          "alignment": "center",
+          "spacingAfterPt": 8,
+          "fontOverride": {
+            "eastAsia": "宋体",
+            "latin": "Times New Roman",
+            "sizePt": 9.5,
+            "bold": false,
+            "italic": false
+          }
+        },
+        {
+          "type": "rule",
+          "thicknessPt": 0.75,
+          "color": "666666",
+          "alignment": "center",
+          "spacingBeforePt": 0,
+          "spacingAfterPt": 8
+        }
+      ]
+    }
+  ],
+  "complianceRules": [
+    {
+      "id": "article-title-author",
+      "description": "Article front matter renders title, optional subtitle, author, fictional journal name, issue marker, and a separator rule before the first body section.",
+      "severity": "info"
+    },
+    {
+      "id": "article-body-scaffold",
+      "description": "Use a single body section, preferably id article-body, with opening blocks for abstract, keywords, classification/document code, article number, author bio, and project note.",
+      "severity": "warning"
+    },
+    {
+      "id": "article-body-indent",
+      "description": "Ordinary body paragraphs use two-character first-line indentation; abstract, keywords, classification/document code, article number, author bio, and project note are not indented.",
+      "severity": "warning"
+    },
+    {
+      "id": "article-section-heading",
+      "description": "Primary section headings are unnumbered heading blocks with the Chinese section label written in text, for example 一、标题; they render centered in bold HeiTi.",
+      "severity": "warning"
+    },
+    {
+      "id": "article-reference-style",
+      "description": "In-text citations use bracketed sequence labels only, such as [1], and target bibliography ids. Body text should not add citation author names or years around the marker.",
+      "severity": "warning"
+    }
+  ],
+  "notes": [
+    "Fictional example only; it does not claim compliance with any real journal.",
+    "Use scaffold-document.json as the article-content starting point.",
+    "Current heading numbering is decimal-only; write Chinese section numbers such as 一、 directly in unnumbered heading text when needed.",
+    "Citation displayText is explicit; keep [n] labels synchronized with bibliography entry order during authoring."
+  ]
+}

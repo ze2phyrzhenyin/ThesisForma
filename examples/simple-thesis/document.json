@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.2.0",
   "metadata": {
     "title": "基于结构化规则的毕业论文格式渲染研究",
     "subtitle": "OpenXML 确定性生成示例",
@@ -177,7 +177,20 @@
           "imageContentType": "image/png",
           "imageDataBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
           "widthCm": 4,
-          "heightCm": 2.4
+          "heightCm": 2.4,
+          "crop": {
+            "leftPercent": 0,
+            "topPercent": 0,
+            "rightPercent": 0,
+            "bottomPercent": 0
+          }
+        },
+        {
+          "type": "preservedObject",
+          "objectType": "textBox",
+          "preservationMode": "extractText",
+          "extractedText": "文本框提取文字示例",
+          "evidencePath": "paragraphs[0]"
         },
         {
           "type": "paragraph",

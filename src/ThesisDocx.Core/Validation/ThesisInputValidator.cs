@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.Rendering;
 using ThesisDocx.Core.Versioning;
@@ -7,6 +9,7 @@ namespace ThesisDocx.Core.Validation;
 public sealed class ThesisInputValidator
 {
     private const int MaxInlineImageBytes = 8 * 1024 * 1024;
+    private const int MaxPreservedObjectPartBytes = 8 * 1024 * 1024;
 
     private static readonly HashSet<string> SupportedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -91,6 +94,7 @@ public sealed class ThesisInputValidator
             }
         }
 
+        ValidateBodyTextCount(document, format.Validation.BodyTextCount, result);
         return result;
     }
 
@@ -142,6 +146,12 @@ public sealed class ThesisInputValidator
         ValidateNoteFormat(format.Notes.Footnote, "$.notes.footnote", result);
         ValidateNoteFormat(format.Notes.Endnote, "$.notes.endnote", result);
         ValidateParagraph(format.Bibliography.EntryParagraph, "$.bibliography.entryParagraph", result);
+        if (format.Bibliography.EntryFont is not null)
+        {
+            ValidateFont(format.Bibliography.EntryFont, "$.bibliography.entryFont", result);
+        }
+
+        ValidateTextCountSpec(format.Validation.BodyTextCount, "$.validation.bodyTextCount", result);
 
         if (format.Equations.FontSizePt <= 0)
         {
@@ -161,6 +171,38 @@ public sealed class ThesisInputValidator
 
         ValidateFont(note.Font, $"{path}.font", result);
         ValidateParagraph(note.Paragraph, $"{path}.paragraph", result);
+        if (note.StartNumber < 1)
+        {
+            result.Add("format.note.startNumber.invalid", $"{path}.startNumber", "Note startNumber must be at least 1.");
+        }
+    }
+
+    private static void ValidateTextCountSpec(TextCountValidationSpec? spec, string path, ThesisInputValidationResult result)
+    {
+        if (spec is null)
+        {
+            return;
+        }
+
+        if (spec.Min is < 0)
+        {
+            result.Add("format.textCount.min.negative", $"{path}.min", "Text count minimum must be non-negative.");
+        }
+
+        if (spec.Max is < 0)
+        {
+            result.Add("format.textCount.max.negative", $"{path}.max", "Text count maximum must be non-negative.");
+        }
+
+        if (spec.Min.HasValue && spec.Max.HasValue && spec.Min.Value > spec.Max.Value)
+        {
+            result.Add("format.textCount.range.invalid", path, "Text count minimum must not exceed maximum.");
+        }
+
+        if (spec.SectionKinds.Count == 0)
+        {
+            result.Add("format.textCount.sectionKinds.empty", $"{path}.sectionKinds", "Text count validation requires at least one section kind.");
+        }
     }
 
     private static void ValidatePageSetup(PageSetupSpec pageSetup, string path, ThesisInputValidationResult result)
@@ -354,6 +396,9 @@ public sealed class ThesisInputValidator
 
                 ValidateEquation(equation, path, format, result);
                 break;
+            case PreservedObjectBlock preserved:
+                ValidatePreservedObject(preserved, path, result);
+                break;
             case BibliographyBlock bibliography:
                 for (var i = 0; i < bibliography.Entries.Count; i++)
                 {
@@ -369,6 +414,7 @@ public sealed class ThesisInputValidator
                     }
                 }
 
+                ValidateBibliographySort(bibliography, path, format.Bibliography.SortOrder, result);
                 break;
             case FootnoteBlock footnote:
                 AddUnique(footnoteIds, footnote.NoteId, $"{path}.noteId", "duplicate.footnoteId", result);
@@ -451,6 +497,38 @@ public sealed class ThesisInputValidator
         {
             ValidateImageDataBase64(figure.ImageDataBase64, $"{path}.imageDataBase64", result);
         }
+
+        ValidateFigureCrop(figure.Crop, $"{path}.crop", result);
+    }
+
+    private static void ValidateFigureCrop(FigureCropSpec? crop, string path, ThesisInputValidationResult result)
+    {
+        if (crop is null)
+        {
+            return;
+        }
+
+        ValidateCropPercent(crop.LeftPercent, $"{path}.leftPercent", result);
+        ValidateCropPercent(crop.TopPercent, $"{path}.topPercent", result);
+        ValidateCropPercent(crop.RightPercent, $"{path}.rightPercent", result);
+        ValidateCropPercent(crop.BottomPercent, $"{path}.bottomPercent", result);
+        if ((crop.LeftPercent ?? 0) + (crop.RightPercent ?? 0) >= 100)
+        {
+            result.Add("figure.crop.horizontal.invalid", path, "Figure crop leftPercent + rightPercent must be less than 100.");
+        }
+
+        if ((crop.TopPercent ?? 0) + (crop.BottomPercent ?? 0) >= 100)
+        {
+            result.Add("figure.crop.vertical.invalid", path, "Figure crop topPercent + bottomPercent must be less than 100.");
+        }
+    }
+
+    private static void ValidateCropPercent(double? value, string path, ThesisInputValidationResult result)
+    {
+        if (value is < 0 or > 100)
+        {
+            result.Add("figure.crop.percent.invalid", path, "Figure crop percent values must be between 0 and 100.");
+        }
     }
 
     private static void ValidateImageDataBase64(string value, string path, ThesisInputValidationResult result)
@@ -512,6 +590,9 @@ public sealed class ThesisInputValidator
             case ParagraphBlock:
             case HeadingBlock:
             case QuoteBlock:
+            case FigureBlock:
+            case TableBlock:
+            case PreservedObjectBlock:
             case FootnoteBlock:
             case EndnoteBlock:
                 return;
@@ -526,7 +607,7 @@ public sealed class ThesisInputValidator
 
                 return;
             default:
-                result.Add("table.cellBlock.unsupported", path, "Table cell blocks support paragraph, heading, quote, list, footnote, and endnote blocks only.");
+                result.Add("table.cellBlock.unsupported", path, "Table cell blocks support paragraph, heading, quote, figure, table, preservedObject, list, footnote, and endnote blocks only.");
                 return;
         }
     }
@@ -594,6 +675,110 @@ public sealed class ThesisInputValidator
                 result.Add("equation.numbering.invalidRestartLevel", $"{path}.numbering.restartByHeadingLevel", "restartByHeadingLevel must be between 1 and 6.");
             }
         }
+    }
+
+    private static void ValidatePreservedObject(PreservedObjectBlock preserved, string path, ThesisInputValidationResult result)
+    {
+        if (!Enum.IsDefined(preserved.ObjectType))
+        {
+            result.Add("preservedObject.objectType.invalid", $"{path}.objectType", "Preserved object type is not supported.");
+        }
+
+        if (!Enum.IsDefined(preserved.PreservationMode))
+        {
+            result.Add("preservedObject.preservationMode.invalid", $"{path}.preservationMode", "Preserved object mode is not supported.");
+        }
+
+        if (preserved.WidthCm is < 0)
+        {
+            result.Add("preservedObject.width.negative", $"{path}.widthCm", "Preserved object widthCm must be non-negative.");
+        }
+
+        if (preserved.HeightCm is < 0)
+        {
+            result.Add("preservedObject.height.negative", $"{path}.heightCm", "Preserved object heightCm must be non-negative.");
+        }
+
+        if (preserved.PreservationMode == PreservedObjectMode.ExtractText && string.IsNullOrWhiteSpace(preserved.ExtractedText))
+        {
+            result.Add("preservedObject.extractedText.missing", $"{path}.extractedText", "ExtractText preserved objects require extractedText.");
+        }
+
+        if (preserved.PreservationMode == PreservedObjectMode.Passthrough)
+        {
+            var rootPartRelationshipIds = preserved.Parts.Select(part => part.RelationshipId).ToHashSet(StringComparer.Ordinal);
+            var missingRootParts = preserved.RelationshipIds.Where(id => !rootPartRelationshipIds.Contains(id)).ToList();
+            if (missingRootParts.Count > 0)
+            {
+                result.Add("preservedObject.passthrough.partGraphMissing", $"{path}.parts", $"Passthrough object is missing preserved part payloads for relationship ids: {string.Join(", ", missingRootParts)}.");
+            }
+
+            Merge(result, PreservedObjectSafetyValidator.Validate(preserved.RawXml, $"{path}.rawXml", allowRelationshipReferences: preserved.Parts.Count > 0));
+        }
+        else if (!string.IsNullOrWhiteSpace(preserved.RawXml))
+        {
+            var safety = PreservedObjectSafetyValidator.Validate(preserved.RawXml, $"{path}.rawXml", allowRelationshipReferences: true);
+            result.Warnings.AddRange(safety.Errors);
+            result.Warnings.AddRange(safety.Warnings);
+        }
+
+        for (var i = 0; i < preserved.Parts.Count; i++)
+        {
+            ValidatePreservedObjectPart(preserved.Parts[i], $"{path}.parts[{i}]", result);
+        }
+    }
+
+    private static void ValidatePreservedObjectPart(PreservedObjectPart part, string path, ThesisInputValidationResult result)
+    {
+        if (string.IsNullOrWhiteSpace(part.RelationshipId))
+        {
+            result.Add("preservedObject.part.relationshipId.missing", $"{path}.relationshipId", "Preserved object part relationshipId is required.");
+        }
+
+        if (!IsAllowedPreservedPart(part.RelationshipType, part.ContentType))
+        {
+            result.Add("preservedObject.part.relationshipType.unsupported", $"{path}.relationshipType", $"Preserved object part relationship type '{part.RelationshipType}' is not supported.");
+        }
+
+        var estimatedBytes = part.DataBase64.Length * 3 / 4;
+        if (estimatedBytes > MaxPreservedObjectPartBytes)
+        {
+            result.Add("preservedObject.part.tooLarge", $"{path}.dataBase64", $"Preserved object part exceeds {MaxPreservedObjectPartBytes} bytes.");
+        }
+        else
+        {
+            var buffer = new byte[Math.Max(estimatedBytes, 1)];
+            if (!Convert.TryFromBase64String(part.DataBase64, buffer, out _))
+            {
+                result.Add("preservedObject.part.base64.invalid", $"{path}.dataBase64", "Preserved object part dataBase64 must be valid base64.");
+            }
+        }
+
+        for (var i = 0; i < part.Children.Count; i++)
+        {
+            ValidatePreservedObjectPart(part.Children[i], $"{path}.children[{i}]", result);
+        }
+    }
+
+    private static bool IsAllowedPreservedPart(string relationshipType, string contentType)
+    {
+        if (relationshipType.EndsWith("/image", StringComparison.OrdinalIgnoreCase)
+            && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return relationshipType is
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartUserShapes" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/themeOverride" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramColors" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramLayout" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramQuickStyle" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramDrawing" or
+            "http://schemas.microsoft.com/office/2011/relationships/chartStyle" or
+            "http://schemas.microsoft.com/office/2011/relationships/chartColorStyle";
     }
 
     private static void ValidateTable(TableBlock table, string path, ThesisInputValidationResult result)
@@ -701,6 +886,73 @@ public sealed class ThesisInputValidator
         }
     }
 
+    private static void ValidateBibliographySort(BibliographyBlock bibliography, string path, BibliographySortOrder sortOrder, ThesisInputValidationResult result)
+    {
+        if (sortOrder == BibliographySortOrder.DocumentOrder || bibliography.Entries.Count < 2)
+        {
+            return;
+        }
+
+        var years = bibliography.Entries
+            .Select((entry, index) => (Index: index, Year: ExtractPublicationYear(entry.Text)))
+            .ToList();
+        foreach (var item in years.Where(item => item.Year is null))
+        {
+            result.AddWarning("bibliography.sort.yearMissing", $"{path}.entries[{item.Index}].text", "Bibliography sort order is configured by year, but no publication year was found in this entry.");
+        }
+
+        var comparableYears = years.Where(item => item.Year.HasValue).Select(item => (item.Index, Year: item.Year!.Value)).ToList();
+        if (sortOrder == BibliographySortOrder.Chronological)
+        {
+            var ascending = IsYearOrdered(comparableYears, descending: false);
+            var descending = IsYearOrdered(comparableYears, descending: true);
+            if (!ascending && !descending)
+            {
+                result.Add(
+                    "bibliography.sort.yearOrder",
+                    path,
+                    "Bibliography entries violate configured chronological year order.");
+            }
+
+            return;
+        }
+
+        for (var i = 1; i < comparableYears.Count; i++)
+        {
+            var previous = comparableYears[i - 1];
+            var current = comparableYears[i];
+            var outOfOrder = sortOrder == BibliographySortOrder.YearAscending
+                ? current.Year < previous.Year
+                : current.Year > previous.Year;
+            if (outOfOrder)
+            {
+                result.Add(
+                    "bibliography.sort.yearOrder",
+                    $"{path}.entries[{current.Index}].text",
+                    $"Bibliography entry year {current.Year} violates configured {sortOrder} order after {previous.Year}.");
+            }
+        }
+    }
+
+    private static bool IsYearOrdered(IReadOnlyList<(int Index, int Year)> years, bool descending)
+    {
+        for (var i = 1; i < years.Count; i++)
+        {
+            if (descending ? years[i].Year > years[i - 1].Year : years[i].Year < years[i - 1].Year)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static int? ExtractPublicationYear(string text)
+    {
+        var match = Regex.Match(text, @"(?<!\d)(1[5-9]\d{2}|20\d{2}|21\d{2})(?!\d)", RegexOptions.CultureInvariant);
+        return match.Success && int.TryParse(match.Value, out var year) ? year : null;
+    }
+
     private static void ValidateTableWidth(TableWidthSpec? width, string path, ThesisInputValidationResult result)
     {
         if (width is null)
@@ -794,6 +1046,41 @@ public sealed class ThesisInputValidator
         target.Warnings.AddRange(source.Warnings);
     }
 
+    private static void ValidateBodyTextCount(ThesisDocument document, TextCountValidationSpec? spec, ThesisInputValidationResult result)
+    {
+        if (spec is null)
+        {
+            return;
+        }
+
+        var sectionKinds = spec.SectionKinds.ToHashSet();
+        var text = string.Concat(document.Sections
+            .Where(section => sectionKinds.Contains(section.Kind))
+            .SelectMany(section => section.Blocks)
+            .Select(BlockPlainText));
+        var count = CountText(text, spec.Unit);
+
+        if (spec.Min.HasValue && count < spec.Min.Value)
+        {
+            result.Add("textCount.body.tooShort", "$.sections", $"Body text count {count} is below configured minimum {spec.Min.Value}.");
+        }
+
+        if (spec.Max.HasValue && count > spec.Max.Value)
+        {
+            result.Add("textCount.body.tooLong", "$.sections", $"Body text count {count} exceeds configured maximum {spec.Max.Value}.");
+        }
+    }
+
+    private static int CountText(string text, TextCountUnit unit)
+    {
+        return unit switch
+        {
+            TextCountUnit.Words => Regex.Matches(text, @"[\p{L}\p{N}]+", RegexOptions.CultureInvariant).Count,
+            TextCountUnit.UnicodeTextElements => new StringInfo(text).LengthInTextElements,
+            _ => text.Count(ch => !char.IsWhiteSpace(ch))
+        };
+    }
+
     private static void ValidateNoteContent(IReadOnlyList<InlineNode> inlines, string path, string kind, ThesisInputValidationResult result)
     {
         if (string.IsNullOrWhiteSpace(PlainText(inlines)))
@@ -815,6 +1102,24 @@ public sealed class ThesisInputValidator
             EndnoteInline endnote => PlainText(endnote.Inlines),
             _ => string.Empty
         }));
+    }
+
+    private static string BlockPlainText(BlockNode block)
+    {
+        return block switch
+        {
+            ParagraphBlock paragraph => PlainText(paragraph.Inlines),
+            HeadingBlock heading => PlainText(heading.Inlines),
+            ListBlock list => string.Concat(list.Items.SelectMany(item => item.Blocks).Select(BlockPlainText)),
+            TableBlock table => string.Concat(table.Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Blocks).Select(BlockPlainText)),
+            QuoteBlock quote => PlainText(quote.Inlines),
+            BibliographyBlock bibliography => string.Concat(bibliography.Entries.Select(entry => entry.Text)),
+            FootnoteBlock footnote => PlainText(footnote.Inlines),
+            EndnoteBlock endnote => PlainText(endnote.Inlines),
+            EquationBlock equation => equation.PlainText ?? equation.Placeholder ?? string.Empty,
+            PreservedObjectBlock preserved => preserved.ExtractedText ?? string.Empty,
+            _ => string.Empty
+        };
     }
 
     private static void AddUnique(Dictionary<string, string> values, string id, string path, string code, ThesisInputValidationResult result)

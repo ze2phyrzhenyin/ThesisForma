@@ -196,9 +196,9 @@ public sealed class TableRenderer
         {
             foreach (var block in cell.Blocks)
             {
-                foreach (var paragraph in CreateCellParagraphs(block, cell, isHeader))
+                foreach (var element in CreateCellElements(block, cell, isHeader))
                 {
-                    tableCell.AppendChild(paragraph);
+                    tableCell.AppendChild(element);
                 }
             }
         }
@@ -210,7 +210,7 @@ public sealed class TableRenderer
         return tableCell;
     }
 
-    private IEnumerable<W.Paragraph> CreateCellParagraphs(BlockNode block, TableCellNode cell, bool isHeader)
+    private IEnumerable<OpenXmlElement> CreateCellElements(BlockNode block, TableCellNode cell, bool isHeader)
     {
         switch (block)
         {
@@ -232,6 +232,34 @@ public sealed class TableRenderer
                 foreach (var paragraph in CreateListCellParagraphs(list, cell, isHeader))
                 {
                     yield return paragraph;
+                }
+
+                break;
+            case FigureBlock figure:
+                yield return ApplyCellParagraphFormatting(new FigureRenderer(_relationshipManager, _format, _captionRenderer).CreateFigureParagraph(figure), cell, isHeader);
+                break;
+            case TableBlock table:
+                var captionPosition = table.CaptionPosition ?? _format.Tables.Caption.Position;
+                if (captionPosition == CaptionPosition.Before)
+                {
+                    yield return ApplyCellParagraphFormatting(_captionRenderer.CreateTableCaption(table.Caption), cell, isHeader);
+                }
+
+                yield return CreateTable(table);
+
+                if (captionPosition == CaptionPosition.After)
+                {
+                    yield return ApplyCellParagraphFormatting(_captionRenderer.CreateTableCaption(table.Caption), cell, isHeader);
+                }
+
+                break;
+            case PreservedObjectBlock preserved:
+                foreach (var element in new PreservedObjectRenderer(_paragraphRenderer, _relationshipManager).Render(preserved))
+                {
+                    if (element is W.Paragraph paragraph)
+                    {
+                        yield return ApplyCellParagraphFormatting(paragraph, cell, isHeader);
+                    }
                 }
 
                 break;

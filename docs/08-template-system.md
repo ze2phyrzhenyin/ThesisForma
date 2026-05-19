@@ -19,6 +19,7 @@ A template package includes:
 - identity metadata: `id`, `name`, `version`, `locale`, `school`, `college`, `degreeType`, `tags`;
 - optional `extends`;
 - `formatSpec` or `formatSpecRef`;
+- optional `documentOverrides` for template-scoped title, paragraph, block, TOC, header/footer, and section-instance adjustments;
 - `variables`;
 - `assets`;
 - `pageTemplates`;
@@ -67,7 +68,9 @@ Assets must use relative paths. Image assets can be rendered in page templates. 
 
 ## Page Templates
 
-The page-template DSL remains bounded and deterministic. In addition to text, metadata fields, field tables, declaration text, images, spacers, and page breaks, templates can use `rule` blocks for cover/declaration separator lines. A rule renders as a normal paragraph bottom border, not as absolute positioning or raw document fragments.
+The page-template DSL remains bounded and deterministic. In addition to text, metadata fields, field tables, declaration text, images, spacers, and page breaks, templates can use `rule` blocks for cover/declaration separator lines and `handwritingArea` blocks for manual review/signature zones. A rule renders as a normal paragraph bottom border, not as absolute positioning or raw document fragments.
+
+Template-level `documentOverrides` are resolved into `DocxRenderContext` and applied during rendering. They are still declarative data, so a template can specialize an abstract title, keyword paragraph, or section header/footer without hardcoding an institution in renderer logic.
 
 ## CLI
 

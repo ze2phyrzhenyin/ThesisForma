@@ -1,29 +1,29 @@
 {
   "schemaVersion": "1.2.0",
-  "name": "example-university-humanities",
+  "name": "fictional-cn-theatre-journal-article",
   "pageSetup": {
     "paperSize": "a4",
     "orientation": "portrait",
-    "topMarginCm": 2.8,
-    "bottomMarginCm": 2.2,
-    "leftMarginCm": 3.1,
-    "rightMarginCm": 2.3,
+    "topMarginCm": 2.3,
+    "bottomMarginCm": 2.1,
+    "leftMarginCm": 2.6,
+    "rightMarginCm": 2.4,
     "gutterCm": 0.0,
     "headerDistanceCm": 1.2,
-    "footerDistanceCm": 1.6,
+    "footerDistanceCm": 1.4,
     "columns": 1
   },
   "defaultFont": {
-    "eastAsia": "仿宋",
+    "eastAsia": "宋体",
     "latin": "Times New Roman",
-    "sizePt": 12,
+    "sizePt": 10.5,
     "bold": false,
     "italic": false
   },
   "bodyParagraph": {
-    "lineSpacingMultiple": 1.25,
+    "lineSpacingMultiple": 1.15,
     "spaceBeforePt": 0,
-    "spaceAfterPt": 2,
+    "spaceAfterPt": 4,
     "firstLineIndentChars": 2,
     "hangingIndentCm": 0,
     "alignment": "both",
@@ -35,27 +35,29 @@
       "font": {
         "eastAsia": "黑体",
         "latin": "Times New Roman",
-        "sizePt": 15,
-        "bold": true
+        "sizePt": 12,
+        "bold": true,
+        "italic": false
       },
       "spaceBeforePt": 18,
       "spaceAfterPt": 10,
-      "numbered": true,
-      "pageBreakBefore": true,
+      "numbered": false,
+      "pageBreakBefore": false,
       "outlineLevel": 0,
       "alignment": "center"
     },
     "2": {
       "level": 2,
       "font": {
-        "eastAsia": "楷体",
+        "eastAsia": "黑体",
         "latin": "Times New Roman",
-        "sizePt": 14,
-        "bold": true
+        "sizePt": 11,
+        "bold": true,
+        "italic": false
       },
-      "spaceBeforePt": 10,
-      "spaceAfterPt": 6,
-      "numbered": true,
+      "spaceBeforePt": 8,
+      "spaceAfterPt": 4,
+      "numbered": false,
       "pageBreakBefore": false,
       "outlineLevel": 1,
       "alignment": "left"
@@ -63,60 +65,61 @@
     "3": {
       "level": 3,
       "font": {
-        "eastAsia": "仿宋",
+        "eastAsia": "宋体",
         "latin": "Times New Roman",
-        "sizePt": 12,
-        "bold": true
+        "sizePt": 10.5,
+        "bold": true,
+        "italic": false
       },
       "spaceBeforePt": 6,
-      "spaceAfterPt": 4,
-      "numbered": true,
+      "spaceAfterPt": 2,
+      "numbered": false,
       "pageBreakBefore": false,
       "outlineLevel": 2,
       "alignment": "left"
     }
   },
   "headerFooter": {
-    "headerText": "Example Humanities College Thesis",
-    "drawHeaderLine": false,
-    "headerAlignment": "right",
-    "pageNumberAlignment": "right",
-    "oddPageNumberAlignment": "right",
-    "evenPageNumberAlignment": "left",
-    "hidePageNumberOnCover": true,
+    "headerText": "中文戏剧研究辑刊",
+    "drawHeaderLine": true,
+    "headerAlignment": "center",
+    "pageNumberAlignment": "center",
+    "oddPageNumberAlignment": "center",
+    "evenPageNumberAlignment": "center",
+    "hidePageNumberOnCover": false,
     "differentFirstPage": false,
     "differentOddEven": false
   },
   "toc": {
-    "title": "目次",
+    "title": "目录",
     "minLevel": 1,
     "maxLevel": 2,
-    "useWordFieldCode": true
+    "useWordFieldCode": false
   },
   "tables": {
-    "widthPercent": 92,
-    "cellMarginCm": 0.12,
-    "useThreeLineTables": false,
-    "captionPosition": "below",
-    "defaultAlignment": "left",
+    "widthPercent": 100,
+    "cellMarginCm": 0.1,
+    "useThreeLineTables": true,
+    "captionPosition": "above",
+    "defaultAlignment": "center",
     "defaultWidth": {
       "type": "percent",
-      "value": 92
+      "value": 100
     },
     "defaultLayout": "autofit",
     "defaultCellMargins": {
-      "topCm": 0.12,
-      "bottomCm": 0.12,
-      "leftCm": 0.16,
-      "rightCm": 0.16
+      "topCm": 0.08,
+      "bottomCm": 0.08,
+      "leftCm": 0.1,
+      "rightCm": 0.1
     },
     "defaultBorders": {
       "top": { "style": "single", "size": 4, "color": "000000", "space": 0 },
       "bottom": { "style": "single", "size": 4, "color": "000000", "space": 0 },
       "left": { "style": "single", "size": 4, "color": "000000", "space": 0 },
       "right": { "style": "single", "size": 4, "color": "000000", "space": 0 },
-      "insideH": { "style": "dotted", "size": 2, "color": "666666", "space": 0 },
-      "insideV": { "style": "dotted", "size": 2, "color": "666666", "space": 0 }
+      "insideH": { "style": "single", "size": 4, "color": "000000", "space": 0 },
+      "insideV": { "style": "single", "size": 4, "color": "000000", "space": 0 }
     },
     "threeLineTableBorders": {
       "top": { "style": "single", "size": 10, "color": "000000", "space": 0 },
@@ -127,7 +130,7 @@
       "insideV": { "style": "nil", "size": 0, "color": "000000", "space": 0 }
     },
     "caption": {
-      "position": "after",
+      "position": "before",
       "style": "ThesisCaption",
       "numbering": true
     },
@@ -136,10 +139,10 @@
   },
   "equations": {
     "defaultAlignment": "center",
-    "fontSizePt": 12,
+    "fontSizePt": 10.5,
     "numbering": {
       "enabled": true,
-      "label": "公式",
+      "label": "式",
       "format": "({chapter}.{index})",
       "restartByHeadingLevel": 1,
       "position": "right"
@@ -156,7 +159,7 @@
       "font": {
         "eastAsia": "宋体",
         "latin": "Times New Roman",
-        "sizePt": 10.5,
+        "sizePt": 9,
         "bold": false,
         "italic": false
       },
@@ -170,8 +173,8 @@
         "widowControl": true
       },
       "superscriptReferenceMark": true,
-      "numberFormat": "decimal",
-      "numberingRestart": "continuous",
+      "numberFormat": "decimalEnclosedCircleChinese",
+      "numberingRestart": "eachPage",
       "startNumber": 1
     },
     "endnote": {
@@ -179,7 +182,7 @@
       "font": {
         "eastAsia": "宋体",
         "latin": "Times New Roman",
-        "sizePt": 10.5,
+        "sizePt": 9,
         "bold": false,
         "italic": false
       },
@@ -193,14 +196,14 @@
         "widowControl": true
       },
       "superscriptReferenceMark": true,
-      "numberFormat": "decimal",
+      "numberFormat": "decimalEnclosedCircleChinese",
       "numberingRestart": "continuous",
       "startNumber": 1
     }
   },
   "figures": {
-    "defaultWidthCm": 9,
-    "defaultHeightCm": 4.8,
+    "defaultWidthCm": 8,
+    "defaultHeightCm": 4.5,
     "center": true,
     "captionPosition": "below"
   },
@@ -216,7 +219,7 @@
     "entryFont": {
       "eastAsia": "宋体",
       "latin": "Times New Roman",
-      "sizePt": 10.5,
+      "sizePt": 9.5,
       "bold": false,
       "italic": false
     },
@@ -225,15 +228,15 @@
       "spaceBeforePt": 0,
       "spaceAfterPt": 2,
       "firstLineIndentChars": 0,
-      "hangingIndentCm": 0.85,
+      "hangingIndentCm": 0.74,
       "alignment": "both",
       "widowControl": true
     },
     "numberFormat": "[%1]",
-    "sortOrder": "yearAscending"
+    "sortOrder": "documentOrder"
   },
   "numbering": {
-    "headingLevel1Text": "第%1章",
+    "headingLevel1Text": "%1.",
     "headingLevel2Text": "%1.%2",
     "headingLevel3Text": "%1.%2.%3",
     "orderedListText": "%1.",
@@ -253,7 +256,7 @@
       "includeFooter": false
     },
     "frontMatter": {
-      "pageNumberStyle": "upperRoman",
+      "pageNumberStyle": "decimal",
       "restartPageNumbering": true,
       "startPageNumber": 1,
       "includeHeader": true,
@@ -268,13 +271,13 @@
     }
   },
   "coverPage": {
-    "fieldOrder": ["title", "author", "studentId", "college", "major", "advisor", "date"]
+    "fieldOrder": ["title", "author", "college", "major", "date"]
   },
   "validation": {
     "allowHeadingLevelSkips": false,
     "bodyTextCount": {
       "min": 1,
-      "max": 100000,
+      "max": 30000,
       "unit": "nonWhitespaceCharacters",
       "sectionKinds": ["body"]
     }

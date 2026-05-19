@@ -1,12 +1,12 @@
 # Structured Data Schema
 
-`ThesisDocument` represents content, not college formatting. The root object requires `schemaVersion`. The renderer and validators currently accept `1.0.0` and `1.1.0`.
+`ThesisDocument` represents content, not college formatting. The root object requires `schemaVersion`. The renderer and validators currently accept `1.0.0`, `1.1.0`, and `1.2.0`.
 
 Formal schemas live in `schemas/`. Generated reference docs live under `docs/generated/`; update them with `scripts/generate-schema-docs`.
 
 `SchemaVersionSupport` centralizes the supported-version declaration for backend services:
 
-- `ThesisDocument`: `1.0.0`, `1.1.0`
+- `ThesisDocument`: `1.0.0`, `1.1.0`, `1.2.0`
 - `ThesisFormatSpec`: `1.0.0`, `1.1.0`, `1.2.0`
 - `TemplatePackage`: `1.0.0`
 
@@ -14,7 +14,7 @@ Migration hooks exist as no-op interfaces for future versions. They do not autom
 
 ## Root
 
-- `schemaVersion`: `"1.0.0"` or `"1.1.0"`.
+- `schemaVersion`: `"1.0.0"`, `"1.1.0"`, or `"1.2.0"`.
 - `metadata`: title, subtitle, author, college, major, student id, advisor, date, language.
 - `sections`: ordered list of thesis sections.
 
@@ -30,6 +30,7 @@ Supported `kind` values:
 - `acknowledgements`
 - `bibliography`
 - `appendix`
+- `teacherComments`
 
 Each section has optional `id`, optional `title`, `startOnNewPage`, and `blocks`.
 
@@ -73,9 +74,25 @@ OMML is safety-checked before rendering. Unknown namespaces, `altChunk`, relatio
 - row `isHeader`, `cantSplit`, and `heightPt`;
 - cell `gridSpan`, `verticalMerge`, `width`, `alignment`, `verticalAlignment`, `shading`, `borders`, `cellMargins`, `font`, and `paragraph`.
 
-Cells may use `blocks` for a bounded nested subset: paragraph, heading, quote, list, footnote, and endnote. Semantic validation rejects unsupported cell block surfaces so the renderer does not produce invalid table XML.
+Cells may use `blocks` for a bounded nested subset: paragraph, heading, quote, figure, table, list, footnote, and endnote. Semantic validation rejects unsupported cell block surfaces so the renderer does not produce invalid table XML.
 
 Semantic validation checks logical column counts, vertical merge chains, vertical merge span consistency, header row ordering, gridSpan bounds, table widths, cell margins, border overrides, duplicate caption bookmarks, nested cell block support, and table reference targets.
+
+## Figures
+
+`figure.crop` optionally records source-rectangle crop percentages from the original image. The renderer emits the values as DrawingML `a:srcRect`; semantic validation requires each side to be between 0 and 100 and prevents horizontal or vertical crops from removing the full image.
+
+## Preserved Objects
+
+`preservedObject` represents source DOCX drawing objects that do not fit the normal thesis block model, such as text boxes, shapes, charts, SmartArt, or other drawings. It records `objectType`, `preservationMode`, optional `rawXml`, relationship ids, dimensions, extracted text, and the intake evidence path.
+
+`preservationMode` is explicit:
+
+- `reviewOnly` keeps the object as structured evidence and renders a review marker when no extracted text is available;
+- `extractText` renders the extracted text as a normal body paragraph;
+- `passthrough` writes relationship-free `w:drawing` or `w:pict` raw XML back into the DOCX after a namespace and attribute safety check.
+
+In `1.2.0`, `passthrough` can also carry a bounded `parts` graph for reviewed internal drawing relationships. The renderer recreates allowed image, chart, chart style, and SmartArt diagram parts with deterministic relationship ids, rewrites the raw XML relationship references, and rejects external or unsupported relationship types. External links, embedded workbooks, OLE objects, and macro/script-like surfaces remain out of scope and must stay `reviewOnly` or `extractText`.
 
 ## Inline Nodes
 
@@ -96,7 +113,7 @@ Inline nodes use `type`:
 See `examples/simple-thesis/document.json`.
 
 Formal validation is defined in `schemas/thesis-document.schema.json`. JSON Schema handles shape and scalar rules; `ThesisInputValidator` handles semantic rules such as duplicate ids, dangling references, bibliography keys, heading level jumps, empty paragraph warnings, image source existence, inline base64 image safety, note id/content validity, and format values that would produce invalid layout.
-For `1.1.0` it also validates equation source consistency, OMML safety, equation numbering formats, table grids, vertical merges, and advanced table references.
+For `1.1.0` it also validates equation source consistency, OMML safety, equation numbering formats, table grids, vertical merges, and advanced table references. For `1.2.0` it also validates preserved object part graphs before relationship-backed passthrough rendering.
 
 ## Template Interaction
 

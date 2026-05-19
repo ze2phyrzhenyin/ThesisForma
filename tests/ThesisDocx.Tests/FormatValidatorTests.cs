@@ -42,6 +42,28 @@ public sealed class FormatValidatorTests
     }
 
     [Fact]
+    public void FormatValidator_ShouldNotRequireTocFieldWhenFormatDisablesWordFieldCode()
+    {
+        var rendered = TestRenderHelper.RenderSimpleThesis();
+        var copy = CopyDocx(rendered.DocxPath);
+        using (var document = WordprocessingDocument.Open(copy, true))
+        {
+            foreach (var field in document.MainDocumentPart!.Document.Descendants<W.SimpleField>().Where(f => f.Instruction?.Value?.Contains("TOC", StringComparison.OrdinalIgnoreCase) == true).ToList())
+            {
+                field.Remove();
+            }
+
+            document.MainDocumentPart.Document.Save();
+        }
+
+        rendered.Format.Toc.UseWordFieldCode = false;
+
+        var result = new FormatConformanceValidator().Validate(copy, rendered.Format);
+
+        Assert.DoesNotContain(result.Errors, error => error.Code == "fields.toc.missing");
+    }
+
+    [Fact]
     public void FormatValidator_ShouldReportDetailedErrorForMissingFooterPageNumber()
     {
         var rendered = TestRenderHelper.RenderSimpleThesis();

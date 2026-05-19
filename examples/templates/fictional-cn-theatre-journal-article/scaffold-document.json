@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "1.2.0",
+  "metadata": {
+    "title": "中文戏剧研究论文题名示例",
+    "subtitle": "副标题可选",
+    "author": "作者姓名",
+    "college": "作者单位",
+    "major": "戏剧与影视学",
+    "studentId": "ARTICLE-0001",
+    "advisor": "责任编辑占位",
+    "date": "2026年5月",
+    "language": "zh-CN"
+  },
+  "sections": [
+    {
+      "id": "article-body",
+      "kind": "body",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "内容摘要：",
+              "bold": true
+            },
+            {
+              "type": "text",
+              "text": "这里填写200至300字摘要，直接概括文章核心问题、研究对象、主要论点和结论。"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "关键词：",
+              "bold": true
+            },
+            {
+              "type": "text",
+              "text": "关键词一；关键词二；关键词三"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "中图分类号：J80    文献标识码：A"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "文章编号：0000-0000-(2026)01-0001-12"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "作者简介：作者姓名，作者单位职称，主要研究领域为戏剧理论、剧场史或相关方向。"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "基金项目：本文为项目名称及编号的阶段性成果。"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "bookmarkName": "section-one",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "一、一级标题示例"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "这里填写正文段落。正文保持首行缩进，围绕材料、论证和文本分析展开。需要引用文献时直接使用编号"
+            },
+            {
+              "type": "citation",
+              "targetId": "ref-example-book",
+              "displayText": "[1]"
+            },
+            {
+              "type": "text",
+              "text": "。"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "bookmarkName": "section-two",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "二、一级标题示例"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "这里填写第二部分正文，也可以插入脚注、表格、图片、引文和参考文献引用"
+            },
+            {
+              "type": "citation",
+              "targetId": "ref-example-article",
+              "displayText": "[2]"
+            },
+            {
+              "type": "text",
+              "text": "。"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 1,
+          "numbered": false,
+          "bookmarkName": "conclusion",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "结语"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "inlines": [
+            {
+              "type": "text",
+              "text": "这里填写结语，总结文章论证并说明研究意义。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "refs",
+      "kind": "bibliography",
+      "title": "参考文献",
+      "blocks": [
+        {
+          "type": "bibliography",
+          "entries": [
+            {
+              "id": "ref-example-book",
+              "text": "Ian Brown, “Scottish Drama and Theatre,” in A Companion to Scottish Literature, ed. Gerard Carruthers (West Sussex: John Wiley & Sons, 2024), 286."
+            },
+            {
+              "id": "ref-example-article",
+              "text": "Paul Barnaby and Tom Hubbard, “The International Reception and Literary Impact of Scottish Literature of the Period 1314 until 1707,” in The Edinburgh Companion to Scottish Literature, vol. 1, From Columba to the Union, ed. Ian Brown (Edinburgh: Edinburgh UP, 2007), 166."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

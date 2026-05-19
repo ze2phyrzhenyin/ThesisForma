@@ -28,7 +28,7 @@ public sealed class StyleBuilder
             SpaceBeforePt = 3,
             SpaceAfterPt = 6
         }, StyleIds.Normal));
-        styles.AppendChild(CreateParagraphStyle(StyleIds.Bibliography, "Thesis Bibliography", format.DefaultFont, format.Bibliography.EntryParagraph, StyleIds.Normal));
+        styles.AppendChild(CreateParagraphStyle(StyleIds.Bibliography, "Thesis Bibliography", format.Bibliography.EntryFont ?? format.DefaultFont, format.Bibliography.EntryParagraph, StyleIds.Normal));
         AppendNoteStyle(styles, format.Notes.Footnote, StyleIds.FootnoteText, "Thesis Footnote Text");
         if (!string.Equals(NoteStyleId(format.Notes.Endnote, StyleIds.EndnoteText), NoteStyleId(format.Notes.Footnote, StyleIds.FootnoteText), StringComparison.Ordinal))
         {

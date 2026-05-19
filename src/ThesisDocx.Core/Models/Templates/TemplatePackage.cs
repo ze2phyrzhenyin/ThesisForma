@@ -31,6 +31,8 @@ public sealed class TemplatePackage
 
     public string? FormatSpecRef { get; set; }
 
+    public DocumentOverrides? DocumentOverrides { get; set; }
+
     public List<TemplateVariable> Variables { get; set; } = [];
 
     public List<TemplateAsset> Assets { get; set; } = [];

@@ -47,6 +47,11 @@ public static class UnitConverter
         return (long)Math.Round(centimeters / CmPerInch * EmuPerInch, MidpointRounding.AwayFromZero);
     }
 
+    public static double EmuToCentimeters(long emu)
+    {
+        return emu / EmuPerInch * CmPerInch;
+    }
+
     public static long InchesToEmu(double inches)
     {
         return (long)Math.Round(inches * EmuPerInch, MidpointRounding.AwayFromZero);

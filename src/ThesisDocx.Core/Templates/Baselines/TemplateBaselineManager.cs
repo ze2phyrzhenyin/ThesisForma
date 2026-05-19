@@ -339,7 +339,8 @@ public sealed class TemplateBaselineManager
             ResolvedFormatSpecVersion = resolution.FormatSpec?.SchemaVersion,
             PageTemplates = resolution.PageTemplates,
             Variables = resolution.Variables.Where(v => v.Value is not null).ToDictionary(v => v.Name, v => v.Value!, StringComparer.Ordinal),
-            Assets = resolution.Assets.ToDictionary(a => a.Id, StringComparer.Ordinal)
+            Assets = resolution.Assets.ToDictionary(a => a.Id, StringComparer.Ordinal),
+            Overrides = resolution.Template?.DocumentOverrides
         };
     }
 

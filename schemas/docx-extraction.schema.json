@@ -4,19 +4,20 @@
   "title": "DocxExtractionResult",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "inputFileName", "document", "plainText", "blocks", "paragraphs", "tables", "figures", "footnotes", "endnotes", "bookmarks", "hyperlinks", "fields", "styles", "numbering", "formatSignatures", "formatChaos", "formatClusters", "sections", "possibleHeadings", "possibleAbstract", "possibleKeywords", "possibleBibliography", "possibleCaptions", "possibleAppendix", "extractionIssues"],
+  "required": ["schemaVersion", "inputFileName", "document", "plainText", "blocks", "paragraphs", "tables", "figures", "drawingObjects", "footnotes", "endnotes", "bookmarks", "hyperlinks", "fields", "styles", "numbering", "formatSignatures", "formatChaos", "formatClusters", "sections", "possibleHeadings", "possibleAbstract", "possibleKeywords", "possibleBibliography", "possibleCaptions", "possibleAppendix", "extractionIssues"],
   "properties": {
     "schemaVersion": { "type": "string", "enum": ["1.0.0"] },
     "inputFileName": { "type": "string" },
     "document": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "paragraphCount", "tableCount", "figureCount", "footnoteCount", "endnoteCount"],
+      "required": ["id", "paragraphCount", "tableCount", "figureCount", "drawingObjectCount", "footnoteCount", "endnoteCount"],
       "properties": {
         "id": { "$ref": "#/definitions/id" },
         "paragraphCount": { "type": "integer", "minimum": 0 },
         "tableCount": { "type": "integer", "minimum": 0 },
         "figureCount": { "type": "integer", "minimum": 0 },
+        "drawingObjectCount": { "type": "integer", "minimum": 0 },
         "footnoteCount": { "type": "integer", "minimum": 0 },
         "endnoteCount": { "type": "integer", "minimum": 0 }
       }
@@ -26,6 +27,7 @@
     "paragraphs": { "type": "array", "items": { "$ref": "#/definitions/paragraph" } },
     "tables": { "type": "array", "items": { "$ref": "#/definitions/table" } },
     "figures": { "type": "array", "items": { "$ref": "#/definitions/figure" } },
+    "drawingObjects": { "type": "array", "items": { "$ref": "#/definitions/drawingObject" } },
     "footnotes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
     "endnotes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
     "bookmarks": { "type": "array", "items": { "$ref": "#/definitions/bookmark" } },
@@ -47,7 +49,7 @@
   },
   "definitions": {
     "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$" },
-    "evidencePath": { "type": "string", "pattern": "^(document|paragraphs\\[[0-9]+\\]|tables\\[[0-9]+\\](\\.rows\\[[0-9]+\\]\\.cells\\[[0-9]+\\])?|footnotes\\[[0-9]+\\]|endnotes\\[[0-9]+\\]|sections\\[[0-9]+\\])$" },
+    "evidencePath": { "type": "string", "pattern": "^(document|paragraphs\\[[0-9]+\\]|tables\\[[0-9]+\\](\\.rows\\[[0-9]+\\]\\.cells\\[[0-9]+\\](\\.nestedTables\\[[0-9]+\\])?)*|footnotes\\[[0-9]+\\]|endnotes\\[[0-9]+\\]|sections\\[[0-9]+\\])$" },
     "block": {
       "type": "object",
       "additionalProperties": false,
@@ -125,6 +127,12 @@
         "index": { "type": "integer", "minimum": 0 },
         "rows": { "type": "array", "items": { "$ref": "#/definitions/tableRow" } },
         "text": { "type": "string" },
+        "suggestedCaption": { "type": ["string", "null"] },
+        "captionEvidencePath": { "anyOf": [{ "$ref": "#/definitions/evidencePath" }, { "type": "null" }] },
+        "captionPosition": { "type": ["string", "null"], "enum": ["before", "after", null] },
+        "widthTwips": { "type": ["integer", "null"], "minimum": 0 },
+        "widthPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "alignment": { "type": ["string", "null"] },
         "borders": { "type": ["string", "null"] },
         "evidencePath": { "$ref": "#/definitions/evidencePath" }
       }
@@ -135,6 +143,9 @@
       "required": ["index", "cells"],
       "properties": {
         "index": { "type": "integer", "minimum": 0 },
+        "isHeader": { "type": "boolean" },
+        "cantSplit": { "type": ["boolean", "null"] },
+        "heightTwips": { "type": ["integer", "null"], "minimum": 0 },
         "cells": { "type": "array", "items": { "$ref": "#/definitions/tableCell" } }
       }
     },
@@ -148,7 +159,12 @@
         "text": { "type": "string" },
         "gridSpan": { "type": "integer", "minimum": 1 },
         "verticalMerge": { "type": ["string", "null"] },
+        "widthTwips": { "type": ["integer", "null"], "minimum": 0 },
+        "verticalAlignment": { "type": ["string", "null"] },
+        "shading": { "type": ["string", "null"] },
         "borders": { "type": ["string", "null"] },
+        "figureIds": { "type": "array", "items": { "$ref": "#/definitions/id" } },
+        "nestedTables": { "type": "array", "items": { "$ref": "#/definitions/table" } },
         "evidencePath": { "$ref": "#/definitions/evidencePath" }
       }
     },
@@ -162,9 +178,56 @@
         "relationshipId": { "type": ["string", "null"] },
         "contentType": { "type": ["string", "null"] },
         "artifactPath": { "type": ["string", "null"] },
+        "widthCm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "heightCm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "anchorType": { "type": ["string", "null"], "enum": ["inline", "anchor", null] },
+        "crop": { "anyOf": [{ "$ref": "#/definitions/figureCrop" }, { "type": "null" }] },
         "suggestedCaption": { "type": ["string", "null"] },
+        "captionEvidencePath": { "anyOf": [{ "$ref": "#/definitions/evidencePath" }, { "type": "null" }] },
         "nearbyText": { "type": "string" },
         "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "figureCrop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "leftPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "topPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "rightPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "bottomPercent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+      }
+    },
+    "drawingObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "index", "objectType", "relationshipIds", "text", "evidencePath"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "index": { "type": "integer", "minimum": 0 },
+        "objectType": { "type": "string", "enum": ["chart", "smartArt", "shape", "textBox", "picture", "drawing"] },
+        "relationshipId": { "type": ["string", "null"] },
+        "relationshipIds": { "type": "array", "items": { "type": "string" } },
+        "parts": { "type": "array", "items": { "$ref": "#/definitions/preservedObjectPart" } },
+        "graphicDataUri": { "type": ["string", "null"] },
+        "widthCm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "heightCm": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "anchorType": { "type": ["string", "null"], "enum": ["inline", "anchor", null] },
+        "text": { "type": "string" },
+        "rawXml": { "type": ["string", "null"] },
+        "evidencePath": { "$ref": "#/definitions/evidencePath" }
+      }
+    },
+    "preservedObjectPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relationshipId", "relationshipType", "contentType", "dataBase64"],
+      "properties": {
+        "relationshipId": { "type": "string" },
+        "relationshipType": { "type": "string" },
+        "contentType": { "type": "string" },
+        "dataBase64": { "type": "string" },
+        "children": { "type": "array", "items": { "$ref": "#/definitions/preservedObjectPart" } }
       }
     },
     "note": {

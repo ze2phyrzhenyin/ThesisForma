@@ -442,7 +442,7 @@ public static class WebEditorDocumentFactory
     {
         return new ThesisDocument
         {
-            SchemaVersion = ThesisSchemaVersions.Version110,
+            SchemaVersion = ThesisSchemaVersions.Current,
             Metadata = new ThesisMetadata
             {
                 Title = request.Title ?? "未命名论文",

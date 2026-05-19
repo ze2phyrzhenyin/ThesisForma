@@ -39,6 +39,32 @@
       "footerDistanceTwips": "907",
       "pageNumberFormat": "NumberFormatValues { }",
       "pageNumberStart": 1
+    },
+    {
+      "index": 3,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304",
+      "headerDistanceTwips": "680",
+      "footerDistanceTwips": "907",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
+    },
+    {
+      "index": 4,
+      "pageWidthTwips": "11906",
+      "pageHeightTwips": "16838",
+      "topMarginTwips": "1587",
+      "bottomMarginTwips": "1247",
+      "leftMarginTwips": "1757",
+      "rightMarginTwips": "1304",
+      "headerDistanceTwips": "680",
+      "footerDistanceTwips": "907",
+      "pageNumberFormat": "NumberFormatValues { }",
+      "pageNumberStart": 1
     }
   ],
   "styles": [
@@ -74,9 +100,9 @@
     },
     {
       "styleId": "ThesisBibliography",
-      "eastAsiaFont": "\u4EFF\u5B8B",
+      "eastAsiaFont": "\u5B8B\u4F53",
       "latinFont": "Times New Roman",
-      "fontSizeHalfPoints": "24",
+      "fontSizeHalfPoints": "21",
       "bold": "False",
       "lineSpacing": "240",
       "hangingIndent": "482",
@@ -128,6 +154,25 @@
     },
     {
       "index": 1,
+      "widthType": "TableWidthUnitValues { }",
+      "width": "5000",
+      "borders": "top=BorderValues { }:6;bottom=BorderValues { }:6;left=BorderValues { }:6;right=BorderValues { }:6;insideH=BorderValues { }:6;insideV=BorderValues { }:6",
+      "hasGridSpan": false,
+      "gridSpanValues": [],
+      "hasVerticalMerge": false,
+      "verticalMergeValues": [],
+      "hasRepeatHeaderRows": false,
+      "repeatHeaderRowCount": 0,
+      "hasCantSplitRows": false,
+      "cantSplitRowCount": 0,
+      "cellWidths": [
+        "pct:5000"
+      ],
+      "cellVerticalAlignments": [],
+      "cellBorders": []
+    },
+    {
+      "index": 2,
       "layoutType": "fixed",
       "widthType": "TableWidthUnitValues { }",
       "width": "5000",
@@ -184,9 +229,10 @@
   },
   "fields": {
     "tocCount": 1,
-    "pageCount": 2,
+    "pageCount": 3,
     "refCount": 4,
     "instructions": [
+      "PAGE \\* MERGEFORMAT",
       "PAGE \\* MERGEFORMAT",
       "PAGE \\* MERGEFORMAT",
       "REF bm-chapter-1 \\h",

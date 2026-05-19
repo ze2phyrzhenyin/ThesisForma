@@ -128,6 +128,7 @@ export interface SectionInstanceOverride extends SectionFormatOverride {
 | `acknowledgements`     | `body`        | `SectionProfile.Body`               |
 | `bibliography`         | `body`        | `SectionProfile.Body`               |
 | `appendix`             | `body`        | `SectionProfile.Body`               |
+| `teacherComments`      | `body`        | `SectionProfile.Body`               |
 
 源：`web/src/editor/overrides.ts:SECTION_BUCKET_FOR_KIND` 与 `src/ThesisDocx.Core/Rendering/SectionProfile.cs`。
 

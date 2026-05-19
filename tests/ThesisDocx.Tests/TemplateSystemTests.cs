@@ -1083,6 +1083,34 @@ public sealed class TemplateSystemTests
     }
 
     [Fact]
+    public void FormatValidator_WithTemplate_ShouldNotRequireAppendixTemplateWhenDocumentHasNoAppendix()
+    {
+        var templatePath = WriteMutatedTemplate(node =>
+        {
+            node["pageTemplates"]!.AsArray().Add(new JsonObject
+            {
+                ["id"] = "engineering-appendix-marker",
+                ["targetSectionType"] = "appendix",
+                ["insertPosition"] = "beforeSection",
+                ["blocks"] = new JsonArray(new JsonObject
+                {
+                    ["type"] = "text",
+                    ["value"] = "Appendix",
+                    ["style"] = "ThesisBody",
+                    ["alignment"] = "center"
+                })
+            });
+        });
+        var documentPath = Path.Combine(RepoRoot(), "examples", "simple-thesis", "document.json");
+        var rendered = RenderTemplateDocumentFromPath(templatePath, documentPath);
+
+        var result = new FormatConformanceValidator().Validate(rendered.DocxPath, templatePath);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+        Assert.DoesNotContain(result.Errors, error => error.Code == "template.pageTemplate.missing");
+    }
+
+    [Fact]
     public void FormatValidator_ShouldCheckCoverRequiredFields()
     {
         var result = new FormatConformanceValidator().Validate(RenderTemplateFull().DocxPath, TemplatePath("example-university-engineering"));
@@ -1352,9 +1380,14 @@ public sealed class TemplateSystemTests
 
     private static RenderedTemplateDocx RenderTemplateDocument(string templateName, string documentPath, IReadOnlyDictionary<string, string>? cliVariables = null)
     {
+        return RenderTemplateDocumentFromPath(TemplatePath(templateName), documentPath, cliVariables);
+    }
+
+    private static RenderedTemplateDocx RenderTemplateDocumentFromPath(string templatePath, string documentPath, IReadOnlyDictionary<string, string>? cliVariables = null)
+    {
         var (document, baseDir) = LoadDocument(documentPath);
         ResolveFigurePaths(document, baseDir);
-        var resolution = new TemplateResolver().Resolve(TemplatePath(templateName), document, cliVariables ?? new Dictionary<string, string>());
+        var resolution = new TemplateResolver().Resolve(templatePath, document, cliVariables ?? new Dictionary<string, string>());
         if (!resolution.IsValid)
         {
             throw new InvalidOperationException(string.Join(Environment.NewLine, resolution.Errors));

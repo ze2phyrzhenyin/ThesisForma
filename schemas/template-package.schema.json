@@ -27,6 +27,7 @@
     },
     "formatSpec": { "type": "object" },
     "formatSpecRef": { "$ref": "#/definitions/relativePath" },
+    "documentOverrides": { "$ref": "#/definitions/documentOverrides" },
     "variables": { "type": "array", "items": { "$ref": "#/definitions/variable" } },
     "assets": { "type": "array", "items": { "$ref": "#/definitions/asset" } },
     "pageTemplates": { "type": "array", "items": { "$ref": "#/definitions/pageTemplate" } },
@@ -82,8 +83,9 @@
       "required": ["id", "targetSectionType", "insertPosition", "blocks"],
       "properties": {
         "id": { "$ref": "#/definitions/id" },
-        "targetSectionType": { "type": "string", "enum": ["cover", "declaration", "abstract", "toc", "body", "appendix"] },
+        "targetSectionType": { "type": "string", "enum": ["cover", "declaration", "abstract", "toc", "body", "appendix", "acknowledgements", "bibliography", "teacherComments"] },
         "insertPosition": { "type": "string", "enum": ["beforeSection", "afterSection", "replaceSectionContent"] },
+        "targetSectionId": { "$ref": "#/definitions/id" },
         "pageSetupOverride": { "$ref": "#/definitions/pageSetupOverride" },
         "blocks": { "type": "array", "items": { "$ref": "#/definitions/layoutBlock" } }
       }
@@ -97,7 +99,8 @@
         { "$ref": "#/definitions/fieldTableBlock" },
         { "$ref": "#/definitions/declarationTextBlock" },
         { "$ref": "#/definitions/pageBreakBlock" },
-        { "$ref": "#/definitions/ruleBlock" }
+        { "$ref": "#/definitions/ruleBlock" },
+        { "$ref": "#/definitions/handwritingAreaBlock" }
       ]
     },
     "spacerBlock": {
@@ -119,6 +122,8 @@
         "style": { "type": "string" },
         "alignment": { "$ref": "#/definitions/alignment" },
         "fontOverride": { "type": "object" },
+        "paragraph": { "$ref": "#/definitions/paragraphOverride" },
+        "skipWhenEmpty": { "type": "boolean" },
         "spacingBeforePt": { "type": "number", "minimum": 0 },
         "spacingAfterPt": { "type": "number", "minimum": 0 }
       }
@@ -135,7 +140,9 @@
         "valueTemplate": { "type": "string" },
         "layout": { "type": "string", "enum": ["inline", "labelValueLine", "tableRow"] },
         "underline": { "type": "boolean" },
-        "alignment": { "$ref": "#/definitions/alignment" }
+        "alignment": { "$ref": "#/definitions/alignment" },
+        "labelFont": { "$ref": "#/definitions/font" },
+        "valueFont": { "$ref": "#/definitions/font" }
       }
     },
     "imageBlock": {
@@ -163,7 +170,10 @@
         },
         "borderMode": { "type": "string", "enum": ["none", "full", "bottomLine", "custom"] },
         "labelColumnWidthCm": { "type": "number", "exclusiveMinimum": 0 },
-        "valueColumnWidthCm": { "type": "number", "exclusiveMinimum": 0 }
+        "valueColumnWidthCm": { "type": "number", "exclusiveMinimum": 0 },
+        "rowHeightPt": { "type": "number", "minimum": 0, "maximum": 144 },
+        "labelFont": { "$ref": "#/definitions/font" },
+        "valueFont": { "$ref": "#/definitions/font" }
       }
     },
     "declarationTextBlock": {
@@ -195,6 +205,19 @@
         "spacingAfterPt": { "type": "number", "minimum": 0 }
       }
     },
+    "handwritingAreaBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["handwritingArea"] },
+        "label": { "type": "string" },
+        "heightCm": { "type": "number", "exclusiveMinimum": 0, "maximum": 30 },
+        "borderColor": { "type": "string", "pattern": "^[0-9A-Fa-f]{6}$" },
+        "borderThicknessPt": { "type": "number", "exclusiveMinimum": 0, "maximum": 12 },
+        "labelAlignment": { "$ref": "#/definitions/alignment" }
+      }
+    },
     "complianceRule": {
       "type": "object",
       "additionalProperties": false,
@@ -203,6 +226,150 @@
         "id": { "$ref": "#/definitions/id" },
         "description": { "type": "string" },
         "severity": { "type": "string", "enum": ["info", "warning", "error"] }
+      }
+    },
+    "documentOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "toc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "minLevel": { "type": "integer", "minimum": 1, "maximum": 6 },
+            "maxLevel": { "type": "integer", "minimum": 1, "maximum": 6 },
+            "title": { "type": "string", "minLength": 1 },
+            "includeSectionIds": { "type": "array", "items": { "$ref": "#/definitions/id" }, "uniqueItems": true }
+          }
+        },
+        "headerFooter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headerText": { "type": "string" },
+            "drawHeaderLine": { "type": "boolean" },
+            "hidePageNumberOnCover": { "type": "boolean" },
+            "differentFirstPage": { "type": "boolean" }
+          }
+        },
+        "defaultFont": { "$ref": "#/definitions/fontOverride" },
+        "bodyParagraph": { "$ref": "#/definitions/paragraphOverride" },
+        "headings": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[1-6]$": { "$ref": "#/definitions/headingOverride" }
+          }
+        },
+        "sectionFormats": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cover": { "$ref": "#/definitions/sectionFormatOverride" },
+            "frontMatter": { "$ref": "#/definitions/sectionFormatOverride" },
+            "body": { "$ref": "#/definitions/sectionFormatOverride" }
+          }
+        },
+        "sectionInstances": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$": { "$ref": "#/definitions/sectionInstanceOverride" }
+          }
+        }
+      }
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eastAsia", "latin", "sizePt"],
+      "properties": {
+        "eastAsia": { "type": "string", "minLength": 1 },
+        "latin": { "type": "string", "minLength": 1 },
+        "sizePt": { "type": "number", "minimum": 1, "maximum": 72 },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" }
+      }
+    },
+    "fontOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eastAsia": { "type": "string", "minLength": 1 },
+        "latin": { "type": "string", "minLength": 1 },
+        "sizePt": { "type": "number", "minimum": 1, "maximum": 72 },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" }
+      }
+    },
+    "paragraphOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lineSpacingMultiple": { "type": "number", "minimum": 0.5, "maximum": 4 },
+        "lineSpacingExactPt": { "type": ["number", "null"], "minimum": 1, "maximum": 120 },
+        "spaceBeforePt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "spaceAfterPt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "firstLineIndentChars": { "type": "number", "minimum": 0, "maximum": 8 },
+        "hangingIndentCm": { "type": "number", "minimum": 0, "maximum": 5 },
+        "alignment": { "$ref": "#/definitions/alignment" },
+        "widowControl": { "type": "boolean" }
+      }
+    },
+    "headingOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": { "$ref": "#/definitions/fontOverride" },
+        "spaceBeforePt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "spaceAfterPt": { "type": "number", "minimum": 0, "maximum": 72 },
+        "numbered": { "type": "boolean" },
+        "pageBreakBefore": { "type": "boolean" },
+        "outlineLevel": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "alignment": { "$ref": "#/definitions/alignment" }
+      }
+    },
+    "sectionFormatOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pageNumberStyle": { "type": "string", "enum": ["none", "decimal", "lowerRoman", "upperRoman"] },
+        "startPageNumber": { "type": "integer", "minimum": 1, "maximum": 999 },
+        "restartPageNumbering": { "type": "boolean" },
+        "includeHeader": { "type": "boolean" },
+        "includeFooter": { "type": "boolean" }
+      }
+    },
+    "sectionInstanceOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pageNumberStyle": { "type": "string", "enum": ["none", "decimal", "lowerRoman", "upperRoman"] },
+        "startPageNumber": { "type": "integer", "minimum": 1, "maximum": 999 },
+        "restartPageNumbering": { "type": "boolean" },
+        "includeHeader": { "type": "boolean" },
+        "includeFooter": { "type": "boolean" },
+        "headerText": { "type": "string" },
+        "footerText": { "type": "string" },
+        "titleFont": { "$ref": "#/definitions/fontOverride" },
+        "titleParagraph": { "$ref": "#/definitions/paragraphOverride" },
+        "paragraph": { "$ref": "#/definitions/paragraphOverride" },
+        "defaultFont": { "$ref": "#/definitions/fontOverride" },
+        "blockOverrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[0-9]+$": { "$ref": "#/definitions/blockFormatOverride" }
+          }
+        }
+      }
+    },
+    "blockFormatOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": { "$ref": "#/definitions/fontOverride" },
+        "paragraph": { "$ref": "#/definitions/paragraphOverride" }
       }
     },
     "pageSetupOverride": {

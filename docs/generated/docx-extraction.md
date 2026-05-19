@@ -10,7 +10,7 @@ Schema ID: `https://thesisdocx.local/schemas/docx-extraction.schema.json`
 
 Type: `object`
 
-Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssues`, `fields`, `figures`, `footnotes`, `formatChaos`, `formatClusters`, `formatSignatures`, `hyperlinks`, `inputFileName`, `numbering`, `paragraphs`, `plainText`, `possibleAbstract`, `possibleAppendix`, `possibleBibliography`, `possibleCaptions`, `possibleHeadings`, `possibleKeywords`, `schemaVersion`, `sections`, `styles`, `tables`
+Required fields: `blocks`, `bookmarks`, `document`, `drawingObjects`, `endnotes`, `extractionIssues`, `fields`, `figures`, `footnotes`, `formatChaos`, `formatClusters`, `formatSignatures`, `hyperlinks`, `inputFileName`, `numbering`, `paragraphs`, `plainText`, `possibleAbstract`, `possibleAppendix`, `possibleBibliography`, `possibleCaptions`, `possibleHeadings`, `possibleKeywords`, `schemaVersion`, `sections`, `styles`, `tables`
 
 ### Root Properties
 
@@ -19,6 +19,7 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | `blocks` | Block[] | yes |  |  |
 | `bookmarks` | Bookmark[] | yes |  |  |
 | `document` | object | yes |  |  |
+| `drawingObjects` | DrawingObject[] | yes |  |  |
 | `endnotes` | Note[] | yes |  |  |
 | `extractionIssues` | Issue[] | yes |  |  |
 | `fields` | Field[] | yes |  |  |
@@ -61,6 +62,24 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | `evidencePath` | EvidencePath | yes |  |  |
 | `id` | Id | yes |  |  |
 | `name` | string | yes |  |  |
+
+### DrawingObject
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `anchorType` | enum(inline, anchor, null) | no | enum: inline, anchor, null |  |
+| `evidencePath` | EvidencePath | yes |  |  |
+| `graphicDataUri` | string \| null | no |  |  |
+| `heightCm` | number \| null | no |  |  |
+| `id` | Id | yes |  |  |
+| `index` | integer | yes |  |  |
+| `objectType` | enum(chart, smartArt, shape, textBox, picture, drawing) | yes | enum: chart, smartArt, shape, textBox, picture, drawing |  |
+| `parts` | PreservedObjectPart[] | no |  |  |
+| `rawXml` | string \| null | no |  |  |
+| `relationshipId` | string \| null | no |  |  |
+| `relationshipIds` | string[] | yes |  |  |
+| `text` | string | yes |  |  |
+| `widthCm` | number \| null | no |  |  |
 
 ### EffectiveFormat
 
@@ -116,14 +135,28 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
+| `anchorType` | enum(inline, anchor, null) | no | enum: inline, anchor, null |  |
 | `artifactPath` | string \| null | no |  |  |
+| `captionEvidencePath` | anyOf(EvidencePath \| null) | no |  |  |
 | `contentType` | string \| null | no |  |  |
+| `crop` | anyOf(FigureCrop \| null) | no |  |  |
 | `evidencePath` | EvidencePath | yes |  |  |
+| `heightCm` | number \| null | no |  |  |
 | `id` | Id | yes |  |  |
 | `index` | integer | yes |  |  |
 | `nearbyText` | string | yes |  |  |
 | `relationshipId` | string \| null | no |  |  |
 | `suggestedCaption` | string \| null | no |  |  |
+| `widthCm` | number \| null | no |  |  |
+
+### FigureCrop
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `bottomPercent` | number \| null | no |  |  |
+| `leftPercent` | number \| null | no |  |  |
+| `rightPercent` | number \| null | no |  |  |
+| `topPercent` | number \| null | no |  |  |
 
 ### FormatChaos
 
@@ -228,6 +261,16 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | `styleName` | string \| null | no |  |  |
 | `text` | string | yes |  |  |
 
+### PreservedObjectPart
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `children` | PreservedObjectPart[] | no |  |  |
+| `contentType` | string | yes |  |  |
+| `dataBase64` | string | yes |  |  |
+| `relationshipId` | string | yes |  |  |
+| `relationshipType` | string | yes |  |  |
+
 ### Run
 
 | Field | Type | Required | Enum / Default | Description |
@@ -271,12 +314,18 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
+| `alignment` | string \| null | no |  |  |
 | `borders` | string \| null | no |  |  |
+| `captionEvidencePath` | anyOf(EvidencePath \| null) | no |  |  |
+| `captionPosition` | enum(before, after, null) | no | enum: before, after, null |  |
 | `evidencePath` | EvidencePath | yes |  |  |
 | `id` | Id | yes |  |  |
 | `index` | integer | yes |  |  |
 | `rows` | TableRow[] | yes |  |  |
+| `suggestedCaption` | string \| null | no |  |  |
 | `text` | string | yes |  |  |
+| `widthPercent` | integer \| null | no |  |  |
+| `widthTwips` | integer \| null | no |  |  |
 
 ### TableCell
 
@@ -285,14 +334,22 @@ Required fields: `blocks`, `bookmarks`, `document`, `endnotes`, `extractionIssue
 | `borders` | string \| null | no |  |  |
 | `cellIndex` | integer | yes |  |  |
 | `evidencePath` | EvidencePath | yes |  |  |
+| `figureIds` | Id[] | no |  |  |
 | `gridSpan` | integer | yes |  |  |
+| `nestedTables` | Table[] | no |  |  |
 | `rowIndex` | integer | yes |  |  |
+| `shading` | string \| null | no |  |  |
 | `text` | string | yes |  |  |
+| `verticalAlignment` | string \| null | no |  |  |
 | `verticalMerge` | string \| null | no |  |  |
+| `widthTwips` | integer \| null | no |  |  |
 
 ### TableRow
 
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
+| `cantSplit` | boolean \| null | no |  |  |
 | `cells` | TableCell[] | yes |  |  |
+| `heightTwips` | integer \| null | no |  |  |
 | `index` | integer | yes |  |  |
+| `isHeader` | boolean | no |  |  |

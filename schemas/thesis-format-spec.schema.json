@@ -112,6 +112,8 @@
         "drawHeaderLine": { "type": "boolean" },
         "headerAlignment": { "$ref": "#/definitions/textAlignment" },
         "pageNumberAlignment": { "$ref": "#/definitions/textAlignment" },
+        "oddPageNumberAlignment": { "$ref": "#/definitions/textAlignment" },
+        "evenPageNumberAlignment": { "$ref": "#/definitions/textAlignment" },
         "hidePageNumberOnCover": { "type": "boolean" },
         "differentFirstPage": { "type": "boolean" },
         "differentOddEven": { "type": "boolean" }
@@ -197,7 +199,10 @@
         "styleId": { "type": "string", "minLength": 1 },
         "font": { "$ref": "#/definitions/font" },
         "paragraph": { "$ref": "#/definitions/paragraph" },
-        "superscriptReferenceMark": { "type": "boolean" }
+        "superscriptReferenceMark": { "type": "boolean" },
+        "numberFormat": { "type": "string", "enum": ["decimal", "decimalEnclosedCircle", "decimalEnclosedCircleChinese"] },
+        "numberingRestart": { "type": "string", "enum": ["continuous", "eachSection", "eachPage"] },
+        "startNumber": { "type": "integer", "minimum": 1, "maximum": 999 }
       }
     },
     "figures": {
@@ -229,8 +234,10 @@
       "required": ["title", "entryParagraph", "numberFormat"],
       "properties": {
         "title": { "type": "string", "minLength": 1 },
+        "entryFont": { "$ref": "#/definitions/font" },
         "entryParagraph": { "$ref": "#/definitions/paragraph" },
-        "numberFormat": { "type": "string", "minLength": 1 }
+        "numberFormat": { "type": "string", "minLength": 1 },
+        "sortOrder": { "type": "string", "enum": ["documentOrder", "chronological", "yearAscending", "yearDescending"] }
       }
     },
     "numbering": {
@@ -283,7 +290,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "allowHeadingLevelSkips": { "type": "boolean" }
+        "allowHeadingLevelSkips": { "type": "boolean" },
+        "bodyTextCount": { "$ref": "#/definitions/textCountValidation" }
+      }
+    },
+    "textCountValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 },
+        "unit": { "type": "string", "enum": ["nonWhitespaceCharacters", "unicodeTextElements", "words"] },
+        "sectionKinds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/sectionKind" },
+          "uniqueItems": true
+        }
       }
     },
     "legacyCaptionPosition": { "type": "string", "enum": ["above", "below"] },
@@ -329,6 +352,7 @@
         "rightCm": { "type": "number", "minimum": 0, "maximum": 5 }
       }
     },
-    "textAlignment": { "type": "string", "enum": ["left", "center", "right", "both"] }
+    "textAlignment": { "type": "string", "enum": ["left", "center", "right", "both"] },
+    "sectionKind": { "type": "string", "enum": ["cover", "originalityStatement", "abstract", "toc", "body", "acknowledgements", "bibliography", "appendix", "teacherComments"] }
   }
 }

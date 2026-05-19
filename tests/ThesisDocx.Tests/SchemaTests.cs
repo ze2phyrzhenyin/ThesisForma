@@ -22,10 +22,12 @@ public sealed class SchemaTests
     {
         var root = TestRenderHelper.LocateRepoRootForTests();
         var node = LoadJson(Path.Combine(root, "examples", "simple-thesis", "document.json"));
+        node["schemaVersion"] = "1.0.0";
+        var temp = WriteTempJson(node);
 
         Assert.Equal("1.0.0", node["schemaVersion"]!.GetValue<string>());
         var result = new ThesisSchemaValidator().ValidateDocumentFile(
-            Path.Combine(root, "examples", "simple-thesis", "document.json"),
+            temp,
             Path.Combine(root, "schemas", "thesis-document.schema.json"));
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
@@ -47,6 +49,24 @@ public sealed class SchemaTests
             Path.Combine(root, "schemas", "thesis-document.schema.json"));
 
         Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+    }
+
+    [Fact]
+    public void Schema_ShouldValidateVersion120Document()
+    {
+        var root = TestRenderHelper.LocateRepoRootForTests();
+        var node = LoadJson(Path.Combine(root, "examples", "simple-thesis", "document.json"));
+
+        Assert.Equal("1.2.0", node["schemaVersion"]!.GetValue<string>());
+        var result = new ThesisSchemaValidator().ValidateDocumentFile(
+            Path.Combine(root, "examples", "simple-thesis", "document.json"),
+            Path.Combine(root, "schemas", "thesis-document.schema.json"));
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+        Assert.Contains(result.VersionReport.Checks, check =>
+            check.Kind == "thesisDocument"
+            && check.Version == "1.2.0"
+            && check.Direction == "current");
     }
 
     [Fact]

@@ -22,4 +22,4 @@ Run the full fictional template loop first, using `examples/templates/example-un
 
 If a rule cannot be expressed in `ThesisFormatSpec` or `TemplatePackage`, extend the schema/renderer/validator first. Do not hardcode a school-specific branch in the renderer.
 
-This workflow still does not do AI parsing, does not depend on Microsoft Word, and does not promise pixel-level visual equivalence.
+This workflow still does not do unattended AI parsing, does not depend on Microsoft Word, and does not promise pixel-level visual equivalence. Any Codex-assisted intake review stays inside the private workspace and remains evidence-backed prototype output until human review.

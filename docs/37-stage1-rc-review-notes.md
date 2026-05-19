@@ -12,7 +12,7 @@ This branch turns the Stage 1 implementation into a release candidate for the su
 
 `ThesisDocument + ThesisFormatSpec/TemplatePackage + optional DocumentOverrides -> valid, format-conformant DOCX`
 
-The branch does not add AI parsing, semantic rewriting, Word automation, screenshot diffing, or Word-like free layout controls. Formatting still flows through `ThesisFormatSpec`, `TemplatePackage`, documented defaults, and the bounded `DocumentOverrides` layer.
+The branch does not add AI parsing to the deterministic renderer contract, semantic rewriting, Word automation, screenshot diffing, or Word-like free layout controls. Formatting still flows through `ThesisFormatSpec`, `TemplatePackage`, documented defaults, and the bounded `DocumentOverrides` layer. Codex-assisted DOCX intake review remains an explicit private-workspace prototype step with evidence and content-preservation gates.
 
 ## Review Order
 
@@ -90,4 +90,3 @@ Observed result:
 ## Merge Recommendation
 
 Merge when reviewers are satisfied with the bounded override contract, public-source/privacy treatment, and baseline drift rationale. After merge, tag the candidate as `stage1-rc.1` and use it for private pilot package review.
-

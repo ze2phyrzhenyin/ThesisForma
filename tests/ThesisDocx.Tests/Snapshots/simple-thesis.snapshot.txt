@@ -55,7 +55,7 @@ tableWidthTypes:
 - pct
 tableBorders:
 - top:single|bottom:single|left:nil|right:nil|insideH:single|insideV:nil
-paragraphCount=29
+paragraphCount=30
 tableCount=1
 drawingCount=1
 equationCount=0

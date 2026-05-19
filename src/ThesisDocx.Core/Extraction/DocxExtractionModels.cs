@@ -43,6 +43,7 @@ public sealed class DocxExtractionResult
     public List<ExtractedParagraph> Paragraphs { get; set; } = [];
     public List<ExtractedTable> Tables { get; set; } = [];
     public List<ExtractedFigure> Figures { get; set; } = [];
+    public List<ExtractedDrawingObject> DrawingObjects { get; set; } = [];
     public List<ExtractedFootnote> Footnotes { get; set; } = [];
     public List<ExtractedEndnote> Endnotes { get; set; } = [];
     public List<ExtractedBookmark> Bookmarks { get; set; } = [];
@@ -69,6 +70,7 @@ public sealed class ExtractedDocument
     public int ParagraphCount { get; set; }
     public int TableCount { get; set; }
     public int FigureCount { get; set; }
+    public int DrawingObjectCount { get; set; }
     public int FootnoteCount { get; set; }
     public int EndnoteCount { get; set; }
 }
@@ -217,6 +219,12 @@ public sealed class ExtractedTable
     public int Index { get; set; }
     public List<ExtractedTableRow> Rows { get; set; } = [];
     public string Text { get; set; } = string.Empty;
+    public string? SuggestedCaption { get; set; }
+    public string? CaptionEvidencePath { get; set; }
+    public string? CaptionPosition { get; set; }
+    public int? WidthTwips { get; set; }
+    public int? WidthPercent { get; set; }
+    public string? Alignment { get; set; }
     public string? Borders { get; set; }
     public string EvidencePath { get; set; } = string.Empty;
 }
@@ -224,6 +232,9 @@ public sealed class ExtractedTable
 public sealed class ExtractedTableRow
 {
     public int Index { get; set; }
+    public bool IsHeader { get; set; }
+    public bool? CantSplit { get; set; }
+    public int? HeightTwips { get; set; }
     public List<ExtractedTableCell> Cells { get; set; } = [];
 }
 
@@ -234,7 +245,12 @@ public sealed class ExtractedTableCell
     public string Text { get; set; } = string.Empty;
     public int GridSpan { get; set; } = 1;
     public string? VerticalMerge { get; set; }
+    public int? WidthTwips { get; set; }
+    public string? VerticalAlignment { get; set; }
+    public string? Shading { get; set; }
     public string? Borders { get; set; }
+    public List<string> FigureIds { get; set; } = [];
+    public List<ExtractedTable> NestedTables { get; set; } = [];
     public string EvidencePath { get; set; } = string.Empty;
 }
 
@@ -245,9 +261,48 @@ public sealed class ExtractedFigure
     public string? RelationshipId { get; set; }
     public string? ContentType { get; set; }
     public string? ArtifactPath { get; set; }
+    public double? WidthCm { get; set; }
+    public double? HeightCm { get; set; }
+    public string? AnchorType { get; set; }
+    public ExtractedFigureCrop? Crop { get; set; }
     public string? SuggestedCaption { get; set; }
+    public string? CaptionEvidencePath { get; set; }
     public string NearbyText { get; set; } = string.Empty;
     public string EvidencePath { get; set; } = string.Empty;
+}
+
+public sealed class ExtractedFigureCrop
+{
+    public double? LeftPercent { get; set; }
+    public double? TopPercent { get; set; }
+    public double? RightPercent { get; set; }
+    public double? BottomPercent { get; set; }
+}
+
+public sealed class ExtractedDrawingObject
+{
+    public string Id { get; set; } = string.Empty;
+    public int Index { get; set; }
+    public string ObjectType { get; set; } = string.Empty;
+    public string? RelationshipId { get; set; }
+    public List<string> RelationshipIds { get; set; } = [];
+    public List<ExtractedPreservedObjectPart> Parts { get; set; } = [];
+    public string? GraphicDataUri { get; set; }
+    public double? WidthCm { get; set; }
+    public double? HeightCm { get; set; }
+    public string? AnchorType { get; set; }
+    public string Text { get; set; } = string.Empty;
+    public string? RawXml { get; set; }
+    public string EvidencePath { get; set; } = string.Empty;
+}
+
+public sealed class ExtractedPreservedObjectPart
+{
+    public string RelationshipId { get; set; } = string.Empty;
+    public string RelationshipType { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string DataBase64 { get; set; } = string.Empty;
+    public List<ExtractedPreservedObjectPart> Children { get; set; } = [];
 }
 
 public sealed class ExtractedFootnote

@@ -12,6 +12,9 @@ Supported `targetSectionType` values:
 - `toc`
 - `body`
 - `appendix`
+- `acknowledgements`
+- `bibliography`
+- `teacherComments`
 
 Supported `insertPosition` values:
 
@@ -19,7 +22,7 @@ Supported `insertPosition` values:
 - `afterSection`
 - `replaceSectionContent`
 
-The current examples replace cover and declaration section content.
+`targetSectionId` can narrow a page template to a specific structured section id, for example one Chinese abstract section among several abstract sections. The current examples replace cover and declaration section content and add an abstract-specific marker.
 
 ## Blocks
 
@@ -33,8 +36,11 @@ Implemented layout block types:
 - `declarationText`: renders declaration paragraphs and signature/date fields.
 - `pageBreak`: emits a Word page break.
 - `rule`: emits a deterministic paragraph bottom border for separators.
+- `handwritingArea`: emits a bordered table area for handwritten review, signature, or approval content.
 
 All blocks render as normal WordprocessingML. The renderer does not use `altChunk` and does not default to absolute positioning.
+
+`metadataField` and `fieldTable` can set `labelFont` and `valueFont` so a cover can use different label/value typefaces. `fieldTable.rowHeightPt` renders deterministic row height. `handwritingArea` supports label text, height, border color, border thickness, and label alignment.
 
 ## Page Setup Override
 

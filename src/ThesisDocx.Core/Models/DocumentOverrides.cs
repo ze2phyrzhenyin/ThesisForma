@@ -107,7 +107,20 @@ public sealed class SectionInstanceOverrideSpec : SectionFormatOverrideSpec
 
     public string? FooterText { get; set; }
 
+    public FontOverrideSpec? TitleFont { get; set; }
+
+    public ParagraphOverrideSpec? TitleParagraph { get; set; }
+
     public ParagraphOverrideSpec? Paragraph { get; set; }
 
     public FontOverrideSpec? DefaultFont { get; set; }
+
+    public Dictionary<int, BlockFormatOverrideSpec>? BlockOverrides { get; set; }
+}
+
+public sealed class BlockFormatOverrideSpec
+{
+    public FontOverrideSpec? Font { get; set; }
+
+    public ParagraphOverrideSpec? Paragraph { get; set; }
 }

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.Models;
 using ThesisDocx.Core.OpenXml;
@@ -35,7 +36,7 @@ public sealed class FormatConformanceValidator
         ValidatePageSetup(mainPart, format, result);
         ValidateStyles(mainPart, format, result);
         ValidateHeadingNumbering(mainPart, format, result);
-        ValidateToc(mainPart, result);
+        ValidateToc(mainPart, format, result);
         ValidateHeaderFooter(mainPart, format, result);
         ValidateNotes(mainPart, format, result);
         ValidateBibliography(mainPart, format, result);
@@ -61,7 +62,7 @@ public sealed class FormatConformanceValidator
             AddError(result, "template.properties.templateId", "Rendered DOCX custom template id does not match template.", "/docProps/custom.xml", "//property[@name='ThesisDocx.TemplateId']", resolution.Template.Id, inspection.TemplateRendering.TemplateId);
         }
 
-        foreach (var layout in resolution.PageTemplates)
+        foreach (var layout in resolution.PageTemplates.Where(RequiresRenderedPageTemplate))
         {
             if (!inspection.TemplateRendering.RenderedPageTemplates.Contains(layout.Id, StringComparer.Ordinal))
             {
@@ -88,6 +89,11 @@ public sealed class FormatConformanceValidator
         {
             AddError(result, "template.declaration.textMissing", "Declaration template text is missing.", "/word/document.xml", "//w:t", "declaration text", "missing");
         }
+    }
+
+    private static bool RequiresRenderedPageTemplate(Models.Templates.TemplatePageLayout layout)
+    {
+        return layout.TargetSectionType != Models.Templates.PageTemplateTargetSectionType.Appendix;
     }
 
     private static void ValidatePageSetup(MainDocumentPart mainPart, ThesisFormatSpec format, OpenXmlValidationResult result)
@@ -279,9 +285,14 @@ public sealed class FormatConformanceValidator
         }
     }
 
-    private static void ValidateToc(MainDocumentPart mainPart, OpenXmlValidationResult result)
+    private static void ValidateToc(MainDocumentPart mainPart, ThesisFormatSpec format, OpenXmlValidationResult result)
     {
         result.CheckedRules.Add("fields.toc");
+        if (!format.Toc.UseWordFieldCode)
+        {
+            return;
+        }
+
         var hasToc = mainPart.Document.Descendants<W.SimpleField>()
             .Any(f => f.Instruction?.Value?.Contains("TOC", StringComparison.OrdinalIgnoreCase) == true);
         if (!hasToc)
@@ -307,6 +318,41 @@ public sealed class FormatConformanceValidator
         {
             AddError(result, "footer.pageNumber.missing", "Footer page number field is required but missing.", "/word/footer*.xml", "//w:fldSimple[contains(@w:instr,'PAGE')]", "PAGE field", "missing");
         }
+
+        if (format.HeaderFooter.DifferentOddEven)
+        {
+            result.CheckedRules.Add("footer.oddEven");
+            var settingsHasOddEven = mainPart.DocumentSettingsPart?.Settings?.GetFirstChild<W.EvenAndOddHeaders>()?.Val?.Value == true;
+            Compare(result, "footer.oddEven.settings", "/word/settings.xml", "//w:evenAndOddHeaders/@w:val", "true", settingsHasOddEven ? "true" : "false");
+            var footerReferences = mainPart.Document.Body?.Descendants<W.FooterReference>().ToList() ?? [];
+            var hasEvenFooterReference = footerReferences.Any(reference => reference.Type?.Value == W.HeaderFooterValues.Even);
+            if (requiresFooter && !hasEvenFooterReference)
+            {
+                AddError(result, "footer.oddEven.evenReferenceMissing", "Odd/even page numbering requires an even footer reference.", "/word/document.xml", "//w:footerReference[@w:type='even']", "even footer", "missing");
+            }
+
+            ValidateFooterAlignment(mainPart, footerReferences.FirstOrDefault(reference => reference.Type?.Value == W.HeaderFooterValues.Default), format.HeaderFooter.OddPageNumberAlignment, "odd", result);
+            ValidateFooterAlignment(mainPart, footerReferences.FirstOrDefault(reference => reference.Type?.Value == W.HeaderFooterValues.Even), format.HeaderFooter.EvenPageNumberAlignment, "even", result);
+        }
+    }
+
+    private static void ValidateFooterAlignment(MainDocumentPart mainPart, W.FooterReference? reference, TextAlignment expectedAlignment, string label, OpenXmlValidationResult result)
+    {
+        if (reference?.Id is null)
+        {
+            return;
+        }
+
+        if (mainPart.GetPartById(reference.Id!) is not FooterPart footerPart)
+        {
+            AddError(result, $"footer.{label}.partMissing", $"Footer relationship '{reference.Id}' does not resolve to a footer part.", "/word/document.xml", "//w:footerReference", reference.Id, "missing");
+            return;
+        }
+
+        var paragraph = footerPart.Footer.Descendants<W.Paragraph>()
+            .FirstOrDefault(p => p.Descendants<W.SimpleField>().Any(field => field.Instruction?.Value?.Contains("PAGE", StringComparison.OrdinalIgnoreCase) == true));
+        var actual = paragraph?.ParagraphProperties?.Justification?.Val?.Value;
+        Compare(result, $"footer.{label}.alignment", "/word/footer*.xml", "//w:pPr/w:jc/@w:val", StyleBuilder.ToJustification(expectedAlignment).ToString(), actual?.ToString());
     }
 
     private static void ValidateNotes(MainDocumentPart mainPart, ThesisFormatSpec format, OpenXmlValidationResult result)
@@ -314,6 +360,7 @@ public sealed class FormatConformanceValidator
         result.CheckedRules.Add("notes.footnotes");
         result.CheckedRules.Add("notes.endnotes");
         result.CheckedRules.Add("notes.styles");
+        result.CheckedRules.Add("notes.settings");
 
         var footnoteReferences = mainPart.Document.Descendants<W.FootnoteReference>().Select(r => r.Id?.Value).Where(v => v is > 0).Select(v => v!.Value).ToList();
         var footnoteIds = mainPart.FootnotesPart?.Footnotes?.Elements<W.Footnote>().Select(f => f.Id?.Value).Where(v => v.HasValue).Select(v => v!.Value).ToHashSet() ?? [];
@@ -324,6 +371,18 @@ public sealed class FormatConformanceValidator
         var endnoteIds = mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().Select(f => f.Id?.Value).Where(v => v.HasValue).Select(v => v!.Value).ToHashSet() ?? [];
         ValidateNoteSet(result, "endnote", "/word/endnotes.xml", endnoteReferences, endnoteIds, mainPart.EndnotesPart is not null);
         ValidateNoteParagraphStyles(result, "endnote", "/word/endnotes.xml", mainPart.EndnotesPart?.Endnotes?.Elements<W.Endnote>().Where(note => note.Id?.Value > 0).SelectMany(note => note.Elements<W.Paragraph>()) ?? [], StyleBuilder.NoteStyleId(format.Notes.Endnote, StyleIds.EndnoteText));
+        ValidateNoteSettings(result, "footnote", "/word/settings.xml", mainPart.DocumentSettingsPart?.Settings?.GetFirstChild<W.FootnoteDocumentWideProperties>(), format.Notes.Footnote);
+        ValidateNoteSettings(result, "endnote", "/word/settings.xml", mainPart.DocumentSettingsPart?.Settings?.GetFirstChild<W.EndnoteDocumentWideProperties>(), format.Notes.Endnote);
+    }
+
+    private static void ValidateNoteSettings(OpenXmlValidationResult result, string kind, string partName, OpenXmlElement? properties, NoteFormatSpec expected)
+    {
+        var numberingFormat = properties?.GetFirstChild<W.NumberingFormat>()?.Val?.Value;
+        var numberingStart = properties?.GetFirstChild<W.NumberingStart>()?.Val?.Value;
+        var numberingRestart = properties?.GetFirstChild<W.NumberingRestart>()?.Val?.Value;
+        Compare(result, $"notes.{kind}.numberFormat", partName, $"//w:{kind}Pr/w:numFmt/@w:val", ToNoteNumberFormat(expected.NumberFormat).ToString(), numberingFormat?.ToString());
+        Compare(result, $"notes.{kind}.numberStart", partName, $"//w:{kind}Pr/w:numStart/@w:val", expected.StartNumber.ToString(), numberingStart?.ToString());
+        Compare(result, $"notes.{kind}.numberRestart", partName, $"//w:{kind}Pr/w:numRestart/@w:val", ToNoteRestart(expected.NumberingRestart).ToString(), numberingRestart?.ToString());
     }
 
     private static void ValidateNoteSet(OpenXmlValidationResult result, string kind, string partName, IReadOnlyList<long> references, HashSet<long> partIds, bool partExists)
@@ -379,6 +438,15 @@ public sealed class FormatConformanceValidator
         {
             var actual = paragraph.ParagraphProperties?.Indentation?.Hanging?.Value;
             Compare(result, "bibliography.hangingIndent", "/word/document.xml", "//w:p[w:pPr/w:pStyle[@w:val='ThesisBibliography']]/w:pPr/w:ind/@w:hanging", expected, actual);
+        }
+
+        if (format.Bibliography.EntryFont is not null)
+        {
+            result.CheckedRules.Add("bibliography.entryFont");
+            var style = mainPart.StyleDefinitionsPart?.Styles?.Elements<W.Style>().FirstOrDefault(s => s.StyleId?.Value == StyleIds.Bibliography);
+            var runProperties = style?.GetFirstChild<W.StyleRunProperties>();
+            Compare(result, "bibliography.entryFont.size", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.Bibliography}']//w:sz/@w:val", UnitConverter.PointsToHalfPoints(format.Bibliography.EntryFont.SizePt).ToString(), runProperties?.GetFirstChild<W.FontSize>()?.Val?.Value);
+            Compare(result, "bibliography.entryFont.eastAsia", "/word/styles.xml", $"//w:style[@w:styleId='{StyleIds.Bibliography}']//w:rFonts/@w:eastAsia", format.Bibliography.EntryFont.EastAsia, runProperties?.GetFirstChild<W.RunFonts>()?.EastAsia?.Value);
         }
     }
 
@@ -560,6 +628,26 @@ public sealed class FormatConformanceValidator
             PageNumberStyle.LowerRoman => W.NumberFormatValues.LowerRoman,
             PageNumberStyle.UpperRoman => W.NumberFormatValues.UpperRoman,
             _ => W.NumberFormatValues.Decimal
+        };
+    }
+
+    private static W.NumberFormatValues ToNoteNumberFormat(NoteNumberFormat format)
+    {
+        return format switch
+        {
+            NoteNumberFormat.DecimalEnclosedCircle => W.NumberFormatValues.DecimalEnclosedCircle,
+            NoteNumberFormat.DecimalEnclosedCircleChinese => W.NumberFormatValues.DecimalEnclosedCircleChinese,
+            _ => W.NumberFormatValues.Decimal
+        };
+    }
+
+    private static W.RestartNumberValues ToNoteRestart(NoteNumberingRestart restart)
+    {
+        return restart switch
+        {
+            NoteNumberingRestart.EachPage => W.RestartNumberValues.EachPage,
+            NoteNumberingRestart.EachSection => W.RestartNumberValues.EachSection,
+            _ => W.RestartNumberValues.Continuous
         };
     }
 

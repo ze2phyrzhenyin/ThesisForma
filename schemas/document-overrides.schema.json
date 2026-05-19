@@ -121,8 +121,25 @@
         "includeFooter": { "type": "boolean" },
         "headerText": { "type": "string" },
         "footerText": { "type": "string" },
+        "titleFont": { "$ref": "#/definitions/fontOverride" },
+        "titleParagraph": { "$ref": "#/definitions/paragraphOverride" },
         "paragraph": { "$ref": "#/definitions/paragraphOverride" },
-        "defaultFont": { "$ref": "#/definitions/fontOverride" }
+        "defaultFont": { "$ref": "#/definitions/fontOverride" },
+        "blockOverrides": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[0-9]+$": { "$ref": "#/definitions/blockFormatOverride" }
+          }
+        }
+      }
+    },
+    "blockFormatOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font": { "$ref": "#/definitions/fontOverride" },
+        "paragraph": { "$ref": "#/definitions/paragraphOverride" }
       }
     },
     "textAlignment": {

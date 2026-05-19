@@ -99,6 +99,7 @@ public sealed class TemplateResolver
             TemplateDirectory = child.TemplateDirectory,
             FormatSpec = child.FormatSpec ?? parent.FormatSpec,
             FormatSpecRef = child.FormatSpecRef ?? parent.FormatSpecRef,
+            DocumentOverrides = child.DocumentOverrides ?? parent.DocumentOverrides,
             Notes = parent.Notes.Concat(child.Notes).ToList(),
             ComplianceRules = MergeByKey(parent.ComplianceRules, child.ComplianceRules, rule => rule.Id),
             Variables = MergeByKey(parent.Variables, child.Variables, variable => variable.Name),

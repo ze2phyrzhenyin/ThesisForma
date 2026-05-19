@@ -13,7 +13,7 @@ public static class SchemaContractKind
 
 public static class SupportedSchemaVersions
 {
-    public static IReadOnlyList<string> ThesisDocument { get; } = [ThesisSchemaVersions.Version100, ThesisSchemaVersions.Version110];
+    public static IReadOnlyList<string> ThesisDocument { get; } = [ThesisSchemaVersions.Version100, ThesisSchemaVersions.Version110, ThesisSchemaVersions.Version120];
     public static IReadOnlyList<string> ThesisFormatSpec { get; } = [ThesisSchemaVersions.Version100, ThesisSchemaVersions.Version110, ThesisSchemaVersions.Version120];
     public static IReadOnlyList<string> TemplatePackage { get; } = [TemplateSchemaVersions.Version100];
 }

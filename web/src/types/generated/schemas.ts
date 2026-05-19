@@ -67,6 +67,11 @@ export namespace DiagnosticReportSchema {
 }
 
 export namespace DocumentOverridesSchema {
+  export interface BlockFormatOverride {
+    font?: FontOverride;
+    paragraph?: ParagraphOverride;
+  }
+
   export interface FontOverride {
     bold?: boolean;
     eastAsia?: string;
@@ -107,6 +112,9 @@ export namespace DocumentOverridesSchema {
   }
 
   export interface SectionInstanceOverride {
+    blockOverrides?: {
+    [key: string]: BlockFormatOverride | undefined;
+  };
     defaultFont?: FontOverride;
     footerText?: string;
     headerText?: string;
@@ -116,6 +124,8 @@ export namespace DocumentOverridesSchema {
     paragraph?: ParagraphOverride;
     restartPageNumbering?: boolean;
     startPageNumber?: number;
+    titleFont?: FontOverride;
+    titleParagraph?: ParagraphOverride;
   }
 
   export type TextAlignment = "left" | "center" | "right" | "both";
@@ -161,6 +171,22 @@ export namespace DocxExtractionResultSchema {
     evidencePath: EvidencePath;
     id: Id;
     name: string;
+  }
+
+  export interface DrawingObject {
+    anchorType?: "inline" | "anchor" | null;
+    evidencePath: EvidencePath;
+    graphicDataUri?: string | null;
+    heightCm?: number | null;
+    id: Id;
+    index: number;
+    objectType: "chart" | "smartArt" | "shape" | "textBox" | "picture" | "drawing";
+    parts?: PreservedObjectPart[];
+    rawXml?: string | null;
+    relationshipId?: string | null;
+    relationshipIds: string[];
+    text: string;
+    widthCm?: number | null;
   }
 
   export interface EffectiveFormat {
@@ -210,14 +236,26 @@ export namespace DocxExtractionResultSchema {
   }
 
   export interface Figure {
+    anchorType?: "inline" | "anchor" | null;
     artifactPath?: string | null;
+    captionEvidencePath?: EvidencePath | null;
     contentType?: string | null;
+    crop?: FigureCrop | null;
     evidencePath: EvidencePath;
+    heightCm?: number | null;
     id: Id;
     index: number;
     nearbyText: string;
     relationshipId?: string | null;
     suggestedCaption?: string | null;
+    widthCm?: number | null;
+  }
+
+  export interface FigureCrop {
+    bottomPercent?: number | null;
+    leftPercent?: number | null;
+    rightPercent?: number | null;
+    topPercent?: number | null;
   }
 
   export interface FormatChaos {
@@ -316,6 +354,14 @@ export namespace DocxExtractionResultSchema {
     text: string;
   }
 
+  export interface PreservedObjectPart {
+    children?: PreservedObjectPart[];
+    contentType: string;
+    dataBase64: string;
+    relationshipId: string;
+    relationshipType: string;
+  }
+
   export interface Run {
     bold: boolean;
     color?: string | null;
@@ -350,33 +396,48 @@ export namespace DocxExtractionResultSchema {
   }
 
   export interface Table {
+    alignment?: string | null;
     borders?: string | null;
+    captionEvidencePath?: EvidencePath | null;
+    captionPosition?: "before" | "after" | null;
     evidencePath: EvidencePath;
     id: Id;
     index: number;
     rows: TableRow[];
+    suggestedCaption?: string | null;
     text: string;
+    widthPercent?: number | null;
+    widthTwips?: number | null;
   }
 
   export interface TableCell {
     borders?: string | null;
     cellIndex: number;
     evidencePath: EvidencePath;
+    figureIds?: Id[];
     gridSpan: number;
+    nestedTables?: Table[];
     rowIndex: number;
+    shading?: string | null;
     text: string;
+    verticalAlignment?: string | null;
     verticalMerge?: string | null;
+    widthTwips?: number | null;
   }
 
   export interface TableRow {
+    cantSplit?: boolean | null;
     cells: TableCell[];
+    heightTwips?: number | null;
     index: number;
+    isHeader?: boolean;
   }
 
   export interface DocxExtractionResult {
     blocks: Block[];
     bookmarks: Bookmark[];
     document: {
+    drawingObjectCount: number;
     endnoteCount: number;
     figureCount: number;
     footnoteCount: number;
@@ -384,6 +445,7 @@ export namespace DocxExtractionResultSchema {
     paragraphCount: number;
     tableCount: number;
   };
+    drawingObjects: DrawingObject[];
     endnotes: Note[];
     extractionIssues: Issue[];
     fields: Field[];
@@ -828,6 +890,34 @@ export namespace RequirementCaptureSchema {
   }
 }
 
+export namespace StructureRepairPlanSchema {
+  export interface Operation {
+    afterEvidencePath?: string;
+    beforeEvidencePath?: string;
+    confidence: number;
+    headingLevel?: number;
+    id: string;
+    reason: string;
+    recommendedAction?: string;
+    severity?: "error" | "warning" | "info";
+    sourceEvidencePath?: string;
+    targetEvidencePath?: string;
+    targetSectionId?: string;
+    targetSectionKind?: "cover" | "originalityStatement" | "abstract" | "toc" | "body" | "acknowledgements" | "bibliography" | "appendix" | "teacherComments";
+    targetSectionTitle?: string;
+    type: "moveBlock" | "ensureSection" | "addUnresolvedItem" | "removeUnresolvedItem" | "updateHeadingLevel";
+    unresolvedCode?: string;
+    unresolvedMessage?: string;
+  }
+
+  export interface StructureRepairPlan {
+    operations: Operation[];
+    planVersion: "1.0.0";
+    reviewerNotes?: string[];
+    summary: string;
+  }
+}
+
 export namespace TemplateBaselineManifestSchema {
   export interface Baseline {
     allowedDiffCategories: string[];
@@ -907,6 +997,11 @@ export namespace TemplatePackageSchema {
     type: "image" | "font" | "staticDocxFragment" | "text";
   }
 
+  export interface BlockFormatOverride {
+    font?: FontOverride;
+    paragraph?: ParagraphOverride;
+  }
+
   export interface ComplianceRule {
     description: string;
     id: Id;
@@ -919,13 +1014,79 @@ export namespace TemplatePackageSchema {
     type: "declarationText";
   }
 
+  export interface DocumentOverrides {
+    bodyParagraph?: ParagraphOverride;
+    defaultFont?: FontOverride;
+    headerFooter?: {
+    differentFirstPage?: boolean;
+    drawHeaderLine?: boolean;
+    headerText?: string;
+    hidePageNumberOnCover?: boolean;
+  };
+    headings?: {
+    [key: string]: HeadingOverride | undefined;
+  };
+    sectionFormats?: {
+    body?: SectionFormatOverride;
+    cover?: SectionFormatOverride;
+    frontMatter?: SectionFormatOverride;
+  };
+    sectionInstances?: {
+    [key: string]: SectionInstanceOverride | undefined;
+  };
+    toc?: {
+    includeSectionIds?: Id[];
+    maxLevel?: number;
+    minLevel?: number;
+    title?: string;
+  };
+  }
+
   export interface FieldTableBlock {
     borderMode?: "none" | "full" | "bottomLine" | "custom";
     columns?: number;
     labelColumnWidthCm?: number;
+    labelFont?: Font;
+    rowHeightPt?: number;
     rows: MetadataFieldBlock[][];
     type: "fieldTable";
     valueColumnWidthCm?: number;
+    valueFont?: Font;
+  }
+
+  export interface Font {
+    bold?: boolean;
+    eastAsia: string;
+    italic?: boolean;
+    latin: string;
+    sizePt: number;
+  }
+
+  export interface FontOverride {
+    bold?: boolean;
+    eastAsia?: string;
+    italic?: boolean;
+    latin?: string;
+    sizePt?: number;
+  }
+
+  export interface HandwritingAreaBlock {
+    borderColor?: string;
+    borderThicknessPt?: number;
+    heightCm?: number;
+    label?: string;
+    labelAlignment?: Alignment;
+    type: "handwritingArea";
+  }
+
+  export interface HeadingOverride {
+    alignment?: Alignment;
+    font?: FontOverride;
+    numbered?: boolean;
+    outlineLevel?: number;
+    pageBreakBefore?: boolean;
+    spaceAfterPt?: number;
+    spaceBeforePt?: number;
   }
 
   export type Id = string;
@@ -938,15 +1099,17 @@ export namespace TemplatePackageSchema {
     widthCm?: number;
   }
 
-  export type LayoutBlock = SpacerBlock | TextBlock | MetadataFieldBlock | ImageBlock | FieldTableBlock | DeclarationTextBlock | PageBreakBlock | RuleBlock;
+  export type LayoutBlock = SpacerBlock | TextBlock | MetadataFieldBlock | ImageBlock | FieldTableBlock | DeclarationTextBlock | PageBreakBlock | RuleBlock | HandwritingAreaBlock;
 
   export interface MetadataFieldBlock {
     alignment?: Alignment;
     label: string;
+    labelFont?: Font;
     layout?: "inline" | "labelValueLine" | "tableRow";
     sourcePath?: string;
     type: "metadataField";
     underline?: boolean;
+    valueFont?: Font;
     valueTemplate?: string;
     variableName?: Id;
   }
@@ -973,7 +1136,19 @@ export namespace TemplatePackageSchema {
     id: Id;
     insertPosition: "beforeSection" | "afterSection" | "replaceSectionContent";
     pageSetupOverride?: PageSetupOverride;
-    targetSectionType: "cover" | "declaration" | "abstract" | "toc" | "body" | "appendix";
+    targetSectionId?: Id;
+    targetSectionType: "cover" | "declaration" | "abstract" | "toc" | "body" | "appendix" | "acknowledgements" | "bibliography" | "teacherComments";
+  }
+
+  export interface ParagraphOverride {
+    alignment?: Alignment;
+    firstLineIndentChars?: number;
+    hangingIndentCm?: number;
+    lineSpacingExactPt?: number | null;
+    lineSpacingMultiple?: number;
+    spaceAfterPt?: number;
+    spaceBeforePt?: number;
+    widowControl?: boolean;
   }
 
   export type RelativePath = string;
@@ -987,6 +1162,31 @@ export namespace TemplatePackageSchema {
     type: "rule";
   }
 
+  export interface SectionFormatOverride {
+    includeFooter?: boolean;
+    includeHeader?: boolean;
+    pageNumberStyle?: "none" | "decimal" | "lowerRoman" | "upperRoman";
+    restartPageNumbering?: boolean;
+    startPageNumber?: number;
+  }
+
+  export interface SectionInstanceOverride {
+    blockOverrides?: {
+    [key: string]: BlockFormatOverride | undefined;
+  };
+    defaultFont?: FontOverride;
+    footerText?: string;
+    headerText?: string;
+    includeFooter?: boolean;
+    includeHeader?: boolean;
+    pageNumberStyle?: "none" | "decimal" | "lowerRoman" | "upperRoman";
+    paragraph?: ParagraphOverride;
+    restartPageNumbering?: boolean;
+    startPageNumber?: number;
+    titleFont?: FontOverride;
+    titleParagraph?: ParagraphOverride;
+  }
+
   export interface SpacerBlock {
     heightCm: number;
     type: "spacer";
@@ -996,6 +1196,8 @@ export namespace TemplatePackageSchema {
     alignment?: Alignment;
     fontOverride?: {
   };
+    paragraph?: ParagraphOverride;
+    skipWhenEmpty?: boolean;
     spacingAfterPt?: number;
     spacingBeforePt?: number;
     style?: string;
@@ -1086,7 +1288,7 @@ export namespace ThesisDocumentSchema {
     text: string;
   }
 
-  export type Block = ParagraphBlock | HeadingBlock | ListBlock | FigureBlock | TableBlock | QuoteBlock | EquationBlock | PageBreakBlock | SectionBreakBlock | BibliographyBlock | FootnoteBlock | EndnoteBlock;
+  export type Block = ParagraphBlock | HeadingBlock | ListBlock | FigureBlock | TableBlock | QuoteBlock | EquationBlock | PreservedObjectBlock | PageBreakBlock | SectionBreakBlock | BibliographyBlock | FootnoteBlock | EndnoteBlock;
 
   export interface BlockBase {
     id?: Id;
@@ -1154,6 +1356,13 @@ export namespace ThesisDocumentSchema {
   }
 
   export type FigureBlock = unknown | unknown;
+
+  export interface FigureCrop {
+    bottomPercent?: number;
+    leftPercent?: number;
+    rightPercent?: number;
+    topPercent?: number;
+  }
 
   export interface Font {
     bold?: boolean;
@@ -1240,6 +1449,16 @@ export namespace ThesisDocumentSchema {
     type: "paragraph";
   };
 
+  export type PreservedObjectBlock = unknown & unknown;
+
+  export interface PreservedObjectPart {
+    children?: PreservedObjectPart[];
+    contentType: string;
+    dataBase64: string;
+    relationshipId: string;
+    relationshipType: string;
+  }
+
   export interface QuoteBlock {
     id?: Id;
     inlines: Inline[];
@@ -1255,7 +1474,7 @@ export namespace ThesisDocumentSchema {
   export interface Section {
     blocks: Block[];
     id?: Id;
-    kind: "cover" | "originalityStatement" | "abstract" | "toc" | "body" | "acknowledgements" | "bibliography" | "appendix";
+    kind: "cover" | "originalityStatement" | "abstract" | "toc" | "body" | "acknowledgements" | "bibliography" | "appendix" | "teacherComments";
     startOnNewPage?: boolean;
     title?: string;
   }
@@ -1310,15 +1529,17 @@ export namespace ThesisDocumentSchema {
 
   export interface ThesisDocument {
     metadata: Metadata;
-    schemaVersion: "1.0.0" | "1.1.0";
+    schemaVersion: "1.0.0" | "1.1.0" | "1.2.0";
     sections: Section[];
   }
 }
 
 export namespace ThesisFormatSpecSchema {
   export interface Bibliography {
+    entryFont?: Font;
     entryParagraph: Paragraph;
     numberFormat: string;
+    sortOrder?: "documentOrder" | "chronological" | "yearAscending" | "yearDescending";
     title: string;
   }
 
@@ -1401,9 +1622,11 @@ export namespace ThesisFormatSpecSchema {
     differentFirstPage: boolean;
     differentOddEven: boolean;
     drawHeaderLine: boolean;
+    evenPageNumberAlignment?: TextAlignment;
     headerAlignment: TextAlignment;
     headerText: string;
     hidePageNumberOnCover: boolean;
+    oddPageNumberAlignment?: TextAlignment;
     pageNumberAlignment: TextAlignment;
   }
 
@@ -1422,7 +1645,10 @@ export namespace ThesisFormatSpecSchema {
 
   export interface NoteFormat {
     font: Font;
+    numberFormat?: "decimal" | "decimalEnclosedCircle" | "decimalEnclosedCircleChinese";
+    numberingRestart?: "continuous" | "eachSection" | "eachPage";
     paragraph: Paragraph;
+    startNumber?: number;
     styleId: string;
     superscriptReferenceMark: boolean;
   }
@@ -1472,6 +1698,8 @@ export namespace ThesisFormatSpecSchema {
     startPageNumber: number;
   }
 
+  export type SectionKind = "cover" | "originalityStatement" | "abstract" | "toc" | "body" | "acknowledgements" | "bibliography" | "appendix" | "teacherComments";
+
   export interface Tables {
     allowRowBreakAcrossPagesDefault?: boolean;
     caption?: {
@@ -1499,6 +1727,13 @@ export namespace ThesisFormatSpecSchema {
 
   export type TextAlignment = "left" | "center" | "right" | "both";
 
+  export interface TextCountValidation {
+    max?: number;
+    min?: number;
+    sectionKinds?: SectionKind[];
+    unit?: "nonWhitespaceCharacters" | "unicodeTextElements" | "words";
+  }
+
   export interface Toc {
     maxLevel: number;
     minLevel: number;
@@ -1508,6 +1743,7 @@ export namespace ThesisFormatSpecSchema {
 
   export interface Validation {
     allowHeadingLevelSkips?: boolean;
+    bodyTextCount?: TextCountValidation;
   }
 
   export interface ThesisFormatSpec {
@@ -1583,6 +1819,7 @@ export type NegativeFixtureManifest = NegativeFixtureManifestSchema.NegativeFixt
 export type OnboardingWorkspaceManifest = OnboardingWorkspaceManifestSchema.OnboardingWorkspaceManifest;
 export type RequirementCapture = RequirementCaptureSchema.RequirementCapture;
 export type SchemaVersionReport = SchemaVersionReportSchema.SchemaVersionReport;
+export type StructureRepairPlan = StructureRepairPlanSchema.StructureRepairPlan;
 export type TemplateBaselineManifest = TemplateBaselineManifestSchema.TemplateBaselineManifest;
 export type TemplateCandidateProposalReport = TemplateCandidateProposalReportSchema.TemplateCandidateProposalReport;
 export type TemplatePackage = TemplatePackageSchema.TemplatePackage;

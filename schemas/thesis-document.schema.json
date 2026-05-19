@@ -10,7 +10,7 @@
     "schemaVersion": {
       "description": "Structured input contract version.",
       "type": "string",
-      "enum": ["1.0.0", "1.1.0"]
+      "enum": ["1.0.0", "1.1.0", "1.2.0"]
     },
     "metadata": { "$ref": "#/definitions/metadata" },
     "sections": {
@@ -50,7 +50,7 @@
         "id": { "$ref": "#/definitions/id" },
         "kind": {
           "type": "string",
-          "enum": ["cover", "originalityStatement", "abstract", "toc", "body", "acknowledgements", "bibliography", "appendix"]
+          "enum": ["cover", "originalityStatement", "abstract", "toc", "body", "acknowledgements", "bibliography", "appendix", "teacherComments"]
         },
         "title": { "type": "string" },
         "startOnNewPage": { "type": "boolean" },
@@ -69,6 +69,7 @@
         { "$ref": "#/definitions/tableBlock" },
         { "$ref": "#/definitions/quoteBlock" },
         { "$ref": "#/definitions/equationBlock" },
+        { "$ref": "#/definitions/preservedObjectBlock" },
         { "$ref": "#/definitions/pageBreakBlock" },
         { "$ref": "#/definitions/sectionBreakBlock" },
         { "$ref": "#/definitions/bibliographyBlock" },
@@ -146,12 +147,23 @@
         "imageDataBase64": { "type": "string", "minLength": 1 },
         "imageContentType": { "type": "string", "enum": ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/tiff"] },
         "widthCm": { "type": "number", "exclusiveMinimum": 0 },
-        "heightCm": { "type": "number", "exclusiveMinimum": 0 }
+        "heightCm": { "type": "number", "exclusiveMinimum": 0 },
+        "crop": { "$ref": "#/definitions/figureCrop" }
       },
       "anyOf": [
         { "required": ["imagePath"] },
         { "required": ["imageDataBase64"] }
       ]
+    },
+    "figureCrop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "leftPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "topPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "rightPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "bottomPercent": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
     },
     "tableBlock": {
       "type": "object",
@@ -243,6 +255,48 @@
         { "properties": { "sourceType": { "enum": ["plain"] } }, "anyOf": [{ "required": ["plainText"] }, { "required": ["placeholder"] }] },
         { "not": { "required": ["sourceType"] }, "anyOf": [{ "required": ["plainText"] }, { "required": ["placeholder"] }] }
       ]
+    },
+    "preservedObjectBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "objectType", "preservationMode"],
+      "properties": {
+        "type": { "enum": ["preservedObject"] },
+        "id": { "$ref": "#/definitions/id" },
+        "objectType": { "type": "string", "enum": ["chart", "smartArt", "shape", "textBox", "picture", "drawing"] },
+        "preservationMode": { "type": "string", "enum": ["reviewOnly", "extractText", "passthrough"] },
+        "rawXml": { "type": "string", "minLength": 1 },
+        "graphicDataUri": { "type": "string", "minLength": 1 },
+        "relationshipIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "parts": { "type": "array", "items": { "$ref": "#/definitions/preservedObjectPart" } },
+        "widthCm": { "type": "number", "exclusiveMinimum": 0 },
+        "heightCm": { "type": "number", "exclusiveMinimum": 0 },
+        "anchorType": { "type": "string", "enum": ["inline", "anchor"] },
+        "extractedText": { "type": "string", "minLength": 1 },
+        "evidencePath": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "preservationMode": { "const": "extractText" } }, "required": ["preservationMode"] },
+          "then": { "required": ["extractedText"] }
+        },
+        {
+          "if": { "properties": { "preservationMode": { "const": "passthrough" } }, "required": ["preservationMode"] },
+          "then": { "required": ["rawXml"] }
+        }
+      ]
+    },
+    "preservedObjectPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relationshipId", "relationshipType", "contentType", "dataBase64"],
+      "properties": {
+        "relationshipId": { "type": "string", "minLength": 1 },
+        "relationshipType": { "type": "string", "minLength": 1 },
+        "contentType": { "type": "string", "minLength": 1 },
+        "dataBase64": { "type": "string", "minLength": 1 },
+        "children": { "type": "array", "items": { "$ref": "#/definitions/preservedObjectPart" } }
+      }
     },
     "pageBreakBlock": {
       "type": "object",

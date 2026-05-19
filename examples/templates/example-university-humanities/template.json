@@ -10,6 +10,20 @@
   "degreeType": "master",
   "tags": ["example", "humanities", "template"],
   "formatSpecRef": "format-spec.json",
+  "documentOverrides": {
+    "sectionInstances": {
+      "abstract-cn": {
+        "titleFont": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 16, "bold": true },
+        "titleParagraph": { "lineSpacingMultiple": 1.0, "spaceBeforePt": 0, "spaceAfterPt": 8, "firstLineIndentChars": 0, "hangingIndentCm": 0, "alignment": "center", "widowControl": true },
+        "blockOverrides": {
+          "1": {
+            "font": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 12, "bold": true },
+            "paragraph": { "lineSpacingMultiple": 1.0, "spaceBeforePt": 0, "spaceAfterPt": 0, "firstLineIndentChars": 0, "hangingIndentCm": 0, "alignment": "left", "widowControl": true }
+          }
+        }
+      }
+    }
+  },
   "variables": [
     {
       "name": "submissionDate",
@@ -96,6 +110,9 @@
           "borderMode": "full",
           "labelColumnWidthCm": 3.2,
           "valueColumnWidthCm": 9.8,
+          "rowHeightPt": 24,
+          "labelFont": { "eastAsia": "黑体", "latin": "Times New Roman", "sizePt": 12, "bold": true },
+          "valueFont": { "eastAsia": "楷体", "latin": "Times New Roman", "sizePt": 12, "bold": false },
           "rows": [
             [{ "type": "metadataField", "label": "作者", "sourcePath": "metadata.author", "layout": "tableRow", "underline": true }],
             [{ "type": "metadataField", "label": "学号", "sourcePath": "metadata.studentId", "layout": "tableRow", "underline": true }],
@@ -127,12 +144,14 @@
             { "type": "metadataField", "label": "日期", "variableName": "submissionDate", "layout": "labelValueLine", "underline": true, "alignment": "right" }
           ]
         },
+        { "type": "handwritingArea", "label": "学院审核意见", "heightCm": 3, "borderColor": "555555", "borderThicknessPt": 0.75, "labelAlignment": "left" },
         { "type": "pageBreak" }
       ]
     },
     {
       "id": "humanities-abstract-note",
       "targetSectionType": "abstract",
+      "targetSectionId": "abstract-cn",
       "insertPosition": "beforeSection",
       "blocks": [
         {

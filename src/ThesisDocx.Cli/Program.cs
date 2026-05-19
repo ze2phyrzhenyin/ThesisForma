@@ -804,6 +804,7 @@ internal static partial class ThesisDocxCli
         {
             "draft" => StructureDraft(options),
             "prompt" => StructurePrompt(options),
+            "codex-review" => StructureCodexReview(options),
             _ => Fail($"Unknown structure command '{command}'.")
         };
     }
@@ -844,6 +845,90 @@ internal static partial class ThesisDocxCli
         return 0;
     }
 
+    private static int StructureCodexReview(Dictionary<string, string> options)
+    {
+        var workspace = Required(options, "workspace");
+        var extractionPath = Required(options, "extraction");
+        var draftPath = options.GetValueOrDefault("document")
+            ?? options.GetValueOrDefault("out")
+            ?? Path.Combine(workspace, "structured", "thesis-document.draft.json");
+        var mappingPath = options.GetValueOrDefault("mapping-report")
+            ?? options.GetValueOrDefault("report")
+            ?? Path.Combine(workspace, "structured", "structure-mapping-report.json");
+        var unresolvedPath = options.GetValueOrDefault("unresolved")
+            ?? Path.Combine(workspace, "structured", "unresolved-items.json");
+        var evidencePath = options.GetValueOrDefault("evidence")
+            ?? Path.Combine(workspace, "structured", "evidence-links.json");
+        var promptPath = options.GetValueOrDefault("prompt")
+            ?? Path.Combine(workspace, "reports", "structure-codex-prompt.md");
+        var reviewReportPath = options.GetValueOrDefault("review-report")
+            ?? Path.Combine(workspace, "reports", "structure-codex-review.json");
+
+        Directory.CreateDirectory(Path.Combine(workspace, "structured"));
+        Directory.CreateDirectory(Path.Combine(workspace, "reports"));
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(draftPath))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(mappingPath))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(unresolvedPath))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(evidencePath))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(promptPath))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(reviewReportPath))!);
+        try
+        {
+            var extraction = ReadJson<DocxExtractionResult>(extractionPath);
+            var structured = new ThesisStructureMapper().Map(extraction, extractionPath);
+            NormalizeDraftImagePaths(structured.Document, extractionPath, draftPath);
+            new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
+
+            var review = new CodexStructureReviewRunner().Run(CreateCodexReviewOptions(
+                options,
+                workspace,
+                extractionPath,
+                draftPath,
+                mappingPath,
+                unresolvedPath,
+                evidencePath,
+                promptPath,
+                reviewReportPath,
+                options.GetValueOrDefault("format-candidate-report")));
+            Console.WriteLine($"Codex structure review: {review.Status} (exit {review.CodexExitCode?.ToString(CultureInfo.InvariantCulture) ?? "notRun"}, content preservation: {review.DraftContentPreservationStatus})");
+            return review.Status == "pass" ? 0 : 2;
+        }
+        catch (JsonException ex)
+        {
+            return WriteStructureCodexReviewFailure(reviewReportPath, ex);
+        }
+        catch (IOException ex)
+        {
+            return WriteStructureCodexReviewFailure(reviewReportPath, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return WriteStructureCodexReviewFailure(reviewReportPath, ex);
+        }
+        catch (ArgumentException ex)
+        {
+            return WriteStructureCodexReviewFailure(reviewReportPath, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return WriteStructureCodexReviewFailure(reviewReportPath, ex);
+        }
+    }
+
+    private static int WriteStructureCodexReviewFailure(string reviewReportPath, Exception ex)
+    {
+        var diagnostic = IntakeFailureDiagnostic(
+            "intake.structure.codexReview.failed",
+            "$",
+            "Codex structure review failed before producing trusted review artifacts.",
+            "Inspect structure-codex-review.json and rerun inside the private intake workspace.",
+            "StructureCodexReview",
+            ex);
+        WriteJsonOutput(reviewReportPath, new { reportVersion = "1.0.0", status = "fail", diagnostics = new[] { diagnostic } });
+        Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+        return 2;
+    }
+
     private static int Intake(string[] args)
     {
         if (args.Length == 0)
@@ -856,8 +941,20 @@ internal static partial class ThesisDocxCli
         return command switch
         {
             "docx" => IntakeDocx(options),
+            "gate" => IntakeGate(options),
             _ => Fail($"Unknown intake command '{command}'.")
         };
+    }
+
+    private static int IntakeGate(Dictionary<string, string> options)
+    {
+        var gateOptions = new Dictionary<string, string>(options, StringComparer.Ordinal);
+        if (!gateOptions.ContainsKey("structure-mode") && !gateOptions.ContainsKey("codex-review"))
+        {
+            gateOptions["structure-mode"] = "auto";
+        }
+
+        return IntakeDocx(gateOptions);
     }
 
     private static int IntakeDocx(Dictionary<string, string> options)
@@ -893,8 +990,11 @@ internal static partial class ThesisDocxCli
         var candidateReportPath = Path.Combine(workspace, "structured", "format-candidate-report.json");
         var candidateMarkdownPath = Path.Combine(workspace, "structured", "format-candidate-report.md");
         var promptPath = Path.Combine(workspace, "reports", "structure-codex-prompt.md");
+        var codexReviewPath = Path.Combine(workspace, "reports", "structure-codex-review.json");
         var reportPath = Path.Combine(workspace, "reports", "intake-report.json");
         var reportMarkdownPath = Path.Combine(workspace, "reports", "intake-report.md");
+        var canUseDraftForRender = true;
+        var structureMode = NormalizeStructureMode(options);
 
         if (!File.Exists(input))
         {
@@ -919,6 +1019,7 @@ internal static partial class ThesisDocxCli
 
         try
         {
+            report.StructureMode = structureMode;
             var extraction = new DocxExtractionService().Extract(new DocxExtractionOptions
             {
                 InputPath = input,
@@ -966,33 +1067,100 @@ internal static partial class ThesisDocxCli
             WriteTextOutput(promptPath, new StructurePromptBuilder().Build(extractionPath, candidateReportPath));
             report.Artifacts.Add(promptPath);
 
-            var draft = ReadJson<ThesisDocument>(draftPath);
-            var resolution = new TemplateResolver().Resolve(template, draft);
-            if (!resolution.IsValid)
+            var analysisPath = Path.Combine(workspace, "reports", "structure-analysis.json");
+            var structureAnalysis = new StructureBoundaryAnalyzer().Analyze(extraction, structured);
+            WriteJsonOutput(analysisPath, structureAnalysis);
+            report.StructureAnalysisStatus = structureAnalysis.Status;
+            report.StructureAnalysisRiskLevel = structureAnalysis.RiskLevel;
+            report.StructureQualityScore = structureAnalysis.QualityScore;
+            report.StructureAnalysisIssueCount = structureAnalysis.IssueCount;
+            report.StructureAnalysisRecommendedCodexReview = structureAnalysis.RecommendCodexReview;
+            report.Artifacts.Add(analysisPath);
+            report.Warnings.AddRange(structureAnalysis.Issues
+                .Select(issue => $"{issue.Code}: {issue.Message}"));
+
+            var shouldRunCodex = ShouldRunCodexReview(structureMode, structureAnalysis);
+            if (!shouldRunCodex)
             {
-                report.BlockingIssues.AddRange(resolution.Errors.Select(e => e.ToString()));
+                report.CodexReviewStatus = structureMode == "auto" ? "skipped" : "notRequested";
+            }
+
+            if (shouldRunCodex)
+            {
+                var codexReview = new CodexStructureReviewRunner().Run(CreateCodexReviewOptions(
+                    options,
+                    workspace,
+                    extractionPath,
+                    draftPath,
+                    mappingPath,
+                    unresolvedPath,
+                    evidencePath,
+                    promptPath,
+                    codexReviewPath,
+                    candidateReportPath));
+                report.CodexReviewStatus = codexReview.Status;
+                report.CodexReviewExitCode = codexReview.CodexExitCode;
+                report.CodexReviewReportPath = codexReviewPath;
+                report.Artifacts.Add(codexReviewPath);
+                report.Warnings.AddRange(codexReview.Warnings);
+                report.Diagnostics.AddRange(codexReview.Diagnostics);
+                if (codexReview.Status == "pass")
+                {
+                    report.DraftContentPreservationStatus = codexReview.DraftContentPreservationStatus;
+                    report.DraftContentMissingSegments = codexReview.DraftContentMissingSegments;
+                    report.DraftContentBlockingIssues = codexReview.DraftContentBlockingIssues;
+                }
+                else
+                {
+                    if (structureMode == "codex-required")
+                    {
+                        canUseDraftForRender = false;
+                        report.BlockingIssues.AddRange(codexReview.BlockingIssues);
+                    }
+                    else
+                    {
+                        NormalizeDraftImagePaths(structured.Document, extractionPath, draftPath);
+                        new ThesisStructureMapper().WriteOutputs(structured, draftPath, mappingPath, unresolvedPath, evidencePath);
+                        report.CodexReviewStatus = "fallback";
+                        report.Warnings.Add("structure.codex.fallback: Codex review failed; continuing with the rule-based draft because structure-mode is not codex-required.");
+                    }
+                }
+            }
+
+            if (!canUseDraftForRender)
+            {
+                report.BlockingIssues.Add("intake.codexReview.failed at $.codexReview: Codex review did not produce a trusted draft.");
             }
             else
             {
-                var format = resolution.FormatSpec ?? new ThesisFormatSpec();
-                var tempFormat = WriteTempFormatSpec(format);
-                var inputValidation = ValidateInputFiles(draftPath, tempFormat, draft, format);
-                report.ThesisDocumentDraftValid = inputValidation.IsValid;
-                report.BlockingIssues.AddRange(inputValidation.Errors.Select(e => e.ToString()));
-                report.Warnings.AddRange(inputValidation.Warnings.Select(e => e.ToString()));
-                if (inputValidation.IsValid)
+                var draft = ReadJson<ThesisDocument>(draftPath);
+                var resolution = new TemplateResolver().Resolve(template, draft);
+                if (!resolution.IsValid)
                 {
-                    ResolveRelativeImagePaths(draft, Path.GetDirectoryName(Path.GetFullPath(draftPath))!);
-                    var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
-                    new DocxRenderer().Render(draft, format, renderedPath, CreateRenderContext(resolution));
-                    report.RenderAttempted = true;
-                    report.Artifacts.Add(renderedPath);
-                    var openXml = new OpenXmlPackageValidator().Validate(renderedPath);
-                    report.RenderValid = openXml.IsValid;
-                    report.BlockingIssues.AddRange(openXml.Errors.Select(e => e.ToString()));
-                    var inspectPath = Path.Combine(workspace, "reports", "rendered-draft.inspect.json");
-                    WriteJsonOutput(inspectPath, new DocxInspector().Inspect(renderedPath));
-                    report.Artifacts.Add(inspectPath);
+                    report.BlockingIssues.AddRange(resolution.Errors.Select(e => e.ToString()));
+                }
+                else
+                {
+                    var format = resolution.FormatSpec ?? new ThesisFormatSpec();
+                    var tempFormat = WriteTempFormatSpec(format);
+                    var inputValidation = ValidateInputFiles(draftPath, tempFormat, draft, format);
+                    report.ThesisDocumentDraftValid = inputValidation.IsValid;
+                    report.BlockingIssues.AddRange(inputValidation.Errors.Select(e => e.ToString()));
+                    report.Warnings.AddRange(inputValidation.Warnings.Select(e => e.ToString()));
+                    if (inputValidation.IsValid)
+                    {
+                        ResolveRelativeImagePaths(draft, Path.GetDirectoryName(Path.GetFullPath(draftPath))!);
+                        var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
+                        new DocxRenderer().Render(draft, format, renderedPath, CreateRenderContext(resolution));
+                        report.RenderAttempted = true;
+                        report.Artifacts.Add(renderedPath);
+                        var openXml = new OpenXmlPackageValidator().Validate(renderedPath);
+                        report.RenderValid = openXml.IsValid;
+                        report.BlockingIssues.AddRange(openXml.Errors.Select(e => e.ToString()));
+                        var inspectPath = Path.Combine(workspace, "reports", "rendered-draft.inspect.json");
+                        WriteJsonOutput(inspectPath, new DocxInspector().Inspect(renderedPath));
+                        report.Artifacts.Add(inspectPath);
+                    }
                 }
             }
         }
@@ -1044,7 +1212,10 @@ internal static partial class ThesisDocxCli
         - Format chaos: `{report.FormatChaosLevel}` ({report.FormatChaosScore.ToString("0.###", CultureInfo.InvariantCulture)})
         - Candidate fields: `{report.FormatCandidateGeneratedFieldCount}`
         - Candidate unresolved: `{report.FormatCandidateUnresolvedCount}`
+        - Structure mode: `{report.StructureMode}`
+        - Structure analysis: `{report.StructureAnalysisStatus}` / `{report.StructureAnalysisRiskLevel}` (`{report.StructureAnalysisIssueCount}` issues, score `{report.StructureQualityScore}/100`)
         - Structuring: `{report.StructuringStatus}`
+        - Codex review: `{report.CodexReviewStatus}`
         - Draft content preservation: `{report.DraftContentPreservationStatus}`
         - Draft missing segments: `{report.DraftContentMissingSegments}`
         - Draft content blocking issues: `{report.DraftContentBlockingIssues}`
@@ -1059,6 +1230,83 @@ internal static partial class ThesisDocxCli
         ## Next Actions
         {string.Join(Environment.NewLine, report.RecommendedNextActions.Select(a => "- " + a))}
         """;
+    }
+
+    private static CodexStructureReviewOptions CreateCodexReviewOptions(
+        Dictionary<string, string> options,
+        string workspace,
+        string extractionPath,
+        string draftPath,
+        string mappingPath,
+        string unresolvedPath,
+        string? evidencePath,
+        string promptPath,
+        string reviewReportPath,
+        string? formatCandidateReportPath)
+    {
+        return new CodexStructureReviewOptions
+        {
+            WorkspacePath = workspace,
+            ExtractionPath = extractionPath,
+            DocumentPath = draftPath,
+            MappingReportPath = mappingPath,
+            UnresolvedPath = unresolvedPath,
+            EvidencePath = evidencePath,
+            PromptPath = promptPath,
+            ReviewReportPath = reviewReportPath,
+            StructureAnalysisPath = options.GetValueOrDefault("structure-analysis") ?? Path.Combine(workspace, "reports", "structure-analysis.json"),
+            RepairPlanPath = options.GetValueOrDefault("repair-plan") ?? Path.Combine(workspace, "reports", "structure-repair-plan.json"),
+            RepairPlanSchemaPath = options.GetValueOrDefault("repair-plan-schema") ?? Path.Combine(LocateRepoRoot(), "schemas", "structure-repair-plan.schema.json"),
+            RepairApplyReportPath = options.GetValueOrDefault("repair-apply-report") ?? Path.Combine(workspace, "reports", "structure-repair-apply-report.json"),
+            FormatCandidateReportPath = formatCandidateReportPath,
+            TemplatePath = options.GetValueOrDefault("template"),
+            CodexCommand = options.GetValueOrDefault("codex-command") ?? "codex",
+            CodexSandbox = options.GetValueOrDefault("codex-sandbox") ?? "workspace-write",
+            CodexApprovalPolicy = options.GetValueOrDefault("codex-approval") ?? "never",
+            Model = options.GetValueOrDefault("codex-model"),
+            Profile = options.GetValueOrDefault("codex-profile"),
+            SkipGitRepoCheck = !options.ContainsKey("codex-require-git-repo"),
+            TimeoutSeconds = ParseIntOption(options, "timeout-seconds", 900),
+            ExtraArguments = GetOptionValues(options, "codex-arg").ToList()
+        };
+    }
+
+    private static string NormalizeStructureMode(Dictionary<string, string> options)
+    {
+        if (options.ContainsKey("codex-review"))
+        {
+            return "codex-required";
+        }
+
+        var mode = options.GetValueOrDefault("structure-mode") ?? "rule";
+        mode = mode.Trim().ToLowerInvariant();
+        return mode switch
+        {
+            "rule" or "codex" or "codex-required" or "auto" => mode,
+            _ => throw new ArgumentException("--structure-mode must be one of rule, codex, codex-required, or auto.")
+        };
+    }
+
+    private static bool ShouldRunCodexReview(string structureMode, StructureAnalysisReport analysis)
+    {
+        return structureMode switch
+        {
+            "codex" or "codex-required" => true,
+            "auto" => analysis.RecommendCodexReview,
+            _ => false
+        };
+    }
+
+    private static int ParseIntOption(Dictionary<string, string> options, string key, int defaultValue)
+    {
+        if (!options.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return defaultValue;
+        }
+
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : throw new ArgumentException($"Option '--{key}' must be an integer.");
     }
 
     private static UnifiedDiagnostic ExtractionDiagnostic(DocxExtractionException ex, string source)
@@ -1491,7 +1739,8 @@ internal static partial class ThesisDocxCli
             ResolvedFormatSpecVersion = resolution.FormatSpec?.SchemaVersion,
             PageTemplates = resolution.PageTemplates,
             Variables = variables,
-            Assets = resolution.Assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal)
+            Assets = resolution.Assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal),
+            Overrides = resolution.Template?.DocumentOverrides
         };
     }
 
@@ -1619,7 +1868,7 @@ internal static partial class ThesisDocxCli
 
     private static void ResolveRelativeImagePaths(ThesisDocument document, string baseDirectory)
     {
-        foreach (var figure in document.Sections.SelectMany(s => s.Blocks).OfType<FigureBlock>())
+        foreach (var figure in EnumerateFigures(document.Sections.SelectMany(s => s.Blocks)))
         {
             if (!string.IsNullOrWhiteSpace(figure.ImagePath) && !Path.IsPathRooted(figure.ImagePath))
             {
@@ -1639,7 +1888,7 @@ internal static partial class ThesisDocxCli
 
         var artifactsDirectory = Path.Combine(workspaceDirectory, "artifacts");
         var draftDirectory = Path.GetDirectoryName(Path.GetFullPath(draftDocumentPath)) ?? Directory.GetCurrentDirectory();
-        foreach (var figure in document.Sections.SelectMany(s => s.Blocks).OfType<FigureBlock>())
+        foreach (var figure in EnumerateFigures(document.Sections.SelectMany(s => s.Blocks)))
         {
             if (string.IsNullOrWhiteSpace(figure.ImagePath) || Path.IsPathRooted(figure.ImagePath))
             {
@@ -1650,6 +1899,33 @@ internal static partial class ThesisDocxCli
             if (File.Exists(artifactPath))
             {
                 figure.ImagePath = Path.GetRelativePath(draftDirectory, artifactPath).Replace('\\', '/');
+            }
+        }
+    }
+
+    private static IEnumerable<FigureBlock> EnumerateFigures(IEnumerable<BlockNode> blocks)
+    {
+        foreach (var block in blocks)
+        {
+            switch (block)
+            {
+                case FigureBlock figure:
+                    yield return figure;
+                    break;
+                case TableBlock table:
+                    foreach (var nested in EnumerateFigures(table.Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Blocks)))
+                    {
+                        yield return nested;
+                    }
+
+                    break;
+                case ListBlock list:
+                    foreach (var nested in EnumerateFigures(list.Items.SelectMany(item => item.Blocks)))
+                    {
+                        yield return nested;
+                    }
+
+                    break;
             }
         }
     }
@@ -1752,7 +2028,9 @@ internal static partial class ThesisDocxCli
         thesis-docx extract format-candidates --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/structured/candidate-format-spec.json --report onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.json --markdown onboarding-workspaces/docx-structure-pilot/structured/format-candidate-report.md
         thesis-docx structure draft --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/structured/thesis-document.draft.json --report onboarding-workspaces/docx-structure-pilot/structured/structure-mapping-report.json --unresolved onboarding-workspaces/docx-structure-pilot/structured/unresolved-items.json
         thesis-docx structure prompt --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --out onboarding-workspaces/docx-structure-pilot/reports/structure-codex-prompt.md
-        thesis-docx intake docx --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering
+        thesis-docx structure codex-review --workspace onboarding-workspaces/docx-structure-pilot --extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --template examples/templates/example-university-engineering
+        thesis-docx intake docx --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering --structure-mode codex-required
+        thesis-docx intake gate --input onboarding-workspaces/docx-structure-pilot/input/input.docx --workspace onboarding-workspaces/docx-structure-pilot --template examples/templates/example-university-engineering
         thesis-docx content audit --source-extraction onboarding-workspaces/docx-structure-pilot/extraction/extraction.json --rendered-extraction out/rendered-extraction.json --out out/content-preservation-audit.json --markdown out/content-preservation-audit.md
         """);
     }

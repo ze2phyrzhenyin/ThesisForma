@@ -37,7 +37,7 @@ public sealed class FigureRenderer
         }
     }
 
-    private W.Paragraph CreateFigureParagraph(FigureBlock block)
+    internal W.Paragraph CreateFigureParagraph(FigureBlock block)
     {
         var imageBytes = LoadImageBytes(block);
         var relationshipId = _relationshipManager.AddImagePart(imageBytes, block.ImageContentType);
@@ -51,7 +51,7 @@ public sealed class FigureRenderer
             new W.ParagraphProperties(
                 new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
                 new W.Justification { Val = _format.Figures.Center ? W.JustificationValues.Center : W.JustificationValues.Left }),
-            new W.Run(CreateDrawing(relationshipId, drawingId, widthEmu, heightEmu)));
+            new W.Run(CreateDrawing(relationshipId, drawingId, widthEmu, heightEmu, block.Crop)));
     }
 
     private static byte[] LoadImageBytes(FigureBlock block)
@@ -76,8 +76,17 @@ public sealed class FigureRenderer
         throw new InvalidOperationException("Figure block requires imageDataBase64 or imagePath.");
     }
 
-    private static W.Drawing CreateDrawing(string relationshipId, uint drawingId, long widthEmu, long heightEmu)
+    private static W.Drawing CreateDrawing(string relationshipId, uint drawingId, long widthEmu, long heightEmu, FigureCropSpec? crop)
     {
+        var blipFill = new PIC.BlipFill(new A.Blip { Embed = relationshipId });
+        var sourceRectangle = CreateSourceRectangle(crop);
+        if (sourceRectangle is not null)
+        {
+            blipFill.AppendChild(sourceRectangle);
+        }
+
+        blipFill.AppendChild(new A.Stretch(new A.FillRectangle()));
+
         return new W.Drawing(
             new WP.Inline(
                 new WP.Extent { Cx = widthEmu, Cy = heightEmu },
@@ -91,9 +100,7 @@ public sealed class FigureRenderer
                             new PIC.NonVisualPictureProperties(
                                 new PIC.NonVisualDrawingProperties { Id = drawingId, Name = $"Figure {drawingId}" },
                                 new PIC.NonVisualPictureDrawingProperties()),
-                            new PIC.BlipFill(
-                                new A.Blip { Embed = relationshipId },
-                                new A.Stretch(new A.FillRectangle())),
+                            blipFill,
                             new PIC.ShapeProperties(
                                 new A.Transform2D(
                                     new A.Offset { X = 0L, Y = 0L },
@@ -111,5 +118,30 @@ public sealed class FigureRenderer
                 DistanceFromLeft = 0U,
                 DistanceFromRight = 0U
             });
+    }
+
+    private static A.SourceRectangle? CreateSourceRectangle(FigureCropSpec? crop)
+    {
+        if (crop is null)
+        {
+            return null;
+        }
+
+        var rectangle = new A.SourceRectangle();
+        SetCropValue(crop.LeftPercent, value => rectangle.Left = value);
+        SetCropValue(crop.TopPercent, value => rectangle.Top = value);
+        SetCropValue(crop.RightPercent, value => rectangle.Right = value);
+        SetCropValue(crop.BottomPercent, value => rectangle.Bottom = value);
+        return rectangle.HasAttributes ? rectangle : null;
+    }
+
+    private static void SetCropValue(double? percent, Action<Int32Value> assign)
+    {
+        if (!percent.HasValue)
+        {
+            return;
+        }
+
+        assign((Int32Value)(int)Math.Round(percent.Value * 1000, MidpointRounding.AwayFromZero));
     }
 }

@@ -8,18 +8,18 @@
 - `defaultFont`: East Asia font, Latin font, size, bold, italic.
 - `bodyParagraph`: line spacing, spacing before/after, first-line indent, hanging indent, alignment, widow control.
 - `headings`: per-level heading font, spacing, numbering, page break, outline level, alignment.
-- `headerFooter`: header text, header line, page number alignment, first/odd/even settings.
+- `headerFooter`: header text, header line, page number alignment, optional odd/even page-number alignments, first-page behavior, and odd/even settings.
 - `toc`: title, min/max levels, field-code behavior.
 - `tables`: width, layout, borders, cell margins, caption position, three-line table preference, repeat header rows, and row page-break behavior.
 - `equations`: default alignment, font size metadata, numbering rules, spacing, caption style, LaTeX fallback behavior, and OMML safety mode.
-- `notes`: footnote/endnote paragraph style id, font, paragraph spacing, and reference mark superscript behavior.
+- `notes`: footnote/endnote paragraph style id, font, paragraph spacing, reference mark superscript behavior, numbering format, restart mode, and start number.
 - `figures`: default size, centering, caption position.
 - `captions`: label and numbering format.
-- `bibliography`: title, entry paragraph format, numbering pattern.
+- `bibliography`: title, entry font, entry paragraph format, numbering pattern, and optional publication-year sort rule.
 - `numbering`: heading/list/bibliography level text.
 - `compatibility`: default language and Word compatibility intent.
 - `sections`: page numbering behavior for cover, front matter, and body.
-- `validation`: semantic validation switches, currently `allowHeadingLevelSkips`.
+- `validation`: semantic validation switches, including `allowHeadingLevelSkips` and optional `bodyTextCount`.
 
 ## Page Number Profiles
 
@@ -62,6 +62,16 @@ Table cells may render a bounded nested block subset: paragraph, heading, quote,
 ## Notes
 
 `notes.footnote` and `notes.endnote` define note paragraph styles. The renderer creates the configured styles in `styles.xml`, applies those style ids in `footnotes.xml` and `endnotes.xml`, and uses `superscriptReferenceMark` for body and note reference marks.
+
+`numberFormat` accepts `decimal`, `decimalEnclosedCircle`, and `decimalEnclosedCircleChinese`. `numberingRestart` accepts `continuous`, `eachSection`, and `eachPage`; these render to `settings.xml` document-wide note properties with `startNumber`.
+
+## Bibliography
+
+`bibliography.entryFont` overrides the run font used by bibliography paragraphs while `entryParagraph` controls hanging indent and line spacing. `sortOrder` is semantic input validation, not a renderer rewrite: `documentOrder` preserves supplied order, `chronological` accepts either ascending or descending publication-year order, and `yearAscending`/`yearDescending` require a specific direction.
+
+## Validation
+
+`validation.bodyTextCount` lets a format declare a text-count range for selected section kinds, usually `["body"]`. It supports `nonWhitespaceCharacters`, `unicodeTextElements`, and `words`. This is a structured-document validation rule; it does not parse a messy Word file or infer which professional category applies.
 
 ## Template Merge Rule
 

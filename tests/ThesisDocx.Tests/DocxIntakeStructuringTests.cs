@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using ThesisDocx.Core.Extraction;
 using ThesisDocx.Core.Models;
@@ -10,12 +11,19 @@ using ThesisDocx.Core.Utilities;
 using ThesisDocx.Core.Validation;
 using ThesisDocx.Core.Validation.ContentPreservation;
 using ThesisDocx.Tests.Fixtures;
+using A = DocumentFormat.OpenXml.Drawing;
+using C = DocumentFormat.OpenXml.Drawing.Charts;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+using V = DocumentFormat.OpenXml.Vml;
+using WP = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace ThesisDocx.Tests;
 
 public sealed class DocxIntakeStructuringTests
 {
+    private const string TinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+
     [Fact]
     public void DocxExtraction_ShouldExtractParagraphs()
     {
@@ -81,6 +89,99 @@ public sealed class DocxIntakeStructuringTests
         Assert.Equal("restart", table.Rows[0].Cells[0].VerticalMerge);
         Assert.Equal(2, table.Rows[1].Cells[0].GridSpan);
         Assert.Equal("continue", table.Rows[1].Cells[0].VerticalMerge);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldExtractFigureArtifactsDimensionsAndCaptions()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateMediaTableDocx(directory);
+
+        var result = new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+        var figure = result.Figures.Single(f => f.EvidencePath == "paragraphs[1]");
+
+        Assert.Equal("图1 系统架构示意图", figure.SuggestedCaption);
+        Assert.Equal("paragraphs[2]", figure.CaptionEvidencePath);
+        Assert.Equal("inline", figure.AnchorType);
+        Assert.Equal(3.2, figure.WidthCm!.Value, 1);
+        Assert.Equal(1.8, figure.HeightCm!.Value, 1);
+        Assert.Equal(10, figure.Crop!.LeftPercent);
+        Assert.Equal(5, figure.Crop.TopPercent);
+        Assert.Equal(20, figure.Crop.RightPercent);
+        Assert.False(string.IsNullOrWhiteSpace(figure.ArtifactPath));
+        Assert.True(File.Exists(Path.Combine(directory, "artifacts", figure.ArtifactPath!)));
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldExtractTableCaptionsGeometryAndCellFigures()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateMediaTableDocx(directory);
+
+        var result = new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+        var table = Assert.Single(result.Tables);
+        var imageCell = table.Rows[1].Cells[1];
+
+        Assert.Equal("表1 数据表", table.SuggestedCaption);
+        Assert.Equal("paragraphs[3]", table.CaptionEvidencePath);
+        Assert.Equal("before", table.CaptionPosition);
+        Assert.Equal(100, table.WidthPercent);
+        Assert.Contains("insideV", table.Borders);
+        Assert.True(table.Rows[0].IsHeader);
+        Assert.Equal(2400, table.Rows[0].Cells[0].WidthTwips);
+        Assert.Equal("center", table.Rows[0].Cells[0].VerticalAlignment);
+        Assert.Equal("D9EAF7", table.Rows[0].Cells[0].Shading);
+        Assert.Contains("double", table.Rows[0].Cells[0].Borders);
+        var figureId = Assert.Single(imageCell.FigureIds);
+        Assert.Contains(result.Figures, figure => figure.Id == figureId && figure.EvidencePath == "tables[0].rows[1].cells[1]");
+        var nested = Assert.Single(imageCell.NestedTables);
+        Assert.Equal("内层", nested.Text);
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldRecordTextBoxDrawingObjectsAsEvidence()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateTextBoxDocx(directory);
+
+        var extraction = new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx });
+        var drawing = Assert.Single(extraction.DrawingObjects);
+
+        Assert.Equal(string.Empty, extraction.Paragraphs[0].Text);
+        Assert.Equal("textBox", drawing.ObjectType);
+        Assert.Equal("文本框内容", drawing.Text);
+        Assert.Contains("<w:pict", drawing.RawXml);
+        Assert.Equal("paragraphs[0]", drawing.EvidencePath);
+
+        var structured = new ThesisStructureMapper().Map(extraction, "textbox-extraction.json");
+        var preserved = structured.Document.Sections.SelectMany(section => section.Blocks).OfType<PreservedObjectBlock>().Single();
+        Assert.Equal(PreservedObjectType.TextBox, preserved.ObjectType);
+        Assert.Equal(PreservedObjectMode.Passthrough, preserved.PreservationMode);
+        Assert.Equal("文本框内容", preserved.ExtractedText);
+        Assert.Contains(structured.UnresolvedItems, item => item.Code == "preservedObject.textBox.reviewRequired");
+    }
+
+    [Fact]
+    public void DocxExtraction_ShouldExtractChartPartGraphForPreservedObjects()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateChartDocx(directory);
+
+        var extraction = new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx });
+        var drawing = Assert.Single(extraction.DrawingObjects);
+        var part = Assert.Single(drawing.Parts);
+
+        Assert.Equal("chart", drawing.ObjectType);
+        Assert.Equal("rIdChartSource", drawing.RelationshipId);
+        Assert.Equal("rIdChartSource", part.RelationshipId);
+        Assert.Equal("http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart", part.RelationshipType);
+        Assert.False(string.IsNullOrWhiteSpace(part.DataBase64));
+
+        var structured = new ThesisStructureMapper().Map(extraction, "chart-extraction.json");
+        var preserved = structured.Document.Sections.SelectMany(section => section.Blocks).OfType<PreservedObjectBlock>().Single();
+        Assert.Equal(PreservedObjectType.Chart, preserved.ObjectType);
+        Assert.Equal(PreservedObjectMode.Passthrough, preserved.PreservationMode);
+        Assert.Equal("rIdChartSource", Assert.Single(preserved.Parts).RelationshipId);
     }
 
     [Fact]
@@ -585,6 +686,118 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void StructurePrompt_ShouldGenerateCodexRepairInstructions()
+    {
+        var workspace = NewTempDirectory();
+        var extractionPath = ExtractSyntheticToFile(Path.Combine(workspace, "extraction"));
+
+        var prompt = new StructurePromptBuilder().BuildCodexReview(new CodexStructureReviewOptions
+        {
+            WorkspacePath = workspace,
+            ExtractionPath = extractionPath,
+            DocumentPath = Path.Combine(workspace, "structured", "thesis-document.draft.json"),
+            MappingReportPath = Path.Combine(workspace, "structured", "structure-mapping-report.json"),
+            UnresolvedPath = Path.Combine(workspace, "structured", "unresolved-items.json"),
+            EvidencePath = Path.Combine(workspace, "structured", "evidence-links.json"),
+            PromptPath = Path.Combine(workspace, "reports", "structure-codex-prompt.md"),
+            ReviewReportPath = Path.Combine(workspace, "reports", "structure-codex-review.json"),
+            TemplatePath = TemplatePath()
+        });
+
+        Assert.Contains("Codex CLI Structure Repair Task", prompt);
+        Assert.Contains("第三章", prompt);
+        Assert.Contains("Preserve original thesis text exactly", prompt);
+    }
+
+    [Fact]
+    public void StructureBoundaryAnalyzer_ShouldFlagChapterSequenceRisks()
+    {
+        var extraction = new DocxExtractionResult
+        {
+            Paragraphs =
+            [
+                new ExtractedParagraph { Index = 0, Text = "第一章 绪论", EvidencePath = "paragraphs[0]" },
+                new ExtractedParagraph { Index = 1, Text = "第三章 结果", EvidencePath = "paragraphs[1]" }
+            ],
+            PossibleHeadings =
+            [
+                new ExtractionEvidence { EvidencePath = "paragraphs[0]", Text = "第一章 绪论", Confidence = 0.9 },
+                new ExtractionEvidence { EvidencePath = "paragraphs[1]", Text = "第三章 结果", Confidence = 0.9 }
+            ]
+        };
+        var structured = new ThesisStructuringResult
+        {
+            EvidenceLinks =
+            [
+                new ThesisStructureEvidenceLink { EvidencePath = "paragraphs[0]", StructuredPath = "$.sections[0].blocks[0]", Reason = "heading mapped", Confidence = 0.9 },
+                new ThesisStructureEvidenceLink { EvidencePath = "paragraphs[1]", StructuredPath = "$.sections[0].blocks[1]", Reason = "heading mapped", Confidence = 0.9 }
+            ]
+        };
+
+        var report = new StructureBoundaryAnalyzer().Analyze(extraction, structured);
+
+        Assert.Equal("high", report.RiskLevel);
+        Assert.True(report.QualityScore < 100);
+        Assert.True(report.RecommendCodexReview);
+        Assert.Contains(report.Issues, issue => issue.Code == "structure.chapterSequence.gap");
+    }
+
+    [Fact]
+    public void StructureRepairPlan_ShouldValidateAgainstSchema()
+    {
+        var directory = NewTempDirectory();
+        var planPath = Path.Combine(directory, "structure-repair-plan.json");
+        var plan = new StructureRepairPlan
+        {
+            Summary = "No evidence-backed repair needed for this fixture.",
+            Operations = []
+        };
+        File.WriteAllText(planPath, JsonSerializer.Serialize(plan, ThesisJson.Options));
+
+        var result = new ThesisSchemaValidator().ValidateStructureRepairPlanFile(planPath, SchemaPath("structure-repair-plan.schema.json"));
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors.Select(error => error.ToString())));
+    }
+
+    [Fact]
+    public void StructureRepairPatchApplier_ShouldMoveBlockByEvidencePathAndRefreshLinks()
+    {
+        var document = WrongChapterDocument();
+        var evidenceLinks = new List<ThesisStructureEvidenceLink>
+        {
+            new() { EvidencePath = "paragraphs[0]", StructuredPath = "$.sections[0].blocks[0]", Reason = "heading mapped", Confidence = 0.9 },
+            new() { EvidencePath = "paragraphs[1]", StructuredPath = "$.sections[0].blocks[1]", Reason = "body paragraph", Confidence = 0.7 },
+            new() { EvidencePath = "paragraphs[2]", StructuredPath = "$.sections[0].blocks[2]", Reason = "heading mapped", Confidence = 0.9 }
+        };
+        var report = new ThesisStructureMappingReport { EvidenceLinks = evidenceLinks };
+        var unresolved = new List<ThesisStructureUnresolvedItem>();
+        var plan = new StructureRepairPlan
+        {
+            Summary = "Move third-chapter body under the third-chapter heading.",
+            Operations =
+            [
+                new StructureRepairOperation
+                {
+                    Id = "move-third-chapter-body",
+                    Type = StructureRepairOperationType.MoveBlock,
+                    SourceEvidencePath = "paragraphs[1]",
+                    AfterEvidencePath = "paragraphs[2]",
+                    Reason = "The paragraph belongs after the 第三章 heading.",
+                    Confidence = 0.93
+                }
+            ]
+        };
+
+        var apply = new StructureRepairPatchApplier().Apply(document, report, unresolved, evidenceLinks, plan);
+        var texts = document.Sections[0].Blocks.Select(BlockText).ToList();
+
+        Assert.Equal("pass", apply.Status);
+        Assert.Equal(["第二章 分析", "第三章 结果", "第三章的正文被错误放在第二章末尾。"], texts);
+        Assert.Contains(evidenceLinks, link => link.EvidencePath == "paragraphs[1]" && link.StructuredPath == "$.sections[0].blocks[2]");
+        Assert.Equal(1, apply.MovedBlockCount);
+    }
+
+    [Fact]
     public void Cli_ExtractDocx_ShouldWriteOutputs()
     {
         var directory = NewTempDirectory();
@@ -650,6 +863,42 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void StructureMapper_ShouldKeepTableOrderCaptionAndCellFigures()
+    {
+        var directory = NewTempDirectory();
+        var docx = CreateMediaTableDocx(directory);
+        var extraction = new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
+
+        var result = new ThesisStructureMapper().Map(extraction, "media-table-extraction.json");
+        var body = result.Document.Sections.First(section => section.Kind == ThesisSectionKind.Body);
+        var beforeIndex = body.Blocks.FindIndex(block => block is ParagraphBlock paragraph && paragraph.Inlines.OfType<TextInline>().Any(text => text.Text == "前置正文"));
+        var tableIndex = body.Blocks.FindIndex(block => block is TableBlock);
+        var afterIndex = body.Blocks.FindIndex(block => block is ParagraphBlock paragraph && paragraph.Inlines.OfType<TextInline>().Any(text => text.Text == "后续正文"));
+        var table = (TableBlock)body.Blocks[tableIndex];
+
+        Assert.True(beforeIndex >= 0);
+        Assert.True(tableIndex > beforeIndex);
+        Assert.True(afterIndex > tableIndex);
+        Assert.Equal("表1 数据表", table.Caption);
+        Assert.Equal(CaptionPosition.Before, table.CaptionPosition);
+        Assert.Equal(TableWidthKind.Percent, table.Width!.Type);
+        Assert.Equal(BorderStyleKind.Single, table.Borders!.InsideV!.Style);
+        Assert.Equal(BorderStyleKind.Double, table.Rows[0].Cells[0].Borders!.Bottom!.Style);
+        Assert.Contains(table.Rows[1].Cells[1].Blocks, block => block is FigureBlock figure
+            && figure.ImagePath!.Contains("images/image-", StringComparison.Ordinal)
+            && figure.WidthCm.HasValue
+            && figure.HeightCm.HasValue);
+        Assert.Contains(table.Rows[1].Cells[1].Blocks, block => block is TableBlock nested
+            && nested.Rows[0].Cells[0].Text == "内层");
+        var figure = table.Rows[1].Cells[1].Blocks.OfType<FigureBlock>().Single();
+        Assert.Null(figure.Crop);
+        var topLevelFigure = body.Blocks.OfType<FigureBlock>().Single();
+        Assert.Equal(10, topLevelFigure.Crop!.LeftPercent);
+        Assert.DoesNotContain(body.Blocks.OfType<ParagraphBlock>(), paragraph => paragraph.Inlines.OfType<TextInline>().Any(text => text.Text == "表1 数据表"));
+        Assert.NotEqual("fail", result.Report.ContentPreservation.Status);
+    }
+
+    [Fact]
     public void Cli_StructureDraft_ShouldRewriteFigureArtifactPathRelativeToDraft()
     {
         var workspace = NewTempDirectory();
@@ -707,6 +956,43 @@ public sealed class DocxIntakeStructuringTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Codex Structure Review Prompt", File.ReadAllText(promptPath));
+    }
+
+    [Fact]
+    public void Cli_StructureCodexReview_ShouldInvokeCodexCliAndWriteReport()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var workspace = NewTempDirectory();
+        var extractionPath = ExtractSyntheticToFile(Path.Combine(workspace, "extraction"));
+        var fakeCodex = CreateFakeCodexCommand(workspace);
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "structure",
+            "codex-review",
+            "--workspace",
+            workspace,
+            "--extraction",
+            extractionPath,
+            "--template",
+            TemplatePath(),
+            "--codex-command",
+            fakeCodex,
+            "--timeout-seconds",
+            "10");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(File.Exists(Path.Combine(workspace, "reports", "fake-codex-marker.txt")));
+        var review = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "structure-codex-review.json")))!;
+        Assert.Equal("pass", review["status"]!.GetValue<string>());
+        Assert.True(review["codexInvoked"]!.GetValue<bool>());
+        Assert.Equal(0, review["codexExitCode"]!.GetValue<int>());
+        Assert.Equal("warning", review["diagnostics"]!.AsArray().Single(diagnostic => diagnostic!["code"]!.GetValue<string>() == "structure.codex.noDraftChange")!["severity"]!.GetValue<string>());
+        Assert.Contains("Codex CLI Structure Repair Task", File.ReadAllText(Path.Combine(workspace, "reports", "structure-codex-prompt.md")));
     }
 
     [Fact]
@@ -923,6 +1209,114 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void IntakeDocx_ShouldRunCodexReviewWhenRequested()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+        var fakeCodex = CreateFakeCodexCommand(workspace);
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "intake",
+            "docx",
+            "--input",
+            input,
+            "--workspace",
+            workspace,
+            "--template",
+            TemplatePath(),
+            "--codex-review",
+            "--codex-command",
+            fakeCodex,
+            "--timeout-seconds",
+            "10");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(File.Exists(Path.Combine(workspace, "reports", "fake-codex-marker.txt")));
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        Assert.Equal("pass", report["codexReviewStatus"]!.GetValue<string>());
+        Assert.Equal(0, report["codexReviewExitCode"]!.GetValue<int>());
+        Assert.Contains("structure-codex-review.json", report["codexReviewReportPath"]!.GetValue<string>());
+        Assert.True(report["renderAttempted"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldSupportAutoStructureMode()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+        var fakeCodex = CreateFakeCodexCommand(workspace);
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "intake",
+            "docx",
+            "--input",
+            input,
+            "--workspace",
+            workspace,
+            "--template",
+            TemplatePath(),
+            "--structure-mode",
+            "auto",
+            "--codex-command",
+            fakeCodex,
+            "--timeout-seconds",
+            "10");
+
+        Assert.Equal(0, result.ExitCode);
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        Assert.Equal("auto", report["structureMode"]!.GetValue<string>());
+        Assert.NotEqual("notRun", report["structureAnalysisStatus"]!.GetValue<string>());
+        Assert.True(report["structureQualityScore"]!.GetValue<int>() > 0);
+        Assert.Contains(report["codexReviewStatus"]!.GetValue<string>(), new[] { "skipped", "pass" });
+    }
+
+    [Fact]
+    public void IntakeGate_ShouldDefaultToAutoStructureMode()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var workspace = NewTempDirectory();
+        var input = CreateSyntheticDocx(workspace);
+        var fakeCodex = CreateFakeCodexCommand(workspace);
+
+        var result = CliRunner.Run(
+            RepoRoot(),
+            "intake",
+            "gate",
+            "--input",
+            input,
+            "--workspace",
+            workspace,
+            "--template",
+            TemplatePath(),
+            "--codex-command",
+            fakeCodex,
+            "--timeout-seconds",
+            "10");
+
+        Assert.Equal(0, result.ExitCode);
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(workspace, "reports", "intake-report.json")))!;
+        Assert.Equal("auto", report["structureMode"]!.GetValue<string>());
+        Assert.NotEqual("notRun", report["structureAnalysisStatus"]!.GetValue<string>());
+        Assert.True(report["structureQualityScore"]!.GetValue<int>() > 0);
+    }
+
+    [Fact]
     public void IntakeDocx_ShouldValidateDraft()
     {
         var workspace = NewTempDirectory();
@@ -1040,6 +1434,59 @@ public sealed class DocxIntakeStructuringTests
     }
 
     [Fact]
+    public void IntakeDocx_ShouldRenderTableCellFigures()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateMediaTableDocx(workspace);
+
+        RunIntake(workspace, input);
+        var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
+
+        var validation = new OpenXmlPackageValidator().Validate(renderedPath);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        using var package = WordprocessingDocument.Open(renderedPath, false);
+        var table = package.MainDocumentPart!.Document.Descendants<W.Table>().Single(table => table.Descendants<W.Drawing>().Any());
+        Assert.Contains(table.Descendants<W.Drawing>(), _ => true);
+        Assert.Contains(package.MainDocumentPart.Document.Descendants<A.SourceRectangle>(), crop => crop.Left?.Value == 10000 && crop.Top?.Value == 5000 && crop.Right?.Value == 20000);
+        Assert.Contains(table.Descendants<W.TableBorders>(), borders => borders.InsideVerticalBorder?.Val?.Value == W.BorderValues.Single);
+        Assert.Contains(table.Descendants<W.TableCellBorders>(), borders => borders.BottomBorder?.Val?.Value == W.BorderValues.Double);
+        Assert.Contains(table.Descendants<W.Table>(), nested => nested.Descendants<W.Text>().Any(text => text.Text == "内层"));
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldRenderRelationshipFreePreservedTextBoxPassthrough()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateTextBoxDocx(workspace);
+
+        RunIntake(workspace, input);
+        var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
+
+        var validation = new OpenXmlPackageValidator().Validate(renderedPath);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        using var package = WordprocessingDocument.Open(renderedPath, false);
+        Assert.Contains(package.MainDocumentPart!.Document.Descendants<W.Picture>(), picture => picture.Descendants<V.TextBox>().Any());
+        Assert.Contains(package.MainDocumentPart.Document.Descendants<W.Text>(), text => text.Text == "文本框内容");
+    }
+
+    [Fact]
+    public void IntakeDocx_ShouldRenderRelationshipBackedChartPassthrough()
+    {
+        var workspace = NewTempDirectory();
+        var input = CreateChartDocx(workspace);
+
+        RunIntake(workspace, input);
+        var renderedPath = Path.Combine(workspace, "artifacts", "rendered-draft.docx");
+
+        var validation = new OpenXmlPackageValidator().Validate(renderedPath);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Errors));
+        using var package = WordprocessingDocument.Open(renderedPath, false);
+        var chartReference = Assert.Single(package.MainDocumentPart!.Document.Descendants<C.ChartReference>());
+        Assert.StartsWith("rIdPreserved", chartReference.Id!.Value);
+        Assert.Single(package.MainDocumentPart.ChartParts);
+    }
+
+    [Fact]
     public void IntakeDocx_ShouldIncludePrivacyReportArtifact()
     {
         var workspace = NewTempDirectory();
@@ -1129,6 +1576,38 @@ public sealed class DocxIntakeStructuringTests
         };
     }
 
+    private static ThesisDocument WrongChapterDocument()
+    {
+        return new ThesisDocument
+        {
+            Metadata = new ThesisMetadata { Title = "结构修复测试", Author = "作者", College = "学院", Major = "专业", StudentId = "20260001", Advisor = "导师", Date = "2026-05-19" },
+            Sections =
+            [
+                new ThesisSection
+                {
+                    Id = "body",
+                    Kind = ThesisSectionKind.Body,
+                    Blocks =
+                    [
+                        new HeadingBlock { Id = "heading-second", Level = 1, Inlines = [new TextInline { Text = "第二章 分析" }] },
+                        new ParagraphBlock { Id = "paragraph-third-body", Inlines = [new TextInline { Text = "第三章的正文被错误放在第二章末尾。" }] },
+                        new HeadingBlock { Id = "heading-third", Level = 1, Inlines = [new TextInline { Text = "第三章 结果" }] }
+                    ]
+                }
+            ]
+        };
+    }
+
+    private static string BlockText(BlockNode block)
+    {
+        return block switch
+        {
+            HeadingBlock heading => string.Concat(heading.Inlines.OfType<TextInline>().Select(inline => inline.Text)),
+            ParagraphBlock paragraph => string.Concat(paragraph.Inlines.OfType<TextInline>().Select(inline => inline.Text)),
+            _ => string.Empty
+        };
+    }
+
     private static DocxExtractionException AssertExtractionError(DocxExtractionOptions options)
     {
         return Assert.Throws<DocxExtractionException>(() => new DocxExtractionService().Extract(options));
@@ -1140,6 +1619,51 @@ public sealed class DocxIntakeStructuringTests
         var extractionPath = Path.Combine(directory, "extraction.json");
         new DocxExtractionService().Extract(new DocxExtractionOptions { InputPath = docx, OutputJsonPath = extractionPath, ArtifactsDirectory = Path.Combine(directory, "artifacts") });
         return extractionPath;
+    }
+
+    private static string CreateFakeCodexCommand(string directory)
+    {
+        var path = Path.Combine(directory, "fake-codex");
+        File.WriteAllText(path, """
+        #!/bin/sh
+        set -eu
+        workspace=""
+        last_message=""
+        while [ "$#" -gt 0 ]; do
+          key="$1"
+          shift
+          case "$key" in
+            --cd)
+              workspace="$1"
+              shift
+              ;;
+            --output-last-message)
+              last_message="$1"
+              shift
+              ;;
+          esac
+        done
+        cat >/dev/null
+        mkdir -p "$workspace/reports"
+        printf 'fake codex invoked\n' > "$workspace/reports/fake-codex-marker.txt"
+        if [ -n "$last_message" ]; then
+          cat > "$last_message" <<'JSON'
+        {
+          "planVersion": "1.0.0",
+          "summary": "No evidence-backed repair needed for this fixture.",
+          "operations": [],
+          "reviewerNotes": ["fake codex review completed"]
+        }
+        JSON
+        fi
+        exit 0
+        """);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute);
+        }
+
+        return path;
     }
 
     private static string CreateSyntheticDocx(string directory)
@@ -1207,6 +1731,188 @@ public sealed class DocxIntakeStructuringTests
             new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
         main.Document.Save();
         return path;
+    }
+
+    private static string CreateMediaTableDocx(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "media-table.docx");
+        using var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new W.Document(new W.Body());
+        AddStyles(main);
+        var table = new W.Table(
+            new W.TableProperties(
+                new W.TableWidth { Type = W.TableWidthUnitValues.Pct, Width = "5000" },
+                new W.TableJustification { Val = W.TableRowAlignmentValues.Center },
+                new W.TableBorders(
+                    new W.TopBorder { Val = W.BorderValues.Single, Size = 8U, Color = "111111" },
+                    new W.LeftBorder { Val = W.BorderValues.Single, Size = 4U, Color = "222222" },
+                    new W.BottomBorder { Val = W.BorderValues.Single, Size = 8U, Color = "333333" },
+                    new W.RightBorder { Val = W.BorderValues.Single, Size = 4U, Color = "444444" },
+                    new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = 4U, Color = "555555" },
+                    new W.InsideVerticalBorder { Val = W.BorderValues.Single, Size = 4U, Color = "666666" })),
+            new W.TableRow(
+                new W.TableRowProperties(new W.TableHeader()),
+                new W.TableCell(
+                    new W.TableCellProperties(
+                        new W.TableCellWidth { Type = W.TableWidthUnitValues.Dxa, Width = "2400" },
+                        new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center },
+                        new W.Shading { Val = W.ShadingPatternValues.Clear, Fill = "D9EAF7" },
+                        new W.TableCellBorders(new W.BottomBorder { Val = W.BorderValues.Double, Size = 8U, Color = "AA0000" })),
+                    Paragraph("变量")),
+                new W.TableCell(
+                    new W.TableCellProperties(new W.TableCellWidth { Type = W.TableWidthUnitValues.Dxa, Width = "2400" }),
+                    Paragraph("值"))),
+            new W.TableRow(
+                new W.TableCell(Paragraph("A")),
+                new W.TableCell(
+                    ImageParagraph(main, 2.4, 1.2, 2),
+                    new W.Table(
+                        new W.TableProperties(new W.TableBorders(new W.TopBorder { Val = W.BorderValues.Single, Size = 4U, Color = "000000" })),
+                        new W.TableRow(new W.TableCell(Paragraph("内层")))))));
+
+        main.Document.Body!.Append(
+            Paragraph("前置正文"),
+            ImageParagraph(main, 3.2, 1.8, 1, (10, 5, 20, 0)),
+            Paragraph("图1 系统架构示意图"),
+            Paragraph("表1 数据表"),
+            table,
+            Paragraph("后续正文"),
+            new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
+        main.Document.Save();
+        return path;
+    }
+
+    private static W.Paragraph ImageParagraph(MainDocumentPart main, double widthCm, double heightCm, uint drawingId, (double Left, double Top, double Right, double Bottom)? crop = null)
+    {
+        var imagePart = main.AddImagePart(ImagePartType.Png);
+        using (var stream = new MemoryStream(Convert.FromBase64String(TinyPngBase64)))
+        {
+            imagePart.FeedData(stream);
+        }
+
+        var relationshipId = main.GetIdOfPart(imagePart);
+        var widthEmu = UnitConverter.CentimetersToEmu(widthCm);
+        var heightEmu = UnitConverter.CentimetersToEmu(heightCm);
+        var blipFill = new PIC.BlipFill(new A.Blip { Embed = relationshipId });
+        if (crop.HasValue)
+        {
+            blipFill.AppendChild(new A.SourceRectangle
+            {
+                Left = (int)Math.Round(crop.Value.Left * 1000),
+                Top = (int)Math.Round(crop.Value.Top * 1000),
+                Right = (int)Math.Round(crop.Value.Right * 1000),
+                Bottom = (int)Math.Round(crop.Value.Bottom * 1000)
+            });
+        }
+
+        blipFill.AppendChild(new A.Stretch(new A.FillRectangle()));
+        return new W.Paragraph(
+            new W.Run(
+                new W.Drawing(
+                    new WP.Inline(
+                        new WP.Extent { Cx = widthEmu, Cy = heightEmu },
+                        new WP.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                        new WP.DocProperties { Id = drawingId, Name = $"Picture {drawingId}" },
+                        new WP.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+                        new A.Graphic(
+                            new A.GraphicData(
+                                new PIC.Picture(
+                                    new PIC.NonVisualPictureProperties(
+                                        new PIC.NonVisualDrawingProperties { Id = drawingId, Name = $"image-{drawingId}.png" },
+                                        new PIC.NonVisualPictureDrawingProperties()),
+                                    blipFill,
+                                    new PIC.ShapeProperties(
+                                        new A.Transform2D(
+                                            new A.Offset { X = 0L, Y = 0L },
+                                            new A.Extents { Cx = widthEmu, Cy = heightEmu }),
+                                        new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle })))
+                            { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" })))));
+    }
+
+    private static string CreateTextBoxDocx(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "textbox.docx");
+        using var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new W.Document(new W.Body());
+        main.Document.Body!.Append(
+            new W.Paragraph(
+                new W.Run(
+                    new W.Picture(
+                        new V.Shape(
+                            new V.TextBox(
+                                new W.TextBoxContent(
+                                    new W.Paragraph(new W.Run(new W.Text("文本框内容"))))))))),
+            new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
+        main.Document.Save();
+        return path;
+    }
+
+    private static string CreateChartDocx(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "chart.docx");
+        using var doc = WordprocessingDocument.Create(path, DocumentFormat.OpenXml.WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new W.Document(new W.Body());
+        var chartPart = main.AddNewPart<ChartPart>("rIdChartSource");
+        using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"
+                          xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+              <c:lang val="zh-CN"/>
+              <c:chart>
+                <c:plotArea>
+                  <c:layout/>
+                  <c:barChart>
+                    <c:barDir val="col"/>
+                    <c:grouping val="clustered"/>
+                    <c:ser>
+                      <c:idx val="0"/>
+                      <c:order val="0"/>
+                      <c:tx><c:v>系列</c:v></c:tx>
+                      <c:cat><c:strLit><c:ptCount val="1"/><c:pt idx="0"><c:v>A</c:v></c:pt></c:strLit></c:cat>
+                      <c:val><c:numLit><c:formatCode>General</c:formatCode><c:ptCount val="1"/><c:pt idx="0"><c:v>1</c:v></c:pt></c:numLit></c:val>
+                    </c:ser>
+                    <c:axId val="123456"/>
+                    <c:axId val="123457"/>
+                  </c:barChart>
+                  <c:catAx><c:axId val="123456"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:axPos val="b"/><c:crossAx val="123457"/></c:catAx>
+                  <c:valAx><c:axId val="123457"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:axPos val="l"/><c:crossAx val="123456"/></c:valAx>
+                </c:plotArea>
+              </c:chart>
+            </c:chartSpace>
+            """)))
+        {
+            chartPart.FeedData(stream);
+        }
+
+        main.Document.Body!.Append(
+            new W.Paragraph(new W.Run(ChartDrawing("rIdChartSource"))),
+            new W.SectionProperties(new W.PageSize { Width = 11906, Height = 16838 }));
+        main.Document.Save();
+        return path;
+    }
+
+    private static W.Drawing ChartDrawing(string relationshipId)
+    {
+        var widthEmu = UnitConverter.CentimetersToEmu(6);
+        var heightEmu = UnitConverter.CentimetersToEmu(4);
+        return new W.Drawing(
+            new WP.Inline(
+                new WP.Extent { Cx = widthEmu, Cy = heightEmu },
+                new WP.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                new WP.DocProperties { Id = 10U, Name = "Chart 1" },
+                new WP.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoChangeAspect = true }),
+                new A.Graphic(
+                    new A.GraphicData(new C.ChartReference { Id = relationshipId })
+                    {
+                        Uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+                    })));
     }
 
     private static string CreateChaoticDocx(string directory)

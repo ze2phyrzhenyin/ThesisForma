@@ -5,15 +5,21 @@ using System.IO.Compression;
 using System.Globalization;
 using System.Xml;
 using System.Xml.Linq;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ThesisDocx.Core.Utilities;
 using A = DocumentFormat.OpenXml.Drawing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
+using WP = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 
 namespace ThesisDocx.Core.Extraction;
 
 public sealed class DocxExtractionService
 {
+    private const int MaxPreservedObjectParts = 32;
+    private const long MaxPreservedObjectPartBytes = 8 * 1024 * 1024;
+
     public DocxExtractionResult Extract(DocxExtractionOptions options)
     {
         ValidateOptions(options);
@@ -31,6 +37,7 @@ public sealed class DocxExtractionService
         var paragraphIndex = 0;
         var tableIndex = 0;
         var figureIndex = 0;
+        var drawingObjectIndex = 0;
         var blockIndex = 0;
         var previousTexts = new Queue<string>();
         foreach (var element in body.Elements())
@@ -47,7 +54,7 @@ public sealed class DocxExtractionService
                         Index = blockIndex,
                         EvidencePath = extracted.EvidencePath
                     });
-                    ExtractParagraphChildren(paragraph, extracted, result, main, previousTexts, ref figureIndex, artifactImageDirectory);
+                    ExtractParagraphChildren(paragraph, extracted, result, main, previousTexts, ref figureIndex, ref drawingObjectIndex, artifactImageDirectory);
                     ClassifyParagraph(extracted, result);
                     paragraphIndex++;
                     blockIndex++;
@@ -61,7 +68,7 @@ public sealed class DocxExtractionService
                     }
                     break;
                 case Table table:
-                    var extractedTable = ExtractTable(table, tableIndex);
+                    var extractedTable = ExtractTable(table, tableIndex, result, main, previousTexts, ref figureIndex, ref drawingObjectIndex, artifactImageDirectory);
                     result.Tables.Add(extractedTable);
                     result.Blocks.Add(new ExtractedBlock
                     {
@@ -79,6 +86,7 @@ public sealed class DocxExtractionService
             }
         }
 
+        LinkNearbyCaptions(result);
         foreach (var paragraph in result.Paragraphs.Where(p => p.Text.StartsWith("图", StringComparison.Ordinal) || p.Text.StartsWith("表", StringComparison.Ordinal)))
         {
             result.PossibleCaptions.Add(Evidence($"caption-{result.PossibleCaptions.Count}", paragraph.EvidencePath, paragraph.Text, "caption pattern", 0.85));
@@ -98,6 +106,7 @@ public sealed class DocxExtractionService
             ParagraphCount = result.Paragraphs.Count,
             TableCount = result.Tables.Count,
             FigureCount = result.Figures.Count,
+            DrawingObjectCount = result.DrawingObjects.Count,
             FootnoteCount = result.Footnotes.Count,
             EndnoteCount = result.Endnotes.Count
         };
@@ -478,7 +487,7 @@ public sealed class DocxExtractionService
         return new ExtractedRun
         {
             Id = id,
-            Text = NormalizeText(string.Concat(run.Descendants<Text>().Select(t => t.Text))),
+            Text = NormalizeText(string.Concat(run.Descendants<Text>().Where(text => !text.Ancestors<TextBoxContent>().Any()).Select(t => t.Text))),
             Bold = rPr?.Bold is not null,
             Italic = rPr?.Italic is not null,
             Underline = rPr?.Underline is not null,
@@ -491,15 +500,17 @@ public sealed class DocxExtractionService
         };
     }
 
-    private static void ExtractParagraphChildren(
+    private static List<string> ExtractParagraphChildren(
         Paragraph paragraph,
         ExtractedParagraph extracted,
         DocxExtractionResult result,
         MainDocumentPart main,
         Queue<string> previousTexts,
         ref int figureIndex,
+        ref int drawingObjectIndex,
         string imageDirectory)
     {
+        var figureIds = new List<string>();
         foreach (var bookmark in paragraph.Descendants<BookmarkStart>())
         {
             result.Bookmarks.Add(new ExtractedBookmark
@@ -532,7 +543,7 @@ public sealed class DocxExtractionService
             var relId = blip.Embed?.Value ?? blip.Link?.Value;
             string? contentType = null;
             string? artifactPath = null;
-            if (relId is not null && main.GetPartById(relId) is ImagePart imagePart)
+            if (relId is not null && FindImagePart(main, relId) is ImagePart imagePart)
             {
                 contentType = imagePart.ContentType;
                 Directory.CreateDirectory(imageDirectory);
@@ -545,19 +556,29 @@ public sealed class DocxExtractionService
                 artifactPath = Path.GetRelativePath(Path.GetDirectoryName(imageDirectory) ?? imageDirectory, output).Replace('\\', '/');
             }
 
+            var figureId = $"figure-{figureIndex}";
+            var size = DrawingSizeCm(blip);
             result.Figures.Add(new ExtractedFigure
             {
-                Id = $"figure-{figureIndex}",
+                Id = figureId,
                 Index = figureIndex,
                 RelationshipId = relId,
                 ContentType = contentType,
                 ArtifactPath = artifactPath,
+                WidthCm = size.WidthCm,
+                HeightCm = size.HeightCm,
+                AnchorType = size.AnchorType,
+                Crop = ExtractCrop(blip),
                 SuggestedCaption = GuessNearbyCaption(extracted.Text),
                 NearbyText = string.Join(" / ", previousTexts.Append(extracted.Text).Where(t => !string.IsNullOrWhiteSpace(t))),
                 EvidencePath = extracted.EvidencePath
             });
+            figureIds.Add(figureId);
             figureIndex++;
         }
+
+        ExtractDrawingObjectEvidence(paragraph, extracted.EvidencePath, result, main, ref drawingObjectIndex);
+        return figureIds;
     }
 
     private static List<ExtractedField> ExtractFields(Paragraph paragraph, string evidencePath)
@@ -590,35 +611,387 @@ public sealed class DocxExtractionService
         return fields;
     }
 
-    private static ExtractedTable ExtractTable(Table table, int index)
+    private static ImagePart? FindImagePart(MainDocumentPart main, string relationshipId)
     {
-        var rows = table.Elements<TableRow>().Select((row, rowIndex) => new ExtractedTableRow
+        return main.Parts.FirstOrDefault(part => string.Equals(part.RelationshipId, relationshipId, StringComparison.Ordinal)).OpenXmlPart as ImagePart;
+    }
+
+    private static (double? WidthCm, double? HeightCm, string? AnchorType) DrawingSizeCm(OpenXmlElement element)
+    {
+        var inline = element.Descendants<WP.Inline>().FirstOrDefault() ?? element.Ancestors<WP.Inline>().FirstOrDefault();
+        var inlineExtent = inline?.Extent;
+        if (inlineExtent?.Cx is not null && inlineExtent.Cy is not null)
         {
-            Index = rowIndex,
-            Cells = row.Elements<TableCell>().Select((cell, cellIndex) =>
+            return (
+                Math.Round(UnitConverter.EmuToCentimeters(inlineExtent.Cx.Value), 3),
+                Math.Round(UnitConverter.EmuToCentimeters(inlineExtent.Cy.Value), 3),
+                "inline");
+        }
+
+        var anchor = element.Descendants<WP.Anchor>().FirstOrDefault() ?? element.Ancestors<WP.Anchor>().FirstOrDefault();
+        var anchorExtent = anchor?.Extent;
+        if (anchorExtent?.Cx is not null && anchorExtent.Cy is not null)
+        {
+            return (
+                Math.Round(UnitConverter.EmuToCentimeters(anchorExtent.Cx.Value), 3),
+                Math.Round(UnitConverter.EmuToCentimeters(anchorExtent.Cy.Value), 3),
+                "anchor");
+        }
+
+        return (null, null, null);
+    }
+
+    private static ExtractedFigureCrop? ExtractCrop(A.Blip blip)
+    {
+        var source = blip.Ancestors<PIC.BlipFill>().FirstOrDefault()?.GetFirstChild<A.SourceRectangle>();
+        if (source is null)
+        {
+            return null;
+        }
+
+        var crop = new ExtractedFigureCrop
+        {
+            LeftPercent = DrawingPercent(source.Left?.Value),
+            TopPercent = DrawingPercent(source.Top?.Value),
+            RightPercent = DrawingPercent(source.Right?.Value),
+            BottomPercent = DrawingPercent(source.Bottom?.Value)
+        };
+        return crop.LeftPercent.HasValue || crop.TopPercent.HasValue || crop.RightPercent.HasValue || crop.BottomPercent.HasValue
+            ? crop
+            : null;
+    }
+
+    private static double? DrawingPercent(int? raw)
+    {
+        return raw.HasValue ? Math.Round(raw.Value / 1000.0, 3) : null;
+    }
+
+    private static void ExtractDrawingObjectEvidence(Paragraph paragraph, string evidencePath, DocxExtractionResult result, MainDocumentPart main, ref int drawingObjectIndex)
+    {
+        foreach (var drawing in paragraph.Descendants<Drawing>())
+        {
+            if (drawing.Descendants<A.Blip>().Any())
             {
+                continue;
+            }
+
+            var graphicData = drawing.Descendants<A.GraphicData>().FirstOrDefault();
+            var uri = graphicData?.Uri?.Value;
+            var relationshipIds = RelationshipIds(drawing);
+            var parts = ExtractPreservedParts(main, relationshipIds);
+            var size = DrawingSizeCm(drawing);
+            result.DrawingObjects.Add(new ExtractedDrawingObject
+            {
+                Id = $"drawing-object-{drawingObjectIndex}",
+                Index = drawingObjectIndex,
+                ObjectType = DrawingObjectType(uri, drawing),
+                RelationshipId = relationshipIds.FirstOrDefault(),
+                RelationshipIds = relationshipIds,
+                Parts = parts,
+                GraphicDataUri = uri,
+                WidthCm = size.WidthCm,
+                HeightCm = size.HeightCm,
+                AnchorType = size.AnchorType,
+                Text = NormalizeText(string.Concat(drawing.Descendants<Text>().Select(text => text.Text))),
+                RawXml = drawing.OuterXml,
+                EvidencePath = evidencePath
+            });
+            drawingObjectIndex++;
+        }
+
+        foreach (var picture in paragraph.Descendants<Picture>())
+        {
+            var relationshipIds = RelationshipIds(picture);
+            var parts = ExtractPreservedParts(main, relationshipIds);
+            result.DrawingObjects.Add(new ExtractedDrawingObject
+            {
+                Id = $"drawing-object-{drawingObjectIndex}",
+                Index = drawingObjectIndex,
+                ObjectType = picture.OuterXml.Contains("textbox", StringComparison.OrdinalIgnoreCase) ? "textBox" : "shape",
+                RelationshipId = relationshipIds.FirstOrDefault(),
+                RelationshipIds = relationshipIds,
+                Parts = parts,
+                Text = NormalizeText(string.Concat(picture.Descendants<Text>().Select(text => text.Text))),
+                RawXml = picture.OuterXml,
+                EvidencePath = evidencePath
+            });
+            drawingObjectIndex++;
+        }
+    }
+
+    private static List<string> RelationshipIds(OpenXmlElement element)
+    {
+        return element.Descendants().Prepend(element)
+            .SelectMany(child => child.GetAttributes())
+            .Where(attribute => attribute.LocalName == "id" && attribute.NamespaceUri == "http://schemas.openxmlformats.org/officeDocument/2006/relationships")
+            .Select(attribute => attribute.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static List<ExtractedPreservedObjectPart> ExtractPreservedParts(OpenXmlPartContainer container, IReadOnlyList<string> relationshipIds)
+    {
+        var parts = new List<ExtractedPreservedObjectPart>();
+        var visited = new HashSet<Uri>();
+        var count = 0;
+        long bytes = 0;
+        foreach (var relationshipId in relationshipIds)
+        {
+            if (ExtractPreservedPart(container, relationshipId, visited, ref count, ref bytes) is ExtractedPreservedObjectPart part)
+            {
+                parts.Add(part);
+            }
+        }
+
+        return parts;
+    }
+
+    private static ExtractedPreservedObjectPart? ExtractPreservedPart(OpenXmlPartContainer container, string relationshipId, HashSet<Uri> visited, ref int count, ref long totalBytes)
+    {
+        if (count >= MaxPreservedObjectParts)
+        {
+            return null;
+        }
+
+        var partPair = container.Parts.FirstOrDefault(part => string.Equals(part.RelationshipId, relationshipId, StringComparison.Ordinal));
+        var part = partPair.OpenXmlPart;
+        if (part is null || !IsAllowedPreservedPart(part.RelationshipType, part.ContentType) || !visited.Add(part.Uri))
+        {
+            return null;
+        }
+
+        using var input = part.GetStream(FileMode.Open, FileAccess.Read);
+        using var memory = new MemoryStream();
+        input.CopyTo(memory);
+        totalBytes += memory.Length;
+        if (totalBytes > MaxPreservedObjectPartBytes)
+        {
+            return null;
+        }
+
+        count++;
+        var extracted = new ExtractedPreservedObjectPart
+        {
+            RelationshipId = relationshipId,
+            RelationshipType = part.RelationshipType,
+            ContentType = part.ContentType,
+            DataBase64 = Convert.ToBase64String(memory.ToArray())
+        };
+        foreach (var child in part.Parts.OrderBy(child => child.RelationshipId, StringComparer.Ordinal))
+        {
+            if (ExtractPreservedPart(part, child.RelationshipId, visited, ref count, ref totalBytes) is ExtractedPreservedObjectPart childPart)
+            {
+                extracted.Children.Add(childPart);
+            }
+        }
+
+        return extracted;
+    }
+
+    private static bool IsAllowedPreservedPart(string relationshipType, string contentType)
+    {
+        if (relationshipType.EndsWith("/image", StringComparison.OrdinalIgnoreCase)
+            && contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return relationshipType is
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartUserShapes" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/themeOverride" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramColors" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramLayout" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramQuickStyle" or
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramDrawing" or
+            "http://schemas.microsoft.com/office/2011/relationships/chartStyle" or
+            "http://schemas.microsoft.com/office/2011/relationships/chartColorStyle";
+    }
+
+    private static string DrawingObjectType(string? graphicDataUri, OpenXmlElement drawing)
+    {
+        if (!string.IsNullOrWhiteSpace(graphicDataUri))
+        {
+            if (graphicDataUri.Contains("/chart", StringComparison.OrdinalIgnoreCase)) return "chart";
+            if (graphicDataUri.Contains("/diagram", StringComparison.OrdinalIgnoreCase)) return "smartArt";
+            if (graphicDataUri.Contains("wordprocessingShape", StringComparison.OrdinalIgnoreCase))
+            {
+                return drawing.Descendants<Text>().Any() ? "textBox" : "shape";
+            }
+
+            if (graphicDataUri.Contains("/picture", StringComparison.OrdinalIgnoreCase)) return "picture";
+        }
+
+        return drawing.Descendants<Text>().Any() ? "textBox" : "drawing";
+    }
+
+    private static ExtractedTable ExtractTable(
+        Table table,
+        int index,
+        DocxExtractionResult result,
+        MainDocumentPart main,
+        Queue<string> previousTexts,
+        ref int figureIndex,
+        ref int drawingObjectIndex,
+        string imageDirectory,
+        string? evidencePath = null,
+        string? tableId = null)
+    {
+        var tableEvidencePath = evidencePath ?? $"tables[{index}]";
+        tableId ??= $"table-{index}";
+        var tableProperties = table.GetFirstChild<TableProperties>();
+        var tableWidth = tableProperties?.TableWidth;
+        var rows = new List<ExtractedTableRow>();
+        var rowIndex = 0;
+        foreach (var row in table.Elements<TableRow>())
+        {
+            var cells = new List<ExtractedTableCell>();
+            var cellIndex = 0;
+            foreach (var cell in row.Elements<TableCell>())
+            {
+                var cellEvidencePath = $"{tableEvidencePath}.rows[{rowIndex}].cells[{cellIndex}]";
                 var gridSpan = cell.TableCellProperties?.GridSpan?.Val?.Value;
-                return new ExtractedTableCell
+                var figureIds = new List<string>();
+                var nestedTables = new List<ExtractedTable>();
+                var cellParagraph = new ExtractedParagraph
+                {
+                    Id = $"{tableId}-cell-{rowIndex}-{cellIndex}",
+                    Index = cellIndex,
+                    Text = NormalizeText(string.Join(Environment.NewLine, cell.Elements<Paragraph>().Select(p => p.InnerText).Where(t => !string.IsNullOrWhiteSpace(t)))),
+                    EvidencePath = cellEvidencePath
+                };
+                foreach (var paragraph in cell.Elements<Paragraph>())
+                {
+                    figureIds.AddRange(ExtractParagraphChildren(paragraph, cellParagraph, result, main, previousTexts, ref figureIndex, ref drawingObjectIndex, imageDirectory));
+                }
+
+                var nestedTableIndex = 0;
+                foreach (var nestedTable in cell.Elements<Table>())
+                {
+                    nestedTables.Add(ExtractTable(
+                        nestedTable,
+                        nestedTableIndex,
+                        result,
+                        main,
+                        previousTexts,
+                        ref figureIndex,
+                        ref drawingObjectIndex,
+                        imageDirectory,
+                        $"{cellEvidencePath}.nestedTables[{nestedTableIndex}]",
+                        $"{tableId}-nested-{rowIndex}-{cellIndex}-{nestedTableIndex}"));
+                    nestedTableIndex++;
+                }
+
+                cells.Add(new ExtractedTableCell
                 {
                     RowIndex = rowIndex,
                     CellIndex = cellIndex,
-                    Text = NormalizeText(string.Join(Environment.NewLine, cell.Descendants<Paragraph>().Select(p => p.InnerText).Where(t => !string.IsNullOrWhiteSpace(t)))),
+                    Text = cellParagraph.Text,
                     GridSpan = gridSpan.HasValue ? Math.Max(1, gridSpan.Value) : 1,
                     VerticalMerge = VerticalMergeValue(cell),
+                    WidthTwips = TableCellWidthTwips(cell.TableCellProperties?.TableCellWidth),
+                    VerticalAlignment = TableCellVerticalAlignmentValue(cell.TableCellProperties?.TableCellVerticalAlignment),
+                    Shading = cell.TableCellProperties?.Shading?.Fill?.Value,
                     Borders = cell.TableCellProperties?.TableCellBorders?.OuterXml,
-                    EvidencePath = $"tables[{index}].rows[{rowIndex}].cells[{cellIndex}]"
-                };
-            }).ToList()
-        }).ToList();
+                    FigureIds = figureIds,
+                    NestedTables = nestedTables,
+                    EvidencePath = cellEvidencePath
+                });
+                cellIndex++;
+            }
+
+            var rowProperties = row.GetFirstChild<TableRowProperties>();
+            rows.Add(new ExtractedTableRow
+            {
+                Index = rowIndex,
+                IsHeader = rowProperties?.GetFirstChild<TableHeader>() is not null,
+                CantSplit = rowProperties?.GetFirstChild<CantSplit>() is not null ? true : null,
+                HeightTwips = ToNullableInt(rowProperties?.GetFirstChild<TableRowHeight>()?.Val?.Value),
+                Cells = cells
+            });
+            rowIndex++;
+        }
+
         return new ExtractedTable
         {
-            Id = $"table-{index}",
+            Id = tableId,
             Index = index,
             Rows = rows,
-            Text = NormalizeText(string.Join(Environment.NewLine, rows.SelectMany(r => r.Cells).Select(c => c.Text))),
-            Borders = table.GetFirstChild<TableProperties>()?.TableBorders?.OuterXml,
-            EvidencePath = $"tables[{index}]"
+            Text = NormalizeText(string.Join(Environment.NewLine, rows.SelectMany(r => r.Cells).SelectMany(CellTextSegments))),
+            WidthTwips = TableWidthTwips(tableWidth),
+            WidthPercent = TableWidthPercent(tableWidth),
+            Alignment = TableAlignmentValue(tableProperties?.TableJustification),
+            Borders = tableProperties?.TableBorders?.OuterXml,
+            EvidencePath = tableEvidencePath
         };
+    }
+
+    private static IEnumerable<string> CellTextSegments(ExtractedTableCell cell)
+    {
+        if (!string.IsNullOrWhiteSpace(cell.Text))
+        {
+            yield return cell.Text;
+        }
+
+        foreach (var nested in cell.NestedTables)
+        {
+            if (!string.IsNullOrWhiteSpace(nested.Text))
+            {
+                yield return nested.Text;
+            }
+        }
+    }
+
+    private static int? TableWidthTwips(TableWidth? width)
+    {
+        if (width?.Type?.Value != TableWidthUnitValues.Dxa)
+        {
+            return null;
+        }
+
+        return ToNullableInt(width.Width?.Value);
+    }
+
+    private static string? TableAlignmentValue(TableJustification? justification)
+    {
+        var value = justification?.Val?.Value;
+        if (value == TableRowAlignmentValues.Center) return "center";
+        if (value == TableRowAlignmentValues.Right) return "right";
+        if (value == TableRowAlignmentValues.Left) return "left";
+        return null;
+    }
+
+    private static string? TableCellVerticalAlignmentValue(TableCellVerticalAlignment? alignment)
+    {
+        var value = alignment?.Val?.Value;
+        if (value == TableVerticalAlignmentValues.Center) return "center";
+        if (value == TableVerticalAlignmentValues.Bottom) return "bottom";
+        if (value == TableVerticalAlignmentValues.Top) return "top";
+        return null;
+    }
+
+    private static int? TableCellWidthTwips(TableCellWidth? width)
+    {
+        if (width?.Type?.Value != TableWidthUnitValues.Dxa)
+        {
+            return null;
+        }
+
+        return ToNullableInt(width.Width?.Value);
+    }
+
+    private static int? TableWidthPercent(TableWidth? width)
+    {
+        if (width?.Type?.Value != TableWidthUnitValues.Pct)
+        {
+            return null;
+        }
+
+        var raw = ToNullableInt(width.Width?.Value);
+        return raw.HasValue ? (int)Math.Round(raw.Value / 50.0, MidpointRounding.AwayFromZero) : null;
     }
 
     private static string? VerticalMergeValue(TableCell cell)
@@ -630,6 +1003,109 @@ public sealed class DocxExtractionService
         }
 
         return merge.Val?.Value == MergedCellValues.Restart ? "restart" : "continue";
+    }
+
+    private static void LinkNearbyCaptions(DocxExtractionResult result)
+    {
+        var paragraphsByEvidencePath = result.Paragraphs
+            .GroupBy(paragraph => paragraph.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var tablesByEvidencePath = result.Tables
+            .GroupBy(table => table.EvidencePath, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        for (var index = 0; index < result.Blocks.Count; index++)
+        {
+            var block = result.Blocks[index];
+            if (block.Type != "table" || !tablesByEvidencePath.TryGetValue(block.EvidencePath, out var table))
+            {
+                continue;
+            }
+
+            var before = NearbyCaption(result.Blocks, paragraphsByEvidencePath, index, -1, CaptionKind.Table);
+            var after = NearbyCaption(result.Blocks, paragraphsByEvidencePath, index, 1, CaptionKind.Table);
+            var caption = before ?? after;
+            if (caption is not null)
+            {
+                table.SuggestedCaption = caption.Text;
+                table.CaptionEvidencePath = caption.EvidencePath;
+                table.CaptionPosition = caption.Position;
+            }
+        }
+
+        foreach (var figure in result.Figures)
+        {
+            var paragraph = paragraphsByEvidencePath.GetValueOrDefault(figure.EvidencePath);
+            if (paragraph is not null && IsCaption(paragraph.Text, CaptionKind.Figure))
+            {
+                figure.SuggestedCaption = paragraph.Text;
+                figure.CaptionEvidencePath = paragraph.EvidencePath;
+                continue;
+            }
+
+            var blockIndex = result.Blocks.FindIndex(block => string.Equals(block.EvidencePath, figure.EvidencePath, StringComparison.Ordinal));
+            if (blockIndex < 0)
+            {
+                continue;
+            }
+
+            var after = NearbyCaption(result.Blocks, paragraphsByEvidencePath, blockIndex, 1, CaptionKind.Figure);
+            var before = NearbyCaption(result.Blocks, paragraphsByEvidencePath, blockIndex, -1, CaptionKind.Figure);
+            var caption = after ?? before;
+            if (caption is not null)
+            {
+                figure.SuggestedCaption = caption.Text;
+                figure.CaptionEvidencePath = caption.EvidencePath;
+            }
+        }
+    }
+
+    private static CaptionCandidate? NearbyCaption(
+        IReadOnlyList<ExtractedBlock> blocks,
+        IReadOnlyDictionary<string, ExtractedParagraph> paragraphsByEvidencePath,
+        int originIndex,
+        int direction,
+        CaptionKind kind)
+    {
+        var index = originIndex + direction;
+        while (index >= 0 && index < blocks.Count)
+        {
+            var block = blocks[index];
+            if (block.Type == "paragraph" && paragraphsByEvidencePath.TryGetValue(block.EvidencePath, out var paragraph))
+            {
+                if (string.IsNullOrWhiteSpace(paragraph.Text))
+                {
+                    index += direction;
+                    continue;
+                }
+
+                if (IsCaption(paragraph.Text, kind))
+                {
+                    return new CaptionCandidate(paragraph.Text, paragraph.EvidencePath, direction < 0 ? "before" : "after");
+                }
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
+    private static bool IsCaption(string text, CaptionKind kind)
+    {
+        var trimmed = text.Trim();
+        var pattern = kind == CaptionKind.Figure
+            ? @"^(图|Figure)\s*[0-9一二三四五六七八九十]+([：:.\s]|$)"
+            : @"^(表|Table)\s*[0-9一二三四五六七八九十]+([：:.\s]|$)";
+        return Regex.IsMatch(trimmed, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private sealed record CaptionCandidate(string Text, string EvidencePath, string Position);
+
+    private enum CaptionKind
+    {
+        Figure,
+        Table
     }
 
     private static ExtractedSection ExtractSection(SectionProperties section, int index)

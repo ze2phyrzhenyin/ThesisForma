@@ -64,6 +64,26 @@ public sealed class ThesisFormatSpec
 public sealed class ValidationBehaviorSpec
 {
     public bool AllowHeadingLevelSkips { get; set; }
+
+    public TextCountValidationSpec? BodyTextCount { get; set; }
+}
+
+public sealed class TextCountValidationSpec
+{
+    public int? Min { get; set; }
+
+    public int? Max { get; set; }
+
+    public TextCountUnit Unit { get; set; } = TextCountUnit.NonWhitespaceCharacters;
+
+    public List<ThesisSectionKind> SectionKinds { get; set; } = [ThesisSectionKind.Body];
+}
+
+public enum TextCountUnit
+{
+    NonWhitespaceCharacters,
+    UnicodeTextElements,
+    Words
 }
 
 public sealed class PageSetupSpec
@@ -161,6 +181,10 @@ public sealed class HeaderFooterFormatSpec
     public TextAlignment HeaderAlignment { get; set; } = TextAlignment.Center;
 
     public TextAlignment PageNumberAlignment { get; set; } = TextAlignment.Center;
+
+    public TextAlignment OddPageNumberAlignment { get; set; } = TextAlignment.Center;
+
+    public TextAlignment EvenPageNumberAlignment { get; set; } = TextAlignment.Center;
 
     public bool HidePageNumberOnCover { get; set; } = true;
 
@@ -321,6 +345,26 @@ public sealed class NoteFormatSpec
     };
 
     public bool SuperscriptReferenceMark { get; set; } = true;
+
+    public NoteNumberFormat NumberFormat { get; set; } = NoteNumberFormat.Decimal;
+
+    public NoteNumberingRestart NumberingRestart { get; set; } = NoteNumberingRestart.Continuous;
+
+    public int StartNumber { get; set; } = 1;
+}
+
+public enum NoteNumberFormat
+{
+    Decimal,
+    DecimalEnclosedCircle,
+    DecimalEnclosedCircleChinese
+}
+
+public enum NoteNumberingRestart
+{
+    Continuous,
+    EachSection,
+    EachPage
 }
 
 public sealed class FigureFormatSpec
@@ -351,6 +395,8 @@ public sealed class BibliographyFormatSpec
 {
     public string Title { get; set; } = "参考文献";
 
+    public FontFormatSpec? EntryFont { get; set; }
+
     public ParagraphFormatSpec EntryParagraph { get; set; } = new()
     {
         FirstLineIndentChars = 0,
@@ -359,6 +405,16 @@ public sealed class BibliographyFormatSpec
     };
 
     public string NumberFormat { get; set; } = "[%1]";
+
+    public BibliographySortOrder SortOrder { get; set; } = BibliographySortOrder.DocumentOrder;
+}
+
+public enum BibliographySortOrder
+{
+    DocumentOrder,
+    Chronological,
+    YearAscending,
+    YearDescending
 }
 
 public sealed class NumberingFormatSpec

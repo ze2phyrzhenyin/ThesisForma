@@ -178,7 +178,7 @@ public sealed class ReportContractSchemaTests
                     "version": "9.9.9",
                     "isSupported": false,
                     "direction": "newerThanKnown",
-                    "supportedVersions": ["1.0.0", "1.1.0"]
+                    "supportedVersions": ["1.0.0", "1.1.0", "1.2.0"]
                   }
                 ],
                 "diagnostics": []

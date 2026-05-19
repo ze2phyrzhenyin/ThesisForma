@@ -44,8 +44,10 @@ Required fields: `bibliography`, `bodyParagraph`, `captions`, `compatibility`, `
 
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
+| `entryFont` | Font | no |  |  |
 | `entryParagraph` | Paragraph | yes |  |  |
 | `numberFormat` | string | yes |  |  |
+| `sortOrder` | enum(documentOrder, chronological, yearAscending, yearDescending) | no | enum: documentOrder, chronological, yearAscending, yearDescending |  |
 | `title` | string | yes |  |  |
 
 ### Border
@@ -140,9 +142,11 @@ Required fields: `bibliography`, `bodyParagraph`, `captions`, `compatibility`, `
 | `differentFirstPage` | boolean | yes |  |  |
 | `differentOddEven` | boolean | yes |  |  |
 | `drawHeaderLine` | boolean | yes |  |  |
+| `evenPageNumberAlignment` | TextAlignment | no |  |  |
 | `headerAlignment` | TextAlignment | yes |  |  |
 | `headerText` | string | yes |  |  |
 | `hidePageNumberOnCover` | boolean | yes |  |  |
+| `oddPageNumberAlignment` | TextAlignment | no |  |  |
 | `pageNumberAlignment` | TextAlignment | yes |  |  |
 
 ### Heading
@@ -163,7 +167,10 @@ Required fields: `bibliography`, `bodyParagraph`, `captions`, `compatibility`, `
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
 | `font` | Font | yes |  |  |
+| `numberFormat` | enum(decimal, decimalEnclosedCircle, decimalEnclosedCircleChinese) | no | enum: decimal, decimalEnclosedCircle, decimalEnclosedCircleChinese |  |
+| `numberingRestart` | enum(continuous, eachSection, eachPage) | no | enum: continuous, eachSection, eachPage |  |
 | `paragraph` | Paragraph | yes |  |  |
+| `startNumber` | integer | no |  |  |
 | `styleId` | string | yes |  |  |
 | `superscriptReferenceMark` | boolean | yes |  |  |
 
@@ -247,6 +254,15 @@ Required fields: `bibliography`, `bodyParagraph`, `captions`, `compatibility`, `
 | `type` | enum(auto, percent, dxa) | yes | enum: auto, percent, dxa |  |
 | `value` | number | no |  |  |
 
+### TextCountValidation
+
+| Field | Type | Required | Enum / Default | Description |
+| --- | --- | --- | --- | --- |
+| `max` | integer | no |  |  |
+| `min` | integer | no |  |  |
+| `sectionKinds` | SectionKind[] | no |  |  |
+| `unit` | enum(nonWhitespaceCharacters, unicodeTextElements, words) | no | enum: nonWhitespaceCharacters, unicodeTextElements, words |  |
+
 ### Toc
 
 | Field | Type | Required | Enum / Default | Description |
@@ -261,3 +277,4 @@ Required fields: `bibliography`, `bodyParagraph`, `captions`, `compatibility`, `
 | Field | Type | Required | Enum / Default | Description |
 | --- | --- | --- | --- | --- |
 | `allowHeadingLevelSkips` | boolean | no |  |  |
+| `bodyTextCount` | TextCountValidation | no |  |  |

@@ -32,24 +32,42 @@ public sealed class SectionBuilder
         var pageSetup = _pageSetupOverrides.TryGetValue(profile, out var overrideSetup)
             ? overrideSetup
             : _format.PageSetup;
-        var (headerId, footerId) = _headerFooterBuilder.EnsureReferences(profile, section);
+        var references = _headerFooterBuilder.EnsureReferences(profile, section);
 
         var sectionProperties = new W.SectionProperties();
-        if (!string.IsNullOrWhiteSpace(headerId))
+        if (!string.IsNullOrWhiteSpace(references.HeaderId))
         {
             sectionProperties.AppendChild(new W.HeaderReference
             {
                 Type = W.HeaderFooterValues.Default,
-                Id = headerId
+                Id = references.HeaderId
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(footerId))
+        if (!string.IsNullOrWhiteSpace(references.EvenHeaderId))
+        {
+            sectionProperties.AppendChild(new W.HeaderReference
+            {
+                Type = W.HeaderFooterValues.Even,
+                Id = references.EvenHeaderId
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(references.FooterId))
         {
             sectionProperties.AppendChild(new W.FooterReference
             {
                 Type = W.HeaderFooterValues.Default,
-                Id = footerId
+                Id = references.FooterId
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(references.EvenFooterId))
+        {
+            sectionProperties.AppendChild(new W.FooterReference
+            {
+                Type = W.HeaderFooterValues.Even,
+                Id = references.EvenFooterId
             });
         }
 

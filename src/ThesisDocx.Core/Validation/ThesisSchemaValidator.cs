@@ -98,6 +98,11 @@ public sealed class ThesisSchemaValidator
         return ValidateJsonFile(reportPath, schemaPath, "templateCandidateProposalReport");
     }
 
+    public ThesisInputValidationResult ValidateStructureRepairPlanFile(string planPath, string schemaPath)
+    {
+        return ValidateJsonFile(planPath, schemaPath, "structureRepairPlan");
+    }
+
     private static ThesisInputValidationResult ValidateJsonFile(string jsonPath, string schemaPath, string rootName)
     {
         var result = new ThesisInputValidationResult { Source = "ThesisSchemaValidator" };

@@ -42,7 +42,12 @@ public sealed class PageTemplateRenderer
                     new W.SpacingBetweenLines { After = UnitConverter.CentimetersToTwips(spacer.HeightCm).ToString() }));
                 break;
             case TextLayoutBlock text:
-                yield return CreateTextParagraph(Resolve(text.Value, document, template, context), text.Style, text.Alignment, text.SpacingBeforePt, text.SpacingAfterPt, text.FontOverride);
+                var resolved = Resolve(text.Value, document, template, context);
+                if (!text.SkipWhenEmpty || !string.IsNullOrWhiteSpace(resolved))
+                {
+                    yield return CreateTextParagraph(resolved, text.Style, text.Alignment, text.SpacingBeforePt, text.SpacingAfterPt, text.FontOverride, text.Paragraph);
+                }
+
                 break;
             case MetadataFieldLayoutBlock metadata:
                 yield return CreateMetadataParagraph(metadata, document, template, context);
@@ -53,7 +58,7 @@ public sealed class PageTemplateRenderer
             case DeclarationTextLayoutBlock declaration:
                 foreach (var paragraph in declaration.Paragraphs)
                 {
-                    yield return CreateTextParagraph(Resolve(paragraph, document, template, context), StyleIds.ThesisBody, TextAlignment.Both, 6, 6, null);
+                    yield return CreateTextParagraph(Resolve(paragraph, document, template, context), StyleIds.ThesisBody, TextAlignment.Both, 6, 6, null, null);
                 }
 
                 foreach (var signature in declaration.SignatureFields)
@@ -71,6 +76,9 @@ public sealed class PageTemplateRenderer
             case RuleLayoutBlock rule:
                 yield return CreateRuleParagraph(rule);
                 break;
+            case HandwritingAreaLayoutBlock handwriting:
+                yield return CreateHandwritingArea(handwriting);
+                break;
         }
     }
 
@@ -81,11 +89,11 @@ public sealed class PageTemplateRenderer
             new W.ParagraphProperties(
                 new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
                 new W.Justification { Val = StyleBuilder.ToJustification(field.Alignment) }),
-            new W.Run(new W.Text(string.IsNullOrWhiteSpace(field.Label) ? value : $"{field.Label}: ") { Space = SpaceProcessingModeValues.Preserve }));
-        var valueRun = new W.Run(new W.Text(value) { Space = SpaceProcessingModeValues.Preserve });
+            CreateRun(string.IsNullOrWhiteSpace(field.Label) ? value : $"{field.Label}: ", field.LabelFont));
+        var valueRun = CreateRun(value, field.ValueFont);
         if (field.Underline)
         {
-            valueRun.PrependChild(new W.RunProperties(new W.Underline { Val = W.UnderlineValues.Single }));
+            EnsureRunProperties(valueRun).AppendChild(new W.Underline { Val = W.UnderlineValues.Single });
         }
 
         paragraph.AppendChild(valueRun);
@@ -103,10 +111,20 @@ public sealed class PageTemplateRenderer
         foreach (var row in block.Rows)
         {
             var tableRow = new W.TableRow();
+            if (block.RowHeightPt.HasValue)
+            {
+                tableRow.AppendChild(new W.TableRowProperties(new W.TableRowHeight
+                {
+                    Val = (UInt32Value)(uint)UnitConverter.PointsToTwips(block.RowHeightPt.Value),
+                    HeightType = W.HeightRuleValues.AtLeast
+                }));
+            }
+
             foreach (var field in row)
             {
-                tableRow.AppendChild(CreateCell(field.Label, block.LabelColumnWidthCm, true));
-                tableRow.AppendChild(CreateCell(ResolveFieldValue(field, document, template, context), block.ValueColumnWidthCm, false));
+                var labelFont = field.LabelFont ?? block.LabelFont;
+                tableRow.AppendChild(CreateCell(field.Label, block.LabelColumnWidthCm, labelFont, labelFont is null));
+                tableRow.AppendChild(CreateCell(ResolveFieldValue(field, document, template, context), block.ValueColumnWidthCm, field.ValueFont ?? block.ValueFont, false));
             }
 
             table.AppendChild(tableRow);
@@ -134,10 +152,29 @@ public sealed class PageTemplateRenderer
             new W.Run(CreateDrawing(relationshipId, drawingId, widthEmu, heightEmu)));
     }
 
-    private W.Paragraph CreateTextParagraph(string text, string styleId, TextAlignment alignment, double? before, double? after, FontFormatSpec? font)
+    private W.Paragraph CreateTextParagraph(string text, string styleId, TextAlignment alignment, double? before, double? after, FontFormatSpec? font, ParagraphFormatSpec? paragraph)
     {
         var properties = new W.ParagraphProperties(new W.ParagraphStyleId { Val = styleId });
-        if (before.HasValue || after.HasValue)
+        if (paragraph is not null)
+        {
+            properties.AppendChild(StyleBuilder.CreateSpacing(paragraph));
+            var indentation = new W.Indentation();
+            if (paragraph.FirstLineIndentChars > 0 && font is not null)
+            {
+                indentation.FirstLine = UnitConverter.PointsToTwips(font.SizePt * paragraph.FirstLineIndentChars).ToString();
+            }
+
+            if (paragraph.HangingIndentCm > 0)
+            {
+                indentation.Hanging = UnitConverter.CentimetersToTwips(paragraph.HangingIndentCm).ToString();
+            }
+
+            if (indentation.HasAttributes)
+            {
+                properties.AppendChild(indentation);
+            }
+        }
+        else if (before.HasValue || after.HasValue)
         {
             properties.AppendChild(new W.SpacingBetweenLines
             {
@@ -148,13 +185,7 @@ public sealed class PageTemplateRenderer
 
         properties.AppendChild(new W.Justification { Val = StyleBuilder.ToJustification(alignment) });
 
-        var run = new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
-        if (font is not null)
-        {
-            run.PrependChild(new W.RunProperties(
-                new W.RunFonts { EastAsia = font.EastAsia, Ascii = font.Latin },
-                new W.FontSize { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() }));
-        }
+        var run = CreateRun(text, font);
 
         return new W.Paragraph(properties, run);
     }
@@ -183,18 +214,102 @@ public sealed class PageTemplateRenderer
         return new W.Paragraph(properties, new W.Run(new W.Text(string.Empty)));
     }
 
-    private W.TableCell CreateCell(string text, double widthCm, bool bold)
+    private W.TableCell CreateCell(string text, double widthCm, FontFormatSpec? font, bool bold)
     {
-        var run = new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
-        if (bold)
-        {
-            run.PrependChild(new W.RunProperties(new W.Bold()));
-        }
-
         return new W.TableCell(
             new W.TableCellProperties(new W.TableCellWidth { Type = W.TableWidthUnitValues.Dxa, Width = UnitConverter.CentimetersToTwips(widthCm).ToString() }),
-            new W.Paragraph(new W.ParagraphProperties(new W.ParagraphStyleId { Val = StyleIds.ThesisBody }), run));
+            new W.Paragraph(new W.ParagraphProperties(new W.ParagraphStyleId { Val = StyleIds.ThesisBody }), CreateRun(text, font, bold)));
     }
+
+    private static W.Run CreateRun(string text, FontFormatSpec? font, bool forceBold = false)
+    {
+        var run = new W.Run(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
+        if (font is null && !forceBold)
+        {
+            return run;
+        }
+
+        var properties = new W.RunProperties();
+        if (font is not null)
+        {
+            properties.AppendChild(new W.RunFonts { EastAsia = font.EastAsia, Ascii = font.Latin, HighAnsi = font.Latin, ComplexScript = font.Latin });
+        }
+
+        if (forceBold || font?.Bold == true)
+        {
+            properties.AppendChild(new W.Bold());
+            properties.AppendChild(new W.BoldComplexScript());
+        }
+
+        if (font?.Italic == true)
+        {
+            properties.AppendChild(new W.Italic());
+            properties.AppendChild(new W.ItalicComplexScript());
+        }
+
+        if (font is not null)
+        {
+            properties.AppendChild(new W.FontSize { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() });
+            properties.AppendChild(new W.FontSizeComplexScript { Val = UnitConverter.PointsToHalfPoints(font.SizePt).ToString() });
+        }
+
+        run.PrependChild(properties);
+        return run;
+    }
+
+    private static W.RunProperties EnsureRunProperties(W.Run run)
+    {
+        if (run.RunProperties is not null)
+        {
+            return run.RunProperties;
+        }
+
+        var properties = new W.RunProperties();
+        run.PrependChild(properties);
+        return properties;
+    }
+
+    private static W.Table CreateHandwritingArea(HandwritingAreaLayoutBlock block)
+    {
+        var table = new W.Table(new W.TableProperties(
+            new W.TableWidth { Type = W.TableWidthUnitValues.Pct, Width = "5000" },
+            CreateHandwritingBorders(block)));
+        table.AppendChild(new W.TableGrid(new W.GridColumn { Width = "5000" }));
+        var row = new W.TableRow(new W.TableRowProperties(new W.TableRowHeight
+        {
+            Val = (UInt32Value)(uint)UnitConverter.CentimetersToTwips(block.HeightCm),
+            HeightType = W.HeightRuleValues.AtLeast
+        }));
+        row.AppendChild(new W.TableCell(
+            new W.TableCellProperties(new W.TableCellWidth { Type = W.TableWidthUnitValues.Pct, Width = "5000" }),
+            new W.Paragraph(
+                new W.ParagraphProperties(
+                    new W.ParagraphStyleId { Val = StyleIds.ThesisBody },
+                    new W.Justification { Val = StyleBuilder.ToJustification(block.LabelAlignment) }),
+                new W.Run(new W.Text(block.Label) { Space = SpaceProcessingModeValues.Preserve }))));
+        table.AppendChild(row);
+        return table;
+    }
+
+    private static W.TableBorders CreateHandwritingBorders(HandwritingAreaLayoutBlock block)
+    {
+        var (size, color) = HandwritingBorderValues(block);
+        return new W.TableBorders(
+            new W.TopBorder { Val = W.BorderValues.Single, Size = size, Color = color },
+            new W.LeftBorder { Val = W.BorderValues.Single, Size = size, Color = color },
+            new W.BottomBorder { Val = W.BorderValues.Single, Size = size, Color = color },
+            new W.RightBorder { Val = W.BorderValues.Single, Size = size, Color = color },
+            new W.InsideHorizontalBorder { Val = W.BorderValues.Single, Size = size, Color = color },
+            new W.InsideVerticalBorder { Val = W.BorderValues.Single, Size = size, Color = color });
+    }
+
+    private static (UInt32Value Size, string Color) HandwritingBorderValues(HandwritingAreaLayoutBlock block)
+    {
+        return (
+            (UInt32Value)(uint)Math.Clamp((int)Math.Round(block.BorderThicknessPt * 8), 2, 96),
+            string.IsNullOrWhiteSpace(block.BorderColor) ? "000000" : block.BorderColor);
+    }
+
 
     private string ResolveFieldValue(MetadataFieldLayoutBlock field, ThesisDocument document, TemplatePackageShim template, DocxRenderContext context)
     {
